@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 // Update: Import toggleClaimStatus instead of verifyTeamAction
-import { toggleClaimStatus } from "@/app/dashboard/triage/actions"; 
+import { toggleClaimStatus } from "@/app/actions/triage";
 import { Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
 
 interface TriageActionsProps {

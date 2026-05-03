@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { togglePaymentVerificationAction } from "@/app/dashboard/triage/actions";
+import { togglePaymentVerificationAction } from "@/app/actions/triage";
 import { Loader2, DollarSign, Ban } from "lucide-react";
 
 interface PaymentToggleProps {
