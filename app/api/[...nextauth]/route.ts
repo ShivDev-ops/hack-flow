@@ -1,30 +1,26 @@
-import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
+import NextAuth, { AuthOptions } from "next-auth"; // Add AuthOptions to your import
 import GithubProvider from "next-auth/providers/github";
+import GoogleProvider from "next-auth/providers/google";
 
-export const authOptions = {
+export const authOptions: AuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    }),
     GithubProvider({
       clientId: process.env.GITHUB_CLIENT_ID as string,
       clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
     }),
+    // ... add your other providers here
   ],
   callbacks: {
-    // This connects the NextAuth session to your Supabase RLS later
     async session({ session, token }: any) {
       session.user.id = token.sub;
       return session;
     },
   },
   pages: {
-    signIn: '/login', // We will build that custom Split-Pane login page here
+    signIn: '/login',
   },
   session: {
-    strategy: "jwt",
+    strategy: "jwt", // Now TypeScript knows this is the literal "jwt"
   },
 };
 
