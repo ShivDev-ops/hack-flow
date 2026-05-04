@@ -27,7 +27,6 @@ export async function testSheetConnection(url: string) {
   }
 }
 
-// Removed minMembers from signature
 export async function ingestParticipants(
   eventId: string, 
   url: string, 
@@ -40,7 +39,9 @@ export async function ingestParticipants(
     if (shouldPurge) await purgeEventAction(eventId);
 
     const sheetIdMatch = url.match(/\/d\/(.*?)(\/|$)/);
-    const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetIdMatch![1]}/export?format=csv`);
+    if (!sheetIdMatch) throw new Error("Invalid Google Sheets URL");
+    
+    const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetIdMatch[1]}/export?format=csv`);
     if (!response.ok) throw new Error("Sheet_Inaccessible");
     
     const csvText = await response.text();
@@ -66,9 +67,10 @@ export async function ingestParticipants(
           event_id: eventId,
           team_name: teamName,
           full_name: leaderName || `Unknown_${index}`,
-          registration_no: leaderReg, 
-          email: cols[getIdx('leader_email')] || "N/A",
-          phone_number: cols[getIdx('leader_phone')] || "N/A",
+          // Fallback to random ID to prevent Upsert conflicts on empty Reg fields
+          registration_no: leaderReg || `AUTO-L-${Math.random().toString(36).substring(7).toUpperCase()}`, 
+          email: cols[getIdx('leader_email')] || null,
+          phone_number: cols[getIdx('leader_phone')] || null,
           payment_id: cols[getIdx('payment_id')] || null,
           payment_url: cols[getIdx('payment_url')] || null,
           role: 'leader',
@@ -87,7 +89,7 @@ export async function ingestParticipants(
             event_id: eventId,
             team_name: teamName,
             full_name: mName || "Unnamed Member",
-            registration_no: mReg || `AUTO-${Math.random().toString(36).substring(7).toUpperCase()}`,
+            registration_no: mReg || `AUTO-M-${Math.random().toString(36).substring(7).toUpperCase()}`,
             email: cols[getIdx(`m${i}_email`)] || null,
             phone_number: cols[getIdx(`m${i}_phone`)] || null,
             role: 'member',
@@ -98,7 +100,6 @@ export async function ingestParticipants(
       }
 
       // 3. NO MINIMUM CONSTRAINT
-      // Just push whoever was found in this row into the main array
       if (teamParticipants.length > 0) {
         participants.push(...teamParticipants);
       }
@@ -109,8 +110,14 @@ export async function ingestParticipants(
       p.registration_no && index === self.findIndex((t) => t.registration_no === p.registration_no)
     );
 
-    const { error: insertError } = await supabase.from('hf_participants').insert(uniqueParticipants);
-    if (insertError) throw new Error(insertError.message);
+    // 5. The Upsert Logic (Prevents crashes on repeated syncs)
+    if (uniqueParticipants.length > 0) {
+        const { error: insertError } = await supabase.from('hf_participants').upsert(
+            uniqueParticipants, 
+            { onConflict: 'registration_no' }
+        );
+        if (insertError) throw new Error(insertError.message);
+    }
 
     revalidatePath("/dashboard/triage");
     return { success: true };
