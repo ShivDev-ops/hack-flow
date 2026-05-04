@@ -11,8 +11,14 @@ export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
   const [loading, setLoading] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
-  // Removed min_size from state
-  const [formData, setFormData] = useState({ name: "", url: "", pin: "", max_size: 4 });
+  // Removed pin from state, added start_time and end_time
+  const [formData, setFormData] = useState({ 
+    name: "", 
+    url: "", 
+    max_size: 4,
+    start_time: new Date().toISOString().slice(0, 16),
+    end_time: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16)
+  });
 
   if (!isOpen) return null;
 
@@ -20,8 +26,13 @@ export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
     setLoading(true);
     const sheetRes = await testSheetConnection(formData.url);
     if (sheetRes.success && sheetRes.headers) {
-      // Only passing name, pin, and max_size
-      const eventRes = await createEventAction(formData.name, formData.pin, formData.max_size);
+      // Updated to remove pin and pass start_time and end_time
+      const eventRes = await createEventAction(
+        formData.name, 
+        formData.max_size,
+        new Date(formData.start_time).toISOString(),
+        new Date(formData.end_time).toISOString()
+      );
       if (eventRes.success && eventRes.event) {
         setEventId(eventRes.event.id);
         setHeaders(sheetRes.headers);
@@ -42,23 +53,34 @@ export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
                   <h2 className="text-2xl md:text-3xl font-black text-white uppercase italic tracking-tighter">Telemetry Config</h2>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Configure Fleet Capacity</p>
                 </div>
-                <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={20}/></button>
+                <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors"><X size={20}/></button>
               </header>
               <div className="space-y-4 font-mono">
-                <input className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm text-white" placeholder="EVENT_NAME" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                <input className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm text-white focus:border-emerald-500 outline-none transition-all" placeholder="EVENT_NAME" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                 <div className="relative">
                   <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                  <input className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-5 py-4 text-sm text-white" placeholder="SHEET_URL" value={formData.url} onChange={e => setFormData({...formData, url: e.target.value})} />
+                  <input className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-5 py-4 text-sm text-white focus:border-emerald-500 outline-none transition-all" placeholder="SHEET_URL" value={formData.url} onChange={e => setFormData({...formData, url: e.target.value})} />
                 </div>
-                <input className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-sm text-white" type="password" placeholder="ADMIN_PIN" maxLength={6} value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value})} />
                 
-                {/* Simplified to only ask for Max Capacity */}
-                <div className="space-y-1">
-                  <label className="text-[9px] text-slate-500 font-black uppercase ml-1">Maximum Members Per Team [N]</label>
-                  <input type="number" min="1" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white" value={formData.max_size} onChange={e => setFormData({...formData, max_size: parseInt(e.target.value)})} />
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-slate-500 font-black uppercase ml-1">Maximum Members Per Team [N]</label>
+                    <input type="number" min="1" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-500 outline-none transition-all" value={formData.max_size} onChange={e => setFormData({...formData, max_size: parseInt(e.target.value)})} />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 font-black uppercase ml-1">Start Time</label>
+                      <input type="datetime-local" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-[10px] focus:border-emerald-500 outline-none transition-all" value={formData.start_time} onChange={e => setFormData({...formData, start_time: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] text-slate-500 font-black uppercase ml-1">End Time</label>
+                      <input type="datetime-local" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-[10px] focus:border-emerald-500 outline-none transition-all" value={formData.end_time} onChange={e => setFormData({...formData, end_time: e.target.value})} />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <button onClick={handleConnect} disabled={loading || !formData.name || !formData.url} className="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl text-white font-black uppercase text-xs flex items-center justify-center gap-2 transition-all">
+              <button onClick={handleConnect} disabled={loading || !formData.name || !formData.url} className="w-full bg-emerald-500 hover:bg-emerald-400 py-5 rounded-2xl text-black font-black uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95">
                 {loading ? <Loader2 className="animate-spin" /> : <>Initiate Handshake <ChevronRight /></>}
               </button>
             </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Search, ArrowLeft, Loader2, Rocket, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Search, ArrowLeft, Loader2, Rocket, ShieldCheck, ShieldAlert, Phone } from "lucide-react";
 import Link from "next/link";
 import { NodeDetailsModal } from "@/components/dashboard/node-details-modal";
 import { promoteTeamToLab } from "@/app/actions/labs";
@@ -124,7 +124,15 @@ export default function TriagePage() {
               >
                 <td className="px-6 py-5">
                   <div className="text-white text-sm font-sans font-bold group-hover:text-emerald-400 uppercase tracking-tight">{p.full_name}</div>
-                  <div className="text-[10px] text-emerald-500/70">{p.registration_no}</div>
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <div className="text-[10px] text-emerald-500/70">{p.registration_no}</div>
+                    {p.phone_number && (
+                      <div className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
+                        <Phone size={8} className="text-emerald-500/40" />
+                        {p.phone_number}
+                      </div>
+                    )}
+                  </div>
                 </td>
                 <td className="px-6 py-5 text-slate-400 text-xs uppercase font-black tracking-tighter">{p.team_name}</td>
                 <td className="px-6 py-5">

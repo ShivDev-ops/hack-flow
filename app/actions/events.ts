@@ -7,13 +7,13 @@ import { revalidatePath } from "next/cache";
 
 /**
  * PHASE 1: Create the Event Node
- * Signature updated to accept 3 arguments to fix the TS(2554) error.
- * The pin argument is accepted but ignored as per the new relational schema.
+ * Updated to remove pin and include optional startTime and endTime.
  */
 export async function createEventAction(
   name: string, 
-  pin: string, // Kept to satisfy your frontend caller, but unused in new schema
-  maxSize: number = 4
+  maxSize: number = 4,
+  startTime?: string,
+  endTime?: string
 ) {
   const session = await getServerSession(authOptions);
   
@@ -23,13 +23,16 @@ export async function createEventAction(
 
   const supabase = await createClient();
 
+  // Defaults
+  const finalStartTime = startTime || new Date().toISOString();
+  const finalEndTime = endTime || new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
   const { data, error } = await supabase
     .from('hf_events')
     .insert({
       name: name,
-      start_time: new Date().toISOString(),
-      // Defaulting end_time to 48 hours from now to satisfy the RLS deadline lock
-      end_time: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+      start_time: finalStartTime,
+      end_time: finalEndTime,
       max_members: maxSize,
       column_mapping: {} 
     })
@@ -44,13 +47,12 @@ export async function createEventAction(
 
 /**
  * PHASE 2: Update Settings
- * Fixed TS(2345) by making end_time optional or providing a fallback.
  */
 export async function updateEventSettingsAction(
   eventId: string, 
   settings: {
     start_time: string;
-    end_time?: string; // Made optional to satisfy your formData object
+    end_time: string;
     max_team_size: number; 
     primary_repo_url?: string;
     gateway_endpoint_url?: string;
@@ -58,15 +60,14 @@ export async function updateEventSettingsAction(
 ) {
   const supabase = await createClient();
   
-  // Ensure we have an end_time (fallback to +48h if missing)
-  const finalEndTime = settings.end_time || new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-
   const { error } = await supabase
     .from("hf_events")
     .update({
       start_time: settings.start_time,
-      end_time: finalEndTime,
+      end_time: settings.end_time,
       max_members: settings.max_team_size,
+      primary_repo_url: settings.primary_repo_url,
+      gateway_endpoint_url: settings.gateway_endpoint_url
     })
     .eq("id", eventId);
 

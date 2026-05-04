@@ -5,8 +5,23 @@ import { revalidatePath } from "next/cache";
 
 export async function purgeEventAction(eventId: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from('hf_participants').delete().eq('event_id', eventId);
+  
+  // 1. Delete Team Members (Linked to teams which are linked to event)
+  const { data: teams } = await supabase.from('hf_teams').select('id').eq('event_id', eventId);
+  if (teams && teams.length > 0) {
+    const teamIds = teams.map(t => t.id);
+    await supabase.from('hf_team_members').delete().in('team_id', teamIds);
+    await supabase.from('hf_teams').delete().in('id', teamIds);
+  }
+
+  // 2. Delete Staging Participants
+  await supabase.from('hf_participants').delete().eq('event_id', eventId);
+  
+  // 3. Delete the Event record itself
+  const { error } = await supabase.from('hf_events').delete().eq('id', eventId);
+  
   if (error) return { success: false, error: error.message };
+  
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/triage");
   return { success: true };
@@ -45,34 +60,66 @@ export async function ingestParticipants(
     if (!response.ok) throw new Error("Sheet_Inaccessible");
     
     const csvText = await response.text();
-    const lines = csvText.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const lines = csvText.split(/\r?\n/);
+    
+    // Robust CSV Parser for quoted values
+    const parseCSVLine = (line: string) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result.map(v => v.replace(/^"|"$/g, ''));
+    };
+
+    const headers = parseCSVLine(lines[0]);
     const rows = lines.slice(1); 
-    const getIdx = (key: string) => headers.indexOf(mapping[key]);
+    const getIdx = (key: string) => {
+      const headerName = mapping[key];
+      if (!headerName) return -1;
+      return headers.indexOf(headerName);
+    };
 
     const participants: any[] = [];
 
-    rows.filter(row => row.trim() !== "" && row.includes(',')).forEach((row, index) => {
-      const cols = row.split(',').map(c => c.trim().replace(/"/g, ''));
-      const teamName = cols[getIdx('team_name')] || `UNASSIGNED_${index}`;
+    rows.filter(row => row.trim() !== "").forEach((row, index) => {
+      const cols = parseCSVLine(row);
+      const teamNameIdx = getIdx('team_name');
+      const teamName = teamNameIdx !== -1 ? cols[teamNameIdx] : `UNASSIGNED_${index}`;
       
       const teamParticipants = [];
 
       // 1. Process Leader
-      const leaderName = cols[getIdx('leader_name')];
-      const leaderReg = cols[getIdx('leader_reg')];
+      const lNameIdx = getIdx('leader_name');
+      const lRegIdx = getIdx('leader_reg');
+      const lEmailIdx = getIdx('leader_email');
+      const lPhoneIdx = getIdx('leader_phone');
+      const pIdIdx = getIdx('payment_id');
+      const pUrlIdx = getIdx('payment_url');
+
+      const leaderName = lNameIdx !== -1 ? cols[lNameIdx] : null;
+      const leaderReg = lRegIdx !== -1 ? cols[lRegIdx] : null;
       
       if (leaderName || leaderReg) {
         teamParticipants.push({
           event_id: eventId,
           team_name: teamName,
           full_name: leaderName || `Unknown_${index}`,
-          // Fallback to random ID to prevent Upsert conflicts on empty Reg fields
           registration_no: leaderReg || `AUTO-L-${Math.random().toString(36).substring(7).toUpperCase()}`, 
-          email: cols[getIdx('leader_email')] || null,
-          phone_number: cols[getIdx('leader_phone')] || null,
-          payment_id: cols[getIdx('payment_id')] || null,
-          payment_url: cols[getIdx('payment_url')] || null,
+          email: lEmailIdx !== -1 ? cols[lEmailIdx] : null,
+          phone_number: lPhoneIdx !== -1 ? cols[lPhoneIdx] : null,
+          payment_id: pIdIdx !== -1 ? cols[pIdIdx] : null,
+          payment_url: pUrlIdx !== -1 ? cols[pUrlIdx] : null,
           role: 'leader',
           is_claimed: false,
           payment_verified: false
@@ -81,8 +128,13 @@ export async function ingestParticipants(
 
       // 2. Process Members up to Max N
       for (let i = 2; i <= maxMembers; i++) {
-        const mName = cols[getIdx(`m${i}_name`)];
-        const mReg = cols[getIdx(`m${i}_reg`)];
+        const mNameIdx = getIdx(`m${i}_name`);
+        const mRegIdx = getIdx(`m${i}_reg`);
+        const mEmailIdx = getIdx(`m${i}_email`);
+        const mPhoneIdx = getIdx(`m${i}_phone`);
+
+        const mName = mNameIdx !== -1 ? cols[mNameIdx] : null;
+        const mReg = mRegIdx !== -1 ? cols[mRegIdx] : null;
         
         if (mName || mReg) {
           teamParticipants.push({
@@ -90,8 +142,8 @@ export async function ingestParticipants(
             team_name: teamName,
             full_name: mName || "Unnamed Member",
             registration_no: mReg || `AUTO-M-${Math.random().toString(36).substring(7).toUpperCase()}`,
-            email: cols[getIdx(`m${i}_email`)] || null,
-            phone_number: cols[getIdx(`m${i}_phone`)] || null,
+            email: mEmailIdx !== -1 ? cols[mEmailIdx] : null,
+            phone_number: mPhoneIdx !== -1 ? cols[mPhoneIdx] : null,
             role: 'member',
             is_claimed: false,
             payment_verified: false

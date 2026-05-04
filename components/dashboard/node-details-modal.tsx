@@ -84,13 +84,21 @@ export function NodeDetailsModal({
                   <p className="text-white font-bold text-sm uppercase leading-none tracking-tight">{m.full_name}</p>
                   <span className="text-[8px] font-black text-slate-500 bg-white/5 px-2 py-1 rounded uppercase tracking-tighter group-hover:text-emerald-400 transition-colors">{m.role}</span>
                 </div>
-                <p className="text-[10px] text-emerald-500 font-mono uppercase">{m.registration_no}</p>
+                <div className="flex flex-col gap-1">
+                  <p className="text-[10px] text-emerald-500 font-mono uppercase">{m.registration_no}</p>
+                  {m.phone_number && (
+                    <div className="flex items-center gap-1 text-[9px] text-slate-500 font-mono">
+                      <Phone size={10} className="text-emerald-500/50" />
+                      {m.phone_number}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
 
           {/* COLUMN 2: Financial Telemetry */}
-          <div className="p-8 bg-white/[0.01] lg:col-span-1">
+          <div className="p-8 bg-white/[0.01] lg:col-span-1 overflow-y-auto custom-scrollbar">
              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Financial Verification</h3>
              <div className="space-y-4">
                 <div className="p-6 bg-black border border-white/10 rounded-2xl space-y-2">
@@ -98,15 +106,36 @@ export function NodeDetailsModal({
                    <p className="text-xs text-white font-mono break-all uppercase">{transactionId || "NO_TRANSACTION_ID_FOUND"}</p>
                 </div>
                 {transactionUrl ? (
-                  <a 
-                    href={transactionUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center justify-center p-10 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl group hover:border-emerald-500 transition-all gap-4 shadow-inner"
-                  >
-                    <ExternalLink size={28} className="text-emerald-500 group-hover:scale-110 transition-transform" />
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] text-center">View Payment Screenshot</span>
-                  </a>
+                  <div className="space-y-3">
+                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest ml-1">Payment_Proof</p>
+                    <div className="relative group rounded-2xl overflow-hidden border border-white/10 bg-black">
+                      <img 
+                        src={transactionUrl} 
+                        alt="Payment Screenshot" 
+                        className="w-full h-auto object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                        onError={(e: any) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://placehold.co/600x400/000000/10b981?text=INVALID_IMAGE_URL";
+                        }}
+                      />
+                      <a 
+                        href={transactionUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <ExternalLink size={24} className="text-white" />
+                      </a>
+                    </div>
+                    <a 
+                      href={transactionUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 text-[8px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-400 transition-colors"
+                    >
+                      Open Original <ExternalLink size={10} />
+                    </a>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center p-10 bg-white/5 border border-white/10 rounded-2xl opacity-50 gap-4">
                     <ShieldAlert size={28} className="text-slate-500" />

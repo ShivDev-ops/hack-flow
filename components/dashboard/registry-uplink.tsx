@@ -1,17 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ingestParticipants } from "@/app/actions/ingest";
-import { User, Users, Loader2 } from "lucide-react";
+import { User, Users, Loader2, Sparkles } from "lucide-react";
 
 export function RegistryUplink({ headers, maxMembers, eventId, sheetUrl, onComplete }: any) {
   const [loading, setLoading] = useState(false);
   const [shouldPurge, setShouldPurge] = useState(false);
   const [mapping, setMapping] = useState<any>({ team_name: "" });
 
+  // AI-Powered Auto-Mapping Logic
+  useEffect(() => {
+    if (headers && headers.length > 0) {
+      const newMapping: any = { team_name: "" };
+      
+      const findHeader = (keywords: string[]) => {
+        return headers.find((h: string) => 
+          keywords.some(k => h.toLowerCase().replace(/_/g, ' ').includes(k.toLowerCase()))
+        ) || "";
+      };
+
+      newMapping.team_name = findHeader(["team name", "team", "group name", "group"]);
+      
+      // Leader mapping
+      newMapping.leader_name = findHeader(["leader name", "lead name", "team leader", "lead_name"]);
+      newMapping.leader_reg = findHeader(["leader reg", "registration", "reg no", "roll no", "id"]);
+      newMapping.leader_email = findHeader(["leader email", "lead email", "leader_email"]);
+      newMapping.leader_phone = findHeader(["leader phone", "lead phone", "contact", "mobile"]);
+      
+      newMapping.payment_id = findHeader(["payment id", "transaction id", "payment ref"]);
+      newMapping.payment_url = findHeader(["payment screenshot", "payment url", "screenshot"]);
+
+      // Member mapping based on index
+      for (let i = 2; i <= maxMembers; i++) {
+        newMapping[`m${i}_name`] = findHeader([`member ${i} name`, `m${i} name`, `name ${i}`]);
+        newMapping[`m${i}_reg`] = findHeader([`member ${i} reg`, `m${i} reg`, `reg ${i}`]);
+        newMapping[`m${i}_email`] = findHeader([`member ${i} email`, `m${i} email`, `email ${i}`]);
+        newMapping[`m${i}_phone`] = findHeader([`member ${i} phone`, `m${i} phone`, `phone ${i}`]);
+      }
+
+      setMapping(newMapping);
+    }
+  }, [headers, maxMembers]);
+
   const renderSelect = (key: string, label: string) => (
     <select 
-      className="bg-black border border-white/10 rounded-lg p-3 text-[10px] text-white outline-none w-full appearance-none" 
+      className="bg-black border border-white/10 rounded-lg p-3 text-[10px] text-white outline-none w-full appearance-none focus:border-emerald-500 transition-colors" 
+      value={mapping[key] || ""}
       onChange={e => setMapping({...mapping, [key]: e.target.value})}
     >
       <option value="">-- {label.toUpperCase()} --</option>
@@ -26,7 +61,6 @@ export function RegistryUplink({ headers, maxMembers, eventId, sheetUrl, onCompl
       <div key={key} className="p-4 md:p-5 bg-white/[0.02] border border-white/5 rounded-2xl space-y-3">
         <p className="text-[10px] font-black text-emerald-500 uppercase flex items-center gap-2">
           {isLeader ? <User size={14}/> : <Users size={14}/>} {label} 
-          {/* Only the leader is strictly required to form a team node */}
           {isLeader ? <span className="text-slate-500">(Required)</span> : <span className="text-slate-600">(Optional)</span>}
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -41,7 +75,6 @@ export function RegistryUplink({ headers, maxMembers, eventId, sheetUrl, onCompl
 
   const handleSubmit = async () => {
     setLoading(true);
-    // Removed minMembers from the function call
     const res = await ingestParticipants(eventId, sheetUrl, mapping, shouldPurge, maxMembers);
     if (res.success) onComplete(); else alert("Error: " + res.error);
     setLoading(false);
@@ -49,9 +82,15 @@ export function RegistryUplink({ headers, maxMembers, eventId, sheetUrl, onCompl
 
   return (
     <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-      <header className="space-y-1">
-        <h3 className="text-xl md:text-2xl font-black text-white uppercase italic">Uplink Synchronization</h3>
-        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Map columns to registry</p>
+      <header className="space-y-1 flex justify-between items-start">
+        <div>
+          <h3 className="text-xl md:text-2xl font-black text-white uppercase italic">Uplink Synchronization</h3>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Map columns to registry</p>
+        </div>
+        <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full">
+          <Sparkles size={12} className="text-emerald-500 animate-pulse" />
+          <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">AI Mapping Active</span>
+        </div>
       </header>
       
       {/* Global Team & Transaction Mapping */}
