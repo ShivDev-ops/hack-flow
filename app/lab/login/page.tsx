@@ -54,18 +54,21 @@ export default function LabIdentityGate() {
   };
 
   // Step 2: Validate PIN
+  // Step 2: Validate PIN
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalPin = pin.join(""); // Combine array into string
+    const finalPin = pin.join(""); 
     if (finalPin.length < 4) return;
 
     setLoading(true);
     const res = await verifyMemberAccess(selectedMember, finalPin);
-    if (res.success) {
-      router.push(`/lab/terminal`);
+    
+    if (res.success && res.route) {
+      // THIS IS THE FIX: Use the route provided by the server
+      router.push(res.route); 
     } else {
-      alert(res.error);
-      setPin(["", "", "", ""]); // Reset PIN visually on failure
+      alert(res.error || "Authentication failed");
+      setPin(["", "", "", ""]); 
       inputRefs[0].current?.focus();
     }
     setLoading(false);

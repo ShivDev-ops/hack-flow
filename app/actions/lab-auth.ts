@@ -39,26 +39,48 @@ export async function verifyMemberAccess(memberId: string, pin: string) {
   // Compare entered PIN with hashed value in DB
   const isValid = await bcrypt.compare(pin, member.hashed_pin);
 
- if (isValid) {
-  // Set an HTTP-only cookie for the lab session
-  const cookieStore = await cookies();
-  cookieStore.set("lab_session", JSON.stringify({
-    memberId,
-    teamId: member.team_id,
-    role: member.role
-  }), { 
-    httpOnly: true, 
-    secure: process.env.NODE_ENV === "production", // <-- THIS IS THE FIX
-    maxAge: 60 * 60 * 24 
-  }); 
+  if (isValid) {
+    // 1. Get the Team's Event ID to check the timer
+    const { data: team } = await supabase
+      .from("hf_teams")
+      .select("event_id")
+      .eq("id", member.team_id)
+      .single();
 
-  return { success: true };
-}
+    // 2. Traffic Controller: Check Event Start Time
+    let destinationRoute = "/lab/terminal"; // Default to terminal
+    
+    if (team?.event_id) {
+      const { data: event } = await supabase
+        .from("hf_events")
+        .select("start_time")
+        .eq("id", team.event_id)
+        .single();
+
+      // If the event hasn't started yet, route them to the Lobby instead
+      if (event && new Date() < new Date(event.start_time)) {
+        destinationRoute = "/lab/lobby";
+      }
+    }
+
+    // Set an HTTP-only cookie for the lab session
+    const cookieStore = await cookies();
+    cookieStore.set("lab_session", JSON.stringify({
+      memberId,
+      teamId: member.team_id,
+      role: member.role
+    }), { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === "production", 
+      maxAge: 60 * 60 * 24 
+    }); 
+
+    return { success: true, route: destinationRoute };
+  }
 
   return { success: false, error: "INVALID_PIN: Authentication failed." };
 }
 
-// Add this to the bottom of app/actions/lab-auth.ts
 export async function getLabSession() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("lab_session");
