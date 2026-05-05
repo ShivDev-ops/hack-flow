@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, GitBranch } from "lucide-react";
+import { Loader2, GitBranch } from "lucide-react";
 import { Task, Commit } from "@/types/common";
 
 interface KanbanBoardProps {
