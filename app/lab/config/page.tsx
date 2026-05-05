@@ -180,18 +180,16 @@ export default function LabConfigPage() {
 
                   <div className="space-y-2">
                     <p className="text-[9px] text-secondary font-black uppercase tracking-widest font-label-caps">3. Events</p>
-                    <p className="text-[10px] text-white font-data-mono">Just the <span className="text-secondary">push</span> event.</p>
+                    <p className="text-[10px] text-white font-data-mono">Select the <span className="text-secondary">push</span> event.</p>
                   </div>
                 </div>
 
-                <a 
-                  href="https://github.com/settings/hooks" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-4 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all font-label-caps"
-                >
-                  Open GitHub Settings <ExternalLink size={12} />
-                </a>
+                <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+                  <p className="text-[9px] text-white/40 leading-tight uppercase font-bold">
+                    Note: Navigate to your repository settings on GitHub to add this webhook. 
+                    Path: <span className="text-white">Settings &gt; Webhooks &gt; Add Webhook</span>
+                  </p>
+                </div>
              </div>
 
              <div className="glass-panel rim-light rounded-[2rem] p-8 space-y-4">
