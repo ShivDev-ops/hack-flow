@@ -32,9 +32,12 @@ export default function ParticipantLanding() {
               <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
               <span className="font-mono font-bold tracking-tighter text-lg sm:text-xl uppercase italic">Hack-Flow <span className="text-emerald-500 text-sm">Lab</span></span>
             </div>
-            <Link href="/lab/login" className="px-5 py-2 text-xs font-mono border border-emerald-500/50 text-emerald-500 rounded-full hover:bg-emerald-500/10 transition-all flex items-center gap-2">
+            <a 
+              href="/lab/login" 
+              className="px-5 py-2 text-xs font-mono border border-emerald-500/50 text-emerald-500 rounded-full hover:bg-emerald-500/10 transition-all flex items-center gap-2"
+            >
               Access Node <ChevronRight size={14} />
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -60,9 +63,12 @@ export default function ParticipantLanding() {
             </motion.p>
 
             <motion.div {...animProps} className="pt-8 flex justify-center">
-              <Link href="/lab/login" className="group px-8 py-4 bg-emerald-500 text-black font-bold text-sm uppercase tracking-widest rounded-lg flex items-center gap-3 hover:bg-emerald-400 hover:scale-105 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+              <a 
+                href="/lab/login" 
+                className="group px-8 py-4 bg-emerald-500 text-black font-bold text-sm uppercase tracking-widest rounded-lg flex items-center gap-3 hover:bg-emerald-400 hover:scale-105 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+              >
                 Initialize Connection <Rocket size={18} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
+              </a>
             </motion.div>
           </div>
         </section>

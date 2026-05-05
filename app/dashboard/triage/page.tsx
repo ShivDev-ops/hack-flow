@@ -28,7 +28,10 @@ export default function TriagePage() {
     setAllParticipants(pData || []);
     setEventData(eData);
 
-    const uniqueTeams = pData?.reduce((acc: any[], current: any) => {
+    // Only show teams where participants are NOT claimed yet
+    const unclaimedParticipants = pData?.filter(p => !p.is_claimed) || [];
+
+    const uniqueTeams = unclaimedParticipants.reduce((acc: any[], current: any) => {
       if (!acc.find(item => item.team_name === current.team_name)) acc.push(current);
       return acc;
     }, []);

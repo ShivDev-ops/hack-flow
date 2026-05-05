@@ -47,18 +47,22 @@ export async function verifyMemberAccess(memberId: string, pin: string) {
       .eq("id", member.team_id)
       .single();
 
-    // 2. Traffic Controller: Check Event Start Time
+    // 2. Traffic Controller: Check Event Status
     let destinationRoute = "/lab/terminal"; // Default to terminal
     
     if (team?.event_id) {
       const { data: event } = await supabase
         .from("hf_events")
-        .select("start_time")
+        .select("start_time, end_time, is_active")
         .eq("id", team.event_id)
         .single();
 
-      // If the event hasn't started yet, route them to the Lobby instead
-      if (event && new Date() < new Date(event.start_time)) {
+      const now = new Date();
+      const startTime = event?.start_time ? new Date(event.start_time) : now;
+      const endTime = event?.end_time ? new Date(event.end_time) : new Date(now.getTime() + 86400000);
+      
+      // Strict window: Must be active AND between start and end times
+      if (!event?.is_active || now < startTime || now > endTime) {
         destinationRoute = "/lab/lobby";
       }
     }
@@ -81,6 +85,31 @@ export async function verifyMemberAccess(memberId: string, pin: string) {
   return { success: false, error: "INVALID_PIN: Authentication failed." };
 }
 
+export async function getEventDetailsForSession() {
+  const session = await getLabSession();
+  if (!session?.teamId) return null;
+
+  const supabase = await createClient();
+
+  // 1. Get the Event ID from the team
+  const { data: team } = await supabase
+    .from("hf_teams")
+    .select("event_id")
+    .eq("id", session.teamId)
+    .single();
+
+  if (!team?.event_id) return null;
+
+  // 2. Fetch the Event details
+  const { data: event } = await supabase
+    .from("hf_events")
+    .select("id, name, start_time, end_time, is_active")
+    .eq("id", team.event_id)
+    .single();
+
+  return event;
+}
+
 export async function getLabSession() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("lab_session");
@@ -92,4 +121,9 @@ export async function getLabSession() {
   } catch (error) {
     return null;
   }
+}
+
+export async function destroyLabSession() {
+  const cookieStore = await cookies();
+  cookieStore.delete("lab_session");
 }

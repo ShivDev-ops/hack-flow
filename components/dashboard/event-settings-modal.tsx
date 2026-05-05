@@ -7,13 +7,12 @@ import { updateEventSettingsAction } from "@/app/actions/events";
 export function EventSettingsModal({ event, isOpen, onClose }: { event: any, isOpen: boolean, onClose: () => void }) {
   const [loading, setLoading] = useState(false);
 
-  // 1. STATE INITIALIZATION: Add max_team_size, start_time, and end_time
+  // 1. STATE INITIALIZATION: Add max_team_size, start_time, end_time, and is_active
   const [formData, setFormData] = useState({
     start_time: event.start_time ? new Date(event.start_time).toISOString().slice(0, 16) : "",
     end_time: event.end_time ? new Date(event.end_time).toISOString().slice(0, 16) : "",
-    primary_repo_url: event.primary_repo_url || "",
-    gateway_endpoint_url: event.gateway_endpoint_url || "",
     max_team_size: event.max_members || 4, 
+    is_active: event.is_active ?? true,
   });
 
   if (!isOpen) return null;
@@ -22,9 +21,10 @@ export function EventSettingsModal({ event, isOpen, onClose }: { event: any, isO
   const handleSave = async () => {
     setLoading(true);
     const res = await updateEventSettingsAction(event.id, {
-        ...formData,
         start_time: new Date(formData.start_time).toISOString(),
-        end_time: new Date(formData.end_time).toISOString()
+        end_time: new Date(formData.end_time).toISOString(),
+        max_team_size: formData.max_team_size,
+        is_active: formData.is_active
     }); 
     if (res.success) {
       onClose();
@@ -42,7 +42,7 @@ export function EventSettingsModal({ event, isOpen, onClose }: { event: any, isO
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-white/5 bg-white/[0.02]">
           <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+            <div className={`w-1.5 h-1.5 rounded-full ${formData.is_active ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`} />
             Telemetry_Config // {event.name}
           </span>
           <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
@@ -94,33 +94,25 @@ export function EventSettingsModal({ event, isOpen, onClose }: { event: any, isO
                 />
               </div>
             </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">Primary GitHub Node</label>
-              <div className="relative">
-                <Code className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
-                <input 
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:border-emerald-500 outline-none font-mono transition-all"
-                  placeholder="github.com/your-org/repo"
-                  value={formData.primary_repo_url}
-                  onChange={(e) => setFormData({...formData, primary_repo_url: e.target.value})}
-                />
-              </div>
-            </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">API Gateway Entry</label>
-              <div className="relative">
-                <Globe className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={14} />
-                <input 
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs text-white focus:border-emerald-500 outline-none font-mono transition-all"
-                  placeholder="https://api.yourdomain.com"
-                  value={formData.gateway_endpoint_url}
-                  onChange={(e) => setFormData({...formData, gateway_endpoint_url: e.target.value})}
-                />
-              </div>
+              <label className="text-[9px] font-bold text-slate-500 uppercase ml-1">System Status</label>
+              <button 
+                onClick={() => setFormData({...formData, is_active: !formData.is_active})}
+                className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${
+                  formData.is_active 
+                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
+                  : 'bg-red-500/10 border-red-500/20 text-red-500'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${formData.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">{formData.is_active ? 'Live' : 'Offline'}</span>
+                </div>
+                <div className={`w-10 h-5 rounded-full relative transition-colors ${formData.is_active ? 'bg-emerald-500' : 'bg-zinc-800'}`}>
+                  <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${formData.is_active ? 'right-1' : 'left-1'}`} />
+                </div>
+              </button>
             </div>
           </div>
 

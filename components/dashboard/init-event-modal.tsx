@@ -6,18 +6,25 @@ import { createEventAction } from "@/app/actions/events";
 import { testSheetConnection } from "@/app/actions/ingest";
 import { RegistryUplink } from "./registry-uplink";
 
+// HELPER: Accurately converts a Date to a local datetime-local string (YYYY-MM-DDThh:mm)
+const getLocalISOString = (date: Date) => {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+
 export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [eventId, setEventId] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
-  // Removed pin from state, added start_time and end_time
+  
+  // FIX: Properly initialize with Local time, not UTC.
   const [formData, setFormData] = useState({ 
     name: "", 
     url: "", 
     max_size: 4,
-    start_time: new Date().toISOString().slice(0, 16),
-    end_time: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().slice(0, 16)
+    start_time: getLocalISOString(new Date()),
+    end_time: getLocalISOString(new Date(Date.now() + 48 * 60 * 60 * 1000))
   });
 
   if (!isOpen) return null;
@@ -26,19 +33,26 @@ export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
     setLoading(true);
     const sheetRes = await testSheetConnection(formData.url);
     if (sheetRes.success && sheetRes.headers) {
-      // Updated to remove pin and pass start_time and end_time
+      
+      // The new Date(string).toISOString() will now correctly convert the 
+      // strictly-local time string back into an absolute UTC timestamp for Supabase.
       const eventRes = await createEventAction(
         formData.name, 
         formData.max_size,
         new Date(formData.start_time).toISOString(),
         new Date(formData.end_time).toISOString()
       );
+      
       if (eventRes.success && eventRes.event) {
         setEventId(eventRes.event.id);
         setHeaders(sheetRes.headers);
         setStep(2);
-      } else alert(eventRes.error);
-    } else alert(sheetRes.error);
+      } else {
+        alert(eventRes.error);
+      }
+    } else {
+      alert(sheetRes.error);
+    }
     setLoading(false);
   };
 

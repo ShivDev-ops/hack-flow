@@ -28,8 +28,7 @@ export async function updateTaskStatus(
 
   // 2. PREPARE UPDATE PAYLOAD
   const updateData: any = { 
-    status: newStatus, 
-    updated_at: new Date().toISOString() 
+    status: newStatus 
   };
 
   // 3. ATTACH GIT SIGNATURE (If task is moving to Review)

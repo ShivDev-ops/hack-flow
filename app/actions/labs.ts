@@ -1,52 +1,60 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
 
 export async function promoteTeamToLab(teamName: string, eventId: string, participants: any[]) {
   const supabase = await createClient();
 
-  // 1. Generate unique Team ID & 4-digit PIN
-  const teamId = `TEAM-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-  const rawPin = Math.floor(1000 + Math.random() * 9000).toString();
-  const hashedPin = await bcrypt.hash(rawPin, 10);
+  try {
+    const readableId = `TEAM-${Math.floor(1000 + Math.random() * 9000)}`;
+    const rawPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const hashedPin = await bcrypt.hash(rawPin, 10);
 
-  // 2. Create the Official Team Record
-  const { data: team, error: teamError } = await supabase
-    .from("hf_teams")
-    .insert({ 
-      name: teamName, 
-      event_id: eventId,
-      readable_id: teamId // Store the unique ID here
-    })
-    .select()
-    .single();
+    const { data: team, error: teamError } = await supabase
+      .from("hf_teams")
+      .insert({
+        name: teamName,
+        readable_id: readableId,
+        event_id: eventId 
+      })
+      .select("id")
+      .single();
 
-  if (teamError) return { success: false, error: teamError.message };
+    if (teamError || !team) throw new Error(teamError.message);
 
-  // 3. Create Team Members (All share the same Team PIN)
-  const memberRecords = participants.map((p) => ({
-    team_id: team.id,
-    user_id: p.claimed_by_id || null, // Link to university account if claimed
-    role: p.role === 'leader' ? 'LEAD' : 'MEMBER',
-    hashed_pin: hashedPin,
-    is_verified: true
-  }));
+    const membersToInsert = participants.map(p => {
+      const rawRole = p.role ? String(p.role).trim().toUpperCase() : "";
+      const exactRole = (rawRole === 'LEADER' || rawRole === 'LEAD') ? 'LEAD' : 'MEMBER';
 
-  const { error: memberError } = await supabase.from("hf_team_members").insert(memberRecords);
-  
-  if (memberError) return { success: false, error: memberError.message };
+      return {
+        team_id: team.id,
+        user_id: null, 
+        role: exactRole,
+        hashed_pin: hashedPin
+      };
+    });
 
-  // 4. Cleanup Staging Data
-  await supabase.from("hf_participants").delete().eq("team_name", teamName).eq("event_id", eventId);
+    const { error: memberError } = await supabase
+      .from("hf_team_members")
+      .insert(membersToInsert);
 
-  revalidatePath("/dashboard/triage");
-  
-  // Return both the ID and the PIN to the Organizer UI
-  return { 
-    success: true, 
-    teamId: teamId,
-    pin: rawPin 
-  };
+    if (memberError) throw new Error(memberError.message);
+
+    const participantIds = participants.map(p => p.id);
+    const { error: updateError } = await supabase
+      .from("hf_participants")
+      .update({ is_claimed: true })
+      .in("id", participantIds);
+
+    if (updateError) throw new Error("Participant Update Failed: " + updateError.message);
+
+    revalidatePath("/dashboard/triage");
+
+    return { success: true, teamId: readableId, pin: rawPin };
+    
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }

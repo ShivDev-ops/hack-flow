@@ -54,8 +54,7 @@ export async function updateEventSettingsAction(
     start_time: string;
     end_time: string;
     max_team_size: number; 
-    primary_repo_url?: string;
-    gateway_endpoint_url?: string;
+    is_active: boolean;
   }
 ) {
   const supabase = await createClient();
@@ -66,8 +65,7 @@ export async function updateEventSettingsAction(
       start_time: settings.start_time,
       end_time: settings.end_time,
       max_members: settings.max_team_size,
-      primary_repo_url: settings.primary_repo_url,
-      gateway_endpoint_url: settings.gateway_endpoint_url
+      is_active: settings.is_active
     })
     .eq("id", eventId);
 
