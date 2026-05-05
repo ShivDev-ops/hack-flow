@@ -31,6 +31,18 @@ export function NodeDetailsModal({
   const transactionId = teamMembers[0].payment_id;
   const transactionUrl = teamMembers[0].payment_url;
 
+  // Utility to convert Google Drive share links to direct image URLs
+  const getDirectDriveUrl = (url: string | null) => {
+    if (!url) return "";
+    const driveMatch = url.match(/(?:\/d\/|id=)([\w-]+)/);
+    if (driveMatch && url.includes("drive.google.com")) {
+      return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1000`;
+    }
+    return url;
+  };
+
+  const previewUrl = getDirectDriveUrl(transactionUrl);
+
   const handleAddMember = async () => {
     if (!event) return;
     setLoading(true);
@@ -124,7 +136,7 @@ export function NodeDetailsModal({
                     <p className="text-[9px] text-white/20 font-black uppercase tracking-widest ml-1 font-label-caps">Payment_Proof_Capture</p>
                     <div className="relative group rounded-3xl overflow-hidden border border-white/10 bg-black">
                       <Image 
-                        src={transactionUrl} 
+                        src={previewUrl} 
                         alt="Payment Screenshot" 
                         width={600}
                         height={400}
