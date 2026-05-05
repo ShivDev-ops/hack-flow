@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ingestParticipants } from "@/app/actions/ingest";
-import { User, Users, Loader2, Sparkles, Zap, Archive } from "lucide-react";
+import { User, Users, Loader2, Zap, Archive } from "lucide-react";
 
 interface RegistryUplinkProps {
   headers: string[];
@@ -17,52 +17,24 @@ export function RegistryUplink({ headers, maxMembers, eventId, sheetUrl, onCompl
   const [shouldPurge, setShouldPurge] = useState(false);
   const [mapping, setMapping] = useState<Record<string, string>>({ team_name: "" });
 
-  // AI-Powered Auto-Mapping Logic
-  useEffect(() => {
-    if (headers && headers.length > 0) {
-      const newMapping: Record<string, string> = { team_name: "" };
-      
-      const findHeader = (keywords: string[]) => {
-        return headers.find((h: string) => 
-          keywords.some(k => h.toLowerCase().replace(/_/g, ' ').includes(k.toLowerCase()))
-        ) || "";
-      };
-
-      newMapping.team_name = findHeader(["team name", "team", "group name", "group"]);
-      
-      // Leader mapping
-      newMapping.leader_name = findHeader(["leader name", "lead name", "team leader", "lead_name"]);
-      newMapping.leader_reg = findHeader(["leader reg", "registration", "reg no", "roll no", "id"]);
-      newMapping.leader_email = findHeader(["leader email", "lead email", "leader_email"]);
-      newMapping.leader_phone = findHeader(["leader phone", "lead phone", "contact", "mobile"]);
-      
-      newMapping.payment_id = findHeader(["payment id", "transaction id", "payment ref"]);
-      newMapping.payment_url = findHeader(["payment screenshot", "payment url", "screenshot"]);
-
-      // Member mapping based on index
-      for (let i = 2; i <= maxMembers; i++) {
-        newMapping[`m${i}_name`] = findHeader([`member ${i} name`, `m${i} name`, `name ${i}`]);
-        newMapping[`m${i}_reg`] = findHeader([`member ${i} reg`, `m${i} reg`, `reg ${i}`]);
-        newMapping[`m${i}_email`] = findHeader([`member ${i} email`, `m${i} email`, `email ${i}`]);
-        newMapping[`m${i}_phone`] = findHeader([`member ${i} phone`, `m${i} phone`, `phone ${i}`]);
-      }
-
-      // Use a microtask to avoid synchronous setState during render/effect
-      Promise.resolve().then(() => {
-        setMapping(newMapping);
-      });
-    }
-  }, [headers, maxMembers]);
-
   const renderSelect = (key: string, label: string) => (
-    <select 
-      className="bg-black/40 border border-white/10 rounded-xl p-4 text-[10px] text-white outline-none w-full appearance-none focus:border-secondary/50 transition-all font-data-mono hover:border-white/20" 
-      value={mapping[key] || ""}
-      onChange={e => setMapping({...mapping, [key]: e.target.value})}
-    >
-      <option value="" className="bg-zinc-900 text-white/40">-- {label.toUpperCase()} --</option>
-      {headers.map((h: string) => <option key={h} value={h} className="bg-zinc-900 text-white">{h}</option>)}
-    </select>
+    <div className="space-y-2 w-full">
+      <label className="text-[9px] font-bold text-white/40 uppercase tracking-[0.2em] ml-1 font-label-caps block">
+        {label}
+      </label>
+      <select 
+        className="bg-black/40 border border-white/10 rounded-xl p-4 text-[10px] text-white outline-none w-full appearance-none focus:border-secondary/50 transition-all font-data-mono hover:border-white/20" 
+        value={mapping[key] || ""}
+        onChange={e => setMapping({...mapping, [key]: e.target.value})}
+      >
+        <option value="" className="bg-zinc-900 text-white/40">Select Source Column</option>
+        {headers.filter(h => h.trim() !== "").map((h: string, idx: number) => (
+          <option key={`${h}-${idx}`} value={h} className="bg-zinc-900 text-white">
+            {h}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 
   const renderMemberMapping = (index: number, isLeader: boolean) => {
@@ -101,10 +73,6 @@ export function RegistryUplink({ headers, maxMembers, eventId, sheetUrl, onCompl
           </div>
           <h3 className="text-2xl md:text-3xl font-black text-white uppercase italic tracking-tighter leading-none">Uplink Synchronization</h3>
           <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.3em] mt-3 font-label-caps">Map Source_Columns to Fleet_Registry</p>
-        </div>
-        <div className="flex items-center gap-2 bg-secondary/10 border border-secondary/20 px-4 py-2 rounded-full shadow-[0_0_15px_rgba(78,222,163,0.1)]">
-          <Sparkles size={12} className="text-secondary animate-pulse" />
-          <span className="text-[8px] font-black text-secondary uppercase tracking-[0.2em] font-label-caps">AI_Mapping_Active</span>
         </div>
       </header>
       
