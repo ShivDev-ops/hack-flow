@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getLabSession } from "@/app/actions/lab-auth";
 import { updateTaskStatus } from "@/app/actions/kanban";
 import { Task } from "@/types/common";
-import { Loader2 } from "lucide-react";
+import { Loader2, Zap, Shield, CheckCircle2 } from "lucide-react";
 
 export default function ConfigSysPage() {
   const [tasks, setTasks] = useState<Task[]>([]);

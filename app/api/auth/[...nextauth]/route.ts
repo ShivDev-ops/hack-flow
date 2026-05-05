@@ -16,6 +16,7 @@ export const authOptions: AuthOptions = {
       tenantId: "common", // Required for university multitenancy
     }),
   ],
+  trustHost: true,
   session: {
     strategy: "jwt",
   },
