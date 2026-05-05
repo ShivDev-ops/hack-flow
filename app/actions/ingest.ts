@@ -1,11 +1,12 @@
 "use server";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Participant } from "@/types/common";
 
 export async function purgeEventAction(eventId: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   
   // 1. Delete Team Members (Linked to teams which are linked to event)
   const { data: teams } = await supabase.from('hf_teams').select('id').eq('event_id', eventId);
@@ -50,7 +51,7 @@ export async function ingestParticipants(
   shouldPurge: boolean,
   maxMembers: number
 ) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   try {
     if (shouldPurge) await purgeEventAction(eventId);
 
@@ -198,4 +199,39 @@ export async function addManualParticipantAction(eventId: string, data: Record<s
   if (error) return { success: false, error: error.code === '23505' ? "Conflict: ID already exists." : error.message };
   revalidatePath("/dashboard/triage");
   return { success: true };
+}
+
+export async function syncEventAction(eventId: string) {
+  const supabase = await createAdminClient();
+  
+  try {
+    const { data: event, error: eventError } = await supabase
+      .from('hf_events')
+      .select('*')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError || !event) throw new Error("Event_Not_Found");
+
+    const mapping = event.column_mapping as Record<string, string>;
+    const sheetUrl = mapping?.['__sheet_url'];
+
+    if (!sheetUrl) throw new Error("No_Sheet_Uplink_Configured");
+
+    // Remove internal key
+    const cleanMapping = { ...mapping };
+    delete cleanMapping['__sheet_url'];
+
+    const res = await ingestParticipants(
+      eventId, 
+      sheetUrl, 
+      cleanMapping, 
+      false, 
+      event.max_members
+    );
+
+    return res;
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
 }

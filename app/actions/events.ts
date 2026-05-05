@@ -13,7 +13,8 @@ export async function createEventAction(
   name: string, 
   maxSize: number = 4,
   startTime?: string,
-  endTime?: string
+  endTime?: string,
+  sheetUrl?: string
 ) {
   const session = await getServerSession(authOptions);
   
@@ -34,7 +35,7 @@ export async function createEventAction(
       start_time: finalStartTime,
       end_time: finalEndTime,
       max_members: maxSize,
-      column_mapping: {} 
+      column_mapping: sheetUrl ? { '__sheet_url': sheetUrl } : {} 
     })
     .select()
     .single();
@@ -74,11 +75,18 @@ export async function updateEventSettingsAction(
   return { success: true };
 }
 
-export async function updateEventMapping(eventId: string, mapping: Record<string, string>) {
+export async function updateEventMapping(eventId: string, mapping: Record<string, string>, sheetUrl?: string) {
   const supabase = await createClient();
+  
+  // Store the sheet URL inside the mapping object with a reserved key for zero-step background sync
+  const finalMapping = { ...mapping };
+  if (sheetUrl) {
+    finalMapping['__sheet_url'] = sheetUrl;
+  }
+
   const { error } = await supabase
     .from('hf_events')
-    .update({ column_mapping: mapping })
+    .update({ column_mapping: finalMapping })
     .eq('id', eventId);
 
   if (error) return { success: false, error: error.message };

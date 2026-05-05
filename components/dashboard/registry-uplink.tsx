@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ingestParticipants } from "@/app/actions/ingest";
+import { updateEventMapping } from "@/app/actions/events";
 import { User, Users, Loader2, Zap, Archive } from "lucide-react";
 
 interface RegistryUplinkProps {
@@ -58,6 +59,10 @@ export function RegistryUplink({ headers, maxMembers, eventId, sheetUrl, onCompl
 
   const handleSubmit = async () => {
     setLoading(true);
+    
+    // Save mapping to the event record for future background syncs
+    await updateEventMapping(eventId, mapping, sheetUrl);
+
     const res = await ingestParticipants(eventId, sheetUrl, mapping, shouldPurge, maxMembers);
     if (res.success) onComplete(); else alert("Error: " + res.error);
     setLoading(false);

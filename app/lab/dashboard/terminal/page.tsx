@@ -48,33 +48,15 @@ export default function TerminalPage() {
         setSession(sessionData);
 
         const activeTeamId = sessionData.teamId;
-        if (!activeTeamId) return;
+        if (!activeTeamId) {
+          setLoading(false);
+          return;
+        }
 
         const { data: teamData } = await supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single();
         if (teamData) setEventId(teamData.event_id);
 
         await fetchData(activeTeamId);
-
-        // REAL-TIME UPLINK: Listen for new commits and task updates
-        const channel = supabase
-          .channel(`team-${activeTeamId}`)
-          .on(
-            'postgres_changes', 
-            { event: 'INSERT', schema: 'public', table: 'repository_commits', filter: `team_id=eq.${activeTeamId}` },
-            () => fetchData(activeTeamId)
-          )
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'hf_tasks', filter: `team_id=eq.${activeTeamId}` },
-            () => fetchData(activeTeamId)
-          )
-          .subscribe((status) => {
-            setChannelStatus(status === 'SUBSCRIBED' ? 'ONLINE' : 'ERROR');
-          });
-
-        return () => {
-          supabase.removeChannel(channel);
-        };
       } catch (error) {
         console.error("Terminal initialization failed:", error);
       } finally {
@@ -84,6 +66,33 @@ export default function TerminalPage() {
 
     init();
   }, [supabase, fetchData]);
+
+  useEffect(() => {
+    if (!session?.teamId) return;
+
+    const activeTeamId = session.teamId;
+
+    // REAL-TIME UPLINK: Listen for new commits and task updates
+    const channel = supabase
+      .channel(`team-${activeTeamId}`)
+      .on(
+        'postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'repository_commits', filter: `team_id=eq.${activeTeamId}` },
+        () => fetchData(activeTeamId)
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hf_tasks', filter: `team_id=eq.${activeTeamId}` },
+        () => fetchData(activeTeamId)
+      )
+      .subscribe((status) => {
+        setChannelStatus(status === 'SUBSCRIBED' ? 'ONLINE' : 'ERROR');
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, session?.teamId, fetchData]);
 
   const handleMoveTask = async (taskId: string, newStatus: string) => {
     setUpdatingId(taskId);

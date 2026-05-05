@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Users, Radio, Trash2, Settings, AlertTriangle, LayoutDashboard, Eye, Box, Loader2, Clock } from "lucide-react";
-import { purgeEventAction } from "@/app/actions/ingest";
+import { Users, Radio, Trash2, Settings, AlertTriangle, LayoutDashboard, Eye, Box, Loader2, Clock, RefreshCw } from "lucide-react";
+import { purgeEventAction, syncEventAction } from "@/app/actions/ingest";
 import { EventSettingsModal } from "./event-settings-modal";
 
 import { Event } from "@/types/common";
@@ -13,6 +13,7 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
   const [isPurgingActive, setIsPurgingActive] = useState(false);
   const [purgeInput, setPurgeInput] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -22,6 +23,19 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleSync = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsSyncing(true);
+    const res = await syncEventAction(event.id);
+    if (res.success) {
+      window.location.reload();
+    } else {
+      alert("Sync failed: " + res.error);
+    }
+    setIsSyncing(false);
   };
 
   const handlePurge = async () => {
@@ -78,11 +92,21 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-[8px] mt-auto">
-            <Link href="/dashboard/triage" className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><LayoutDashboard size={14}/> Triage</Link>
-            <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Settings size={14}/> Config</button>
-            <Link href={`/dashboard/event/${event.id}`} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Eye size={14}/> View</Link>
-            <button onClick={() => setIsPurging(true)} className="flex items-center justify-center gap-[8px] bg-red-500/10 py-[12px] rounded-xl text-[10px] font-black text-red-500 uppercase hover:bg-red-500/20 border border-red-500/20 transition-all"><Trash2 size={14}/> Purge</button>
+          <div className="flex flex-col gap-[8px] mt-auto">
+            <div className="grid grid-cols-2 gap-[8px]">
+              <Link href="/dashboard/triage" className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><LayoutDashboard size={14}/> Triage</Link>
+              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Settings size={14}/> Config</button>
+              <Link href={`/dashboard/event/${event.id}`} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Eye size={14}/> View</Link>
+              <button onClick={() => setIsPurging(true)} className="flex items-center justify-center gap-[8px] bg-red-500/10 py-[12px] rounded-xl text-[10px] font-black text-red-500 uppercase hover:bg-red-500/20 border border-red-500/20 transition-all"><Trash2 size={14}/> Purge</button>
+            </div>
+            <button 
+              onClick={handleSync}
+              disabled={isSyncing}
+              className="flex items-center justify-center gap-[8px] bg-white text-black py-[14px] rounded-xl text-[10px] font-black uppercase hover:bg-zinc-200 transition-all disabled:opacity-50"
+            >
+              {isSyncing ? <Loader2 className="animate-spin" size={14}/> : <RefreshCw size={14}/>}
+              {isSyncing ? "Syncing..." : "Sync Registry"}
+            </button>
           </div>
         </div>
       </div>

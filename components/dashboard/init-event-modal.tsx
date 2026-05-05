@@ -44,7 +44,8 @@ export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
         formData.name, 
         formData.max_size,
         new Date(formData.start_time).toISOString(),
-        new Date(formData.end_time).toISOString()
+        new Date(formData.end_time).toISOString(),
+        formData.url
       );
       
       if (eventRes.success && eventRes.event) {

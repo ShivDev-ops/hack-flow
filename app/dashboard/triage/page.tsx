@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Search, ArrowLeft, Loader2, Rocket, ShieldCheck, ShieldAlert, Phone } from "lucide-react";
+import { Search, ArrowLeft, Loader2, Rocket, ShieldCheck, ShieldAlert, Phone, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { NodeDetailsModal } from "@/components/dashboard/node-details-modal";
 import { promoteTeamToLab } from "@/app/actions/labs";
+import { syncEventAction } from "@/app/actions/ingest";
 import { Participant, Event } from "@/types/common";
 
 export default function TriagePage() {
@@ -17,6 +18,7 @@ export default function TriagePage() {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLaunching, setIsLaunching] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const supabase = useMemo(() => createClient(), []);
 
@@ -46,6 +48,18 @@ export default function TriagePage() {
     };
     init();
   }, [fetchData]);
+
+  const handleSync = async () => {
+    if (!eventData) return;
+    setIsSyncing(true);
+    const res = await syncEventAction(eventData.id);
+    if (res.success) {
+      await fetchData();
+    } else {
+      alert("SYNC_ERROR: " + res.error);
+    }
+    setIsSyncing(false);
+  };
 
   const handleToggleVerification = async (p: Participant) => {
     if (p.payment_verified && !window.confirm("CONFIRM_DE_AUTH: Are you sure you want to UNVERIFY this node?")) return;
@@ -99,17 +113,28 @@ export default function TriagePage() {
           </h1>
         </div>
         
-        <div className="relative w-full md:w-96 group">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-secondary transition-colors">
-            <Search size={16} />
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="relative flex-1 md:w-96 group">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-secondary transition-colors">
+              <Search size={16} />
+            </div>
+            <input 
+              type="text"
+              placeholder="SEARCH_FLEET_NODES..."
+              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-[11px] text-white font-data-mono focus:border-secondary/50 outline-none transition-all shadow-inner group-hover:border-white/20"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-          <input 
-            type="text"
-            placeholder="SEARCH_FLEET_NODES..."
-            className="w-full bg-white/[0.02] border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-[11px] text-white font-data-mono focus:border-secondary/50 outline-none transition-all shadow-inner group-hover:border-white/20"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+
+          <button 
+            onClick={handleSync}
+            disabled={isSyncing || loading}
+            className="flex items-center gap-2 px-6 py-4 bg-white/[0.02] border border-white/10 rounded-2xl text-[10px] font-black text-white uppercase tracking-[0.2em] font-label-caps hover:bg-secondary hover:text-black hover:border-secondary transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+          >
+            <RefreshCw size={14} className={isSyncing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"} />
+            {isSyncing ? "Syncing..." : "Sync_Registry"}
+          </button>
         </div>
       </header>
 
