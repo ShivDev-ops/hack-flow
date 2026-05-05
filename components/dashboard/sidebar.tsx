@@ -4,7 +4,6 @@ import {
   Terminal, 
   FileText, 
   Settings, 
-  ChevronUp, 
   LifeBuoy, 
   History 
 } from "lucide-react";

@@ -74,7 +74,7 @@ export async function updateEventSettingsAction(
   return { success: true };
 }
 
-export async function updateEventMapping(eventId: string, mapping: any) {
+export async function updateEventMapping(eventId: string, mapping: Record<string, string>) {
   const supabase = await createClient();
   const { error } = await supabase
     .from('hf_events')

@@ -17,7 +17,7 @@ export async function getTeamByReadableId(readableId: string) {
   if (error || !team) return { success: false, error: "INVALID_TEAM_ID: Node not found in registry." };
 
   // Fetch the roster for this team
-  const { data: members, error: memberError } = await supabase
+  const { data: members } = await supabase
     .from("hf_team_members")
     .select("id, role, user_id")
     .eq("team_id", team.id);
@@ -48,7 +48,7 @@ export async function verifyMemberAccess(memberId: string, pin: string) {
       .single();
 
     // 2. Traffic Controller: Check Event Status
-    let destinationRoute = "/lab/terminal"; // Default to terminal
+    let destinationRoute = "/lab/dashboard/terminal"; // Default to terminal
     
     if (team?.event_id) {
       const { data: event } = await supabase
@@ -103,7 +103,7 @@ export async function getEventDetailsForSession() {
   // 2. Fetch the Event details
   const { data: event } = await supabase
     .from("hf_events")
-    .select("id, name, start_time, end_time, is_active")
+    .select("*")
     .eq("id", team.event_id)
     .single();
 
@@ -118,7 +118,7 @@ export async function getLabSession() {
   
   try {
     return JSON.parse(sessionCookie.value);
-  } catch (error) {
+  } catch {
     return null;
   }
 }

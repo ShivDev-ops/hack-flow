@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 
-export async function promoteTeamToLab(teamName: string, eventId: string, participants: any[]) {
+import { Participant } from "@/types/common";
+
+export async function promoteTeamToLab(teamName: string, eventId: string, participants: Participant[]) {
   const supabase = await createClient();
 
   try {
@@ -54,7 +56,7 @@ export async function promoteTeamToLab(teamName: string, eventId: string, partic
 
     return { success: true, teamId: readableId, pin: rawPin };
     
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }

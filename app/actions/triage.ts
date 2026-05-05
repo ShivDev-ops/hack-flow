@@ -64,9 +64,10 @@ export async function launchTeamAction(eventId: string, teamName: string, partic
     // Return the raw PIN to the frontend so the Admin can give it to the team
     return { success: true, teamId: readableId, pin: rawPin };
 
-  } catch (error: any) {
-    console.error("LAUNCH_ERROR:", error.message);
-    return { success: false, error: error.message };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("LAUNCH_ERROR:", message);
+    return { success: false, error: message };
   }
 }
 

@@ -1,51 +1,84 @@
-@import "tailwindcss"; 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
-/* Your custom landing page styles go here */
-body {
-  background-color: #0a0a0a;
-  color: #ffffff;
-}
-/* ... rest of your glass/text-gradient styles *//* This replaces @tailwind base/components/utilities */
+@import "tailwindcss";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  
-  /* You can add your tactical emerald colors here */
-  --color-tactical-emerald: #10b981;
-}
+@theme {
+  /* Colors */
+  --color-tertiary: #c0c1ff;
+  --color-error: #ffb4ab;
+  --color-primary-container: #4d8eff;
+  --color-surface: #131314;
+  --color-inverse-surface: #e5e2e3;
+  --color-secondary-container: #00a572;
+  --color-outline: #8c909f;
+  --color-background: #0a0a0a;
+  --color-surface-container-highest: #353436;
+  --color-surface-container-high: #2a2a2b;
+  --color-surface-bright: #3a393a;
+  --color-primary: #adc6ff;
+  --color-on-surface-variant: #c2c6d6;
+  --color-surface-container-low: #1c1b1c;
+  --color-surface-variant: #353436;
+  --color-on-surface: #e5e2e3;
+  --color-secondary: #4edea3;
+  --color-on-background: #e5e2e3;
+  --color-surface-container: #201f20;
 
-/* Light Mode Defaults */
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Fonts */
+  --font-h3: "Inter", sans-serif;
+  --font-label-caps: "Space Grotesk", sans-serif;
+  --font-h2: "Inter", sans-serif;
+  --font-h1: "Inter", sans-serif;
+  --font-body-main: "Inter", sans-serif;
+  --font-data-mono: "Space Grotesk", monospace;
 
-/* Dark Mode (Matching your image) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* MISSING SPACING METRICS - This inflates the squished layout! */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
 }
 
 @layer base {
   body {
-    @apply bg-background text-foreground antialiased;
+    background-color: var(--color-background);
+    color: var(--color-on-background);
+    font-family: var(--font-body-main);
+    -webkit-font-smoothing: antialiased;
   }
 }
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-/* Your custom landing page styles go here */
-body {
-  background-color: #0a0a0a;
-  color: #ffffff;
+/* Custom UI Elements */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
-/* ... rest of your glass/text-gradient styles */
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rim-light {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glow-blue {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+}
+
+.pulse-emerald {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(1.2); }
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }

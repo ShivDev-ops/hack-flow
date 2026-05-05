@@ -6,7 +6,7 @@ import { testSheetConnection } from "@/app/actions/test-sync";
 
 export default function SyncTestPage() {
   const [url, setUrl] = useState("");
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<{ success: boolean; headers?: string[]; error?: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleTest = async () => {
@@ -50,7 +50,7 @@ export default function SyncTestPage() {
             <div className="space-y-1">
               <p>Detected Headers:</p>
               <ul className="list-disc list-inside">
-                {results.headers.map((h: string, i: number) => (
+                {results.headers?.map((h: string, i: number) => (
                   <li key={i}>{h}</li>
                 ))}
               </ul>

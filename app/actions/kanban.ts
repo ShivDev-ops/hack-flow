@@ -27,7 +27,7 @@ export async function updateTaskStatus(
   }
 
   // 2. PREPARE UPDATE PAYLOAD
-  const updateData: any = { 
+  const updateData: Record<string, string | null> = { 
     status: newStatus 
   };
 
@@ -47,6 +47,6 @@ export async function updateTaskStatus(
   }
 
   // 5. PURGE CACHE FOR LIVE SYNC
-  revalidatePath("/lab/terminal");
+  revalidatePath("/lab/dashboard/terminal");
   return { success: true };
 }

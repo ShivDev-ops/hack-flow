@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   if (!team) return NextResponse.json({ status: "REPO_NOT_MAPPED" });
 
   // 3. Process Commits
-  const commits = data.commits.map((commit: any) => ({
+  const commits = data.commits.map((commit: { id: string; message: string; author: { username: string }; url: string; timestamp: string }) => ({
     team_id: team.id,
     commit_sha: commit.id,
     message: commit.message,

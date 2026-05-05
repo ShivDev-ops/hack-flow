@@ -19,9 +19,10 @@ const auth = new google.auth.JWT({
     });
 
     return response.data.values?.[0] || [];
-  } catch (error: any) {
-    console.error('GOOGLE_SHEETS_ERROR:', error.message);
-    throw new Error(`Failed to fetch headers: ${error.message}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('GOOGLE_SHEETS_ERROR:', message);
+    throw new Error(`Failed to fetch headers: ${message}`);
   }
 }
 
@@ -47,7 +48,7 @@ export async function getSheetData(spreadsheetId: string, range: string = 'A:Z')
     // Transform rows into objects using the headers (first row)
     const headers = rows[0];
     const data = rows.slice(1).map((row) => {
-      const obj: any = {};
+      const obj: Record<string, string | number | boolean | null> = {};
       headers.forEach((header, index) => {
         obj[header] = row[index];
       });
@@ -55,8 +56,9 @@ export async function getSheetData(spreadsheetId: string, range: string = 'A:Z')
     });
 
     return data;
-  } catch (error: any) {
-    console.error('FETCH_DATA_ERROR:', error.message);
-    throw new Error(`Failed to fetch sheet data: ${error.message}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('FETCH_DATA_ERROR:', message);
+    throw new Error(`Failed to fetch sheet data: ${message}`);
   }
 }

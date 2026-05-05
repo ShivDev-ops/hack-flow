@@ -1,7 +1,7 @@
 // components/layout/sidebar.tsx
 "use client";
 
-import { LayoutDashboard, Activity, Terminal, Settings, X } from "lucide-react";
+import { LayoutDashboard, Activity, Terminal, X } from "lucide-react";
 
 interface SidebarProps {
   role: "organiser" | "participant";

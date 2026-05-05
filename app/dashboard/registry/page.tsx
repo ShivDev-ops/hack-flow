@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Search, ArrowLeft, Loader2, UserPlus, X } from "lucide-react";
+import { Search, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { NodeDetailsModal } from "@/components/dashboard/node-details-modal";
+import { Participant, Event } from "@/types/common";
 
 export default function RegistryPage() {
-  const [allParticipants, setAllParticipants] = useState<any[]>([]);
-  const [participants, setParticipants] = useState<any[]>([]);
-  const [eventData, setEventData] = useState<any>(null);
+  const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [eventData, setEventData] = useState<Event | null>(null);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -17,9 +18,9 @@ export default function RegistryPage() {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const { data: pData } = await supabase
       .from("hf_participants")
@@ -33,10 +34,10 @@ export default function RegistryPage() {
       .limit(1)
       .single();
     
-    setAllParticipants(pData || []);
-    setEventData(eData);
+    setAllParticipants((pData as Participant[]) || []);
+    setEventData(eData as Event);
 
-    const uniqueTeams = pData?.reduce((acc: any[], current: any) => {
+    const uniqueTeams = (pData as Participant[])?.reduce((acc: Participant[], current: Participant) => {
       if (!acc.find(item => item.team_name === current.team_name)) {
         acc.push(current);
       }
@@ -45,11 +46,14 @@ export default function RegistryPage() {
 
     setParticipants(uniqueTeams || []);
     setLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => { 
-    fetchData(); 
-  }, []);
+    const init = async () => {
+      await fetchData();
+    };
+    init();
+  }, [fetchData]);
 
   const filteredTeams = participants.filter(p => 
     p.team_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -60,12 +64,12 @@ export default function RegistryPage() {
     ? participants.filter(p => p.team_name.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 5)
     : [];
 
-  const handleToggle = async (p: any) => {
+  const handleToggle = async (p: Participant) => {
     if (p.payment_verified && !window.confirm("Are you sure you want to UNVERIFY this node?")) {
       return;
     }
     await supabase.from("hf_participants").update({ payment_verified: !p.payment_verified }).eq("id", p.id);
-    fetchData();
+    await fetchData();
   };
 
   return (

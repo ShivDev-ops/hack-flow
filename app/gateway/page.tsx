@@ -7,7 +7,7 @@ import { verifyPinAndFetchTeams } from "@/app/actions/gateway";
 export default function GatewayPage() {
   const [pin, setPin] = useState("");
   const [step, setStep] = useState(1); // 1: PIN, 2: Team Select, 3: Identity Claim
-  const [teams, setTeams] = useState<string[]>([]);
+  const [, setTeams] = useState<string[]>([]);
   const [error, setError] = useState("");
 
   const handlePinSubmit = async () => {

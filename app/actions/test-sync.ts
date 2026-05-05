@@ -8,12 +8,12 @@ export async function testSheetConnection(sheetUrl: string) {
   const match = sheetUrl.match(/\/d\/(.*?)(\/|$)/);
   const spreadsheetId = match ? match[1] : null;
 
-  if (!spreadsheetId) return { error: "Invalid Google Sheet URL" };
+  if (!spreadsheetId) return { success: false, error: "Invalid Google Sheet URL" };
 
   try {
     const headers = await getSheetHeaders(spreadsheetId);
     return { success: true, headers };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }

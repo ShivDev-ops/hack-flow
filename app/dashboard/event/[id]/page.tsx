@@ -10,9 +10,6 @@ import {
   Loader2, 
   Trophy, 
   User, 
-  Mail, 
-  Phone, 
-  ExternalLink,
   Search,
   LayoutGrid,
   List,
@@ -23,17 +20,19 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { TeamDetailsModal } from "@/components/dashboard/team-details-modal";
+import { Event, Team, TeamMember } from "@/types/common";
 
 export default function EventViewPage() {
-  const { id } = useParams();
-  const [event, setEvent] = useState<any>(null);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [members, setMembers] = useState<any[]>([]);
+  const params = useParams();
+  const id = params.id as string;
+  const [event, setEvent] = useState<Event | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const [selectedTeam, setSelectedTeam] = useState<any>(null);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const supabase = createClient();
@@ -49,22 +48,25 @@ export default function EventViewPage() {
 
       if (eventRes.error) throw eventRes.error;
       
-      setEvent(eventRes.data);
-      setTeams(teamsRes.data || []);
+      setEvent(eventRes.data as Event);
+      setTeams((teamsRes.data as Team[]) || []);
       
       // Filter members for the teams we fetched
-      const teamIds = (teamsRes.data || []).map(t => t.id);
-      const filteredMembers = (membersRes.data || []).filter(m => teamIds.includes(m.team_id));
+      const teamIds = ((teamsRes.data as Team[]) || []).map(t => t.id);
+      const filteredMembers = ((membersRes.data as TeamMember[]) || []).filter(m => teamIds.includes(m.team_id));
       setMembers(filteredMembers);
-    } catch (error: any) {
-      console.error("DATA_FETCH_ERROR:", error.message);
+    } catch (error: unknown) {
+      console.error("DATA_FETCH_ERROR:", error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLoading(false);
     }
   }, [id, supabase]);
 
   useEffect(() => {
-    fetchData();
+    const init = async () => {
+      await fetchData();
+    };
+    init();
   }, [fetchData]);
 
   const filteredTeams = teams.filter(t => 
@@ -246,7 +248,7 @@ export default function EventViewPage() {
                     <td className="px-8 py-6 text-emerald-500/70 text-xs uppercase font-black">{team.readable_id || team.id.slice(0, 8)}</td>
                     <td className="px-8 py-6 text-slate-400 text-xs uppercase font-black">
                       <div className="flex -space-x-2">
-                        {teamMembers.map((m, i) => (
+                        {teamMembers.map((m) => (
                           <div key={m.id} className="w-8 h-8 rounded-full bg-zinc-800 border-2 border-black flex items-center justify-center text-emerald-500" title={m.role}>
                             <User size={14} />
                           </div>

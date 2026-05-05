@@ -1,6 +1,7 @@
 "use client";
 
-import { X, User, ShieldCheck, ShieldAlert, Mail, Phone, Hash, Star } from "lucide-react";
+import { X, User, ShieldCheck, ShieldAlert, Star, Users } from "lucide-react";
+import { Team, TeamMember } from "@/types/common";
 
 export function TeamDetailsModal({ 
   isOpen, 
@@ -10,8 +11,8 @@ export function TeamDetailsModal({
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
-  team: any, 
-  members: any[] 
+  team: Team | null, 
+  members: TeamMember[] 
 }) {
   if (!isOpen || !team) return null;
 
@@ -122,5 +123,3 @@ export function TeamDetailsModal({
     </div>
   );
 }
-
-import { Users } from "lucide-react";

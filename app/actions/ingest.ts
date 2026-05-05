@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { Participant } from "@/types/common";
 
 export async function purgeEventAction(eventId: string) {
   const supabase = await createClient();
@@ -37,8 +38,8 @@ export async function testSheetConnection(url: string) {
     const csvText = await response.text();
     const headers = csvText.split('\n')[0].split(',').map(h => h.trim().replace(/"/g, ''));
     return { success: true, headers };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
 
@@ -90,14 +91,14 @@ export async function ingestParticipants(
       return headers.indexOf(headerName);
     };
 
-    const participants: any[] = [];
+    const participants: Omit<Participant, 'id' | 'created_at'>[] = []; // Keeping typed list for consistency
 
     rows.filter(row => row.trim() !== "").forEach((row, index) => {
       const cols = parseCSVLine(row);
       const teamNameIdx = getIdx('team_name');
       const teamName = teamNameIdx !== -1 ? cols[teamNameIdx] : `UNASSIGNED_${index}`;
       
-      const teamParticipants = [];
+      const teamParticipants: Omit<Participant, 'id' | 'created_at'>[] = [];
 
       // 1. Process Leader
       const lNameIdx = getIdx('leader_name');
@@ -146,7 +147,9 @@ export async function ingestParticipants(
             phone_number: mPhoneIdx !== -1 ? cols[mPhoneIdx] : null,
             role: 'member',
             is_claimed: false,
-            payment_verified: false
+            payment_verified: false,
+            payment_id: null,
+            payment_url: null
           });
         }
       }
@@ -173,12 +176,12 @@ export async function ingestParticipants(
 
     revalidatePath("/dashboard/triage");
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
 
-export async function addManualParticipantAction(eventId: string, data: any) {
+export async function addManualParticipantAction(eventId: string, data: Record<string, string>) {
   const supabase = await createClient();
   const { error } = await supabase.from("hf_participants").insert({
     event_id: eventId,
@@ -187,8 +190,7 @@ export async function addManualParticipantAction(eventId: string, data: any) {
     team_name: data.team,
     email: data.email,
     phone_number: data.phone, 
-    role: data.role || 'member',
-    added_manually: true,
+    role: (data.role as 'leader' | 'member') || 'member',
     is_claimed: false,
     payment_verified: false
   });

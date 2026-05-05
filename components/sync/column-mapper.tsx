@@ -12,7 +12,7 @@ const SYSTEM_FIELDS = [
   { id: "payment_url", label: "Payment Screenshot (URL)" },
 ];
 
-export function ColumnMapper({ headers, onSave }: { headers: string[], onSave: (map: any) => void }) {
+export function ColumnMapper({ headers, onSave }: { headers: string[], onSave: (map: Record<string, string>) => void }) {
   const [mapping, setMapping] = useState<Record<string, string>>({});
 
   const handleSelect = (systemField: string, sheetHeader: string) => {

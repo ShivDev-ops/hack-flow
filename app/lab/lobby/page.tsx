@@ -4,10 +4,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, Clock, Zap, ShieldCheck, Loader2, Rocket } from "lucide-react";
 import { getEventDetailsForSession, destroyLabSession } from "@/app/actions/lab-auth";
+import { Event } from "@/types/common";
 
 export default function LobbyPage() {
   const router = useRouter();
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<Event | null>(null);
   const [timeLeft, setTimeLeft] = useState("");
   const [isLive, setIsLive] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -41,7 +42,11 @@ export default function LobbyPage() {
   }, [router]);
 
   useEffect(() => {
-    fetchEventStatus();
+    const init = async () => {
+      await fetchEventStatus();
+    };
+    init();
+
     // Poll every 30 seconds
     const pollInterval = setInterval(fetchEventStatus, 30000);
     return () => clearInterval(pollInterval);
@@ -73,7 +78,7 @@ export default function LobbyPage() {
   useEffect(() => {
     if (isLive) {
       const timer = setTimeout(() => {
-        router.push("/lab/terminal");
+        router.push("/lab/dashboard/terminal");
       }, 3000); // 3 second delay to let them see the "Active" state
       return () => clearTimeout(timer);
     }
@@ -81,8 +86,8 @@ export default function LobbyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
-        <Loader2 className="text-emerald-500 animate-spin" size={40} />
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="text-white animate-spin" size={40} />
       </div>
     );
   }
@@ -90,49 +95,59 @@ export default function LobbyPage() {
   const isOver = timeLeft === "OVER";
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background aesthetic */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 blur-[150px] rounded-full pointer-events-none" />
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-[16px] relative overflow-hidden">
+      {/* Background aesthetic - Swapped to a subtle white/glassy glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.02] blur-[150px] rounded-full pointer-events-none" />
       
-      <div className="max-w-xl w-full z-10 text-center space-y-10">
+      {/* THE NUCLEAR FIX: Hardcoded max-width to prevent v4 collapse */}
+      <div 
+        className="w-full z-10 text-center space-y-[40px]"
+        style={{ maxWidth: '576px' }}
+      >
         
-        <div className={`inline-flex items-center justify-center p-4 rounded-full border mb-4 ${isLive ? 'bg-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.4)] border-emerald-400' : isOver ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/10 border-emerald-500/20 animate-pulse'}`}>
-          {isLive ? <Rocket className="text-black" size={32} /> : isOver ? <Lock className="text-red-500" size={32} /> : <Lock className="text-emerald-500" size={32} />}
+        <div className={`inline-flex items-center justify-center p-[16px] rounded-full border mb-[16px] transition-all duration-700 ${
+          isLive 
+            ? 'bg-white shadow-[0_0_40px_rgba(255,255,255,0.3)] border-white' 
+            : isOver 
+            ? 'bg-red-500/10 border-red-500/20' 
+            : 'bg-white/[0.02] border-white/10 animate-pulse'
+        }`}>
+          {isLive ? <Rocket className="text-black" size={32} /> : isOver ? <Lock className="text-red-500" size={32} /> : <Lock className="text-[#a1a1aa]" size={32} />}
         </div>
 
         <div>
-          <h1 className="text-3xl md:text-5xl font-black font-mono uppercase tracking-tighter italic">
+          <h1 className="text-3xl md:text-5xl font-black font-sans uppercase tracking-tighter italic">
             {isLive ? "Systems Active" : isOver ? "Event Concluded" : "Systems Locked"}
           </h1>
-          <p className="text-slate-500 font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] mt-4">
+          <p className="text-[#a1a1aa] font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] mt-[16px]">
             {isLive 
               ? "Mission parameters unsealed. Uplink established." 
               : isOver
               ? "The operational window has closed. Thank you for participating."
-              : `Waiting for ${event?.name || 'Event'} uplink. Mission parameters are currently classified.`
+              : `Waiting for ${event?.name || 'Event'} uplink. Mission parameters are classified.`
             }
           </p>
         </div>
 
         {/* COUNTDOWN CORE / ACTIVATE BUTTON */}
-        <div className="bg-zinc-950 border border-white/5 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-20"><Zap size={40} /></div>
+        <div className="bg-[#050505] border border-white/10 rounded-3xl p-[32px] md:p-[48px] shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-[16px] opacity-10"><Zap size={40} className="text-white" /></div>
           
           {isLive ? (
-            <div className="space-y-6">
-              <p className="text-[10px] text-emerald-500 font-mono font-black uppercase tracking-widest flex items-center justify-center gap-2">
-                <ShieldCheck size={12} /> Authorization Verified
+            <div className="space-y-[24px]">
+              <p className="text-[10px] text-white font-mono font-black uppercase tracking-widest flex items-center justify-center gap-[8px]">
+                <ShieldCheck size={12} className="text-white" /> Authorization Verified
               </p>
               <button 
-                onClick={() => router.push("/lab/terminal")}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-6 rounded-2xl uppercase text-sm flex items-center justify-center gap-3 transition-all shadow-[0_0_50px_rgba(16,185,129,0.2)] hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => router.push("/lab/dashboard/terminal")}
+                className="w-full bg-white hover:bg-zinc-200 text-black font-black py-[24px] rounded-2xl uppercase text-sm flex items-center justify-center gap-[12px] transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] active:scale-[0.98]"
               >
                 Enter Terminal <Rocket size={18} />
               </button>
             </div>
           ) : isOver ? (
-            <div className="space-y-6">
-               <p className="text-[10px] text-red-500 font-mono font-black uppercase tracking-widest flex items-center justify-center gap-2">
+            <div className="space-y-[24px]">
+               <p className="text-[10px] text-red-500 font-mono font-black uppercase tracking-widest flex items-center justify-center gap-[8px]">
                 <Lock size={12} /> Terminal Locked
               </p>
               <div className="font-mono text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-red-500/40 tabular-nums">
@@ -141,8 +156,8 @@ export default function LobbyPage() {
             </div>
           ) : (
             <>
-              <p className="text-[10px] text-emerald-500 font-mono font-black uppercase tracking-widest mb-4 flex items-center justify-center gap-2">
-                <Clock size={12} /> T-Minus to Unseal
+              <p className="text-[10px] text-[#a1a1aa] font-mono font-black uppercase tracking-widest mb-[16px] flex items-center justify-center gap-[8px]">
+                <Clock size={12} className="text-white" /> T-Minus to Unseal
               </p>
               
               <div className="font-mono text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40 tabular-nums">
@@ -152,16 +167,16 @@ export default function LobbyPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-[16px] text-left">
            {['Identity Sync', 'Git Webhooks', 'Database Link', 'Mission Specs'].map((step, i) => (
-             <div key={step} className="bg-white/[0.02] border border-white/5 p-4 rounded-xl">
-                <div className="flex justify-between items-center mb-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${isLive || isOver ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-emerald-500/40'}`} />
-                  <span className="text-[8px] text-slate-600 font-black">0{i+1}</span>
+             <div key={step} className="bg-white/[0.02] border border-white/5 p-[16px] rounded-xl">
+                <div className="flex justify-between items-center mb-[8px]">
+                  <div className={`w-[6px] h-[6px] rounded-full ${isLive || isOver ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-white/20'}`} />
+                  <span className="text-[8px] text-zinc-600 font-black">0{i+1}</span>
                 </div>
-                <div className="text-[9px] font-mono uppercase font-bold text-white/70">{step}</div>
-                <div className="text-[8px] font-mono text-emerald-500 uppercase mt-1 flex items-center gap-1">
-                  <ShieldCheck size={8} /> Verified
+                <div className="text-[9px] font-mono uppercase font-bold text-[#a1a1aa]">{step}</div>
+                <div className="text-[8px] font-mono text-white uppercase mt-[4px] flex items-center gap-[4px]">
+                  <ShieldCheck size={8} className="text-white" /> Verified
                 </div>
              </div>
            ))}

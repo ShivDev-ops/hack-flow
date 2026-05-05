@@ -4,7 +4,12 @@ import { useState } from "react";
 import { createLabTask } from "@/app/actions/tasks";
 import { X, Zap, Loader2 } from "lucide-react";
 
-export function CreateTaskModal({ isOpen, onClose, session, eventId }: any) {
+export function CreateTaskModal({ isOpen, onClose, session, eventId }: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  session: { teamId: string; role: string }, 
+  eventId: string 
+}) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ title: "", description: "", priority: "LOW" });
 

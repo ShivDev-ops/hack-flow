@@ -35,6 +35,6 @@ export async function createLabTask(formData: {
 
   if (error) return { success: false, error: error.message };
 
-  revalidatePath("/lab/terminal");
+  revalidatePath("/lab/dashboard/terminal");
   return { success: true };
 }
