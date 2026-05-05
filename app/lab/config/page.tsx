@@ -141,6 +141,24 @@ export default function LabConfigPage() {
                   <p className="text-[9px] text-white/20 ml-1 font-label-caps uppercase tracking-widest">Optional // Required for Live Status Badge</p>
                 </div>
 
+                {/* DB Health Check */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase text-white/40 tracking-widest flex items-center gap-2 ml-1 font-label-caps">
+                    <Database size={12} className="text-secondary" /> Registry_Pulse_Endpoint
+                  </label>
+                  <div className="relative group">
+                    <input 
+                      type="url"
+                      style={{ colorScheme: 'dark' }}
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-[13px] text-white focus:border-secondary/50 outline-none font-data-mono transition-all placeholder:text-white/10 group-hover:border-white/20"
+                      placeholder="https://api.your-app.com/health"
+                      value={formData.dbConnection}
+                      onChange={(e) => setFormData({...formData, dbConnection: e.target.value})}
+                    />
+                  </div>
+                  <p className="text-[9px] text-white/20 ml-1 font-label-caps uppercase tracking-widest">Optional // Must return HTTP 200 for nominal status</p>
+                </div>
+
                 <div className="pt-6 border-t border-white/5">
                   <button 
                     type="submit"
