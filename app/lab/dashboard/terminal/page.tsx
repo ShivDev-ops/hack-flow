@@ -18,6 +18,7 @@ export default function TerminalPage() {
   const [session, setSession] = useState<{ memberId: string; teamId: string; role: string } | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [channelStatus, setChannelStatus] = useState<string>("CONNECTING");
   
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
@@ -67,7 +68,9 @@ export default function TerminalPage() {
             { event: '*', schema: 'public', table: 'hf_tasks', filter: `team_id=eq.${activeTeamId}` },
             () => fetchData(activeTeamId)
           )
-          .subscribe();
+          .subscribe((status) => {
+            setChannelStatus(status === 'SUBSCRIBED' ? 'ONLINE' : 'ERROR');
+          });
 
         return () => {
           supabase.removeChannel(channel);
@@ -131,10 +134,17 @@ export default function TerminalPage() {
           <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mt-3 ml-1 font-label-caps font-bold">Proof of Work & Objective Synchronization</p>
         </div>
         
-        <div className="flex items-center gap-4 bg-white/[0.02] border border-white/5 px-6 py-3 rounded-2xl rim-light shadow-xl">
+        <div className="flex items-center gap-6 bg-white/[0.02] border border-white/5 px-6 py-4 rounded-2xl rim-light shadow-xl">
+           <div className="flex flex-col items-start border-r border-white/10 pr-6">
+              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Uplink_Status</span>
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${channelStatus === 'ONLINE' ? 'bg-secondary animate-pulse shadow-[0_0_8px_#4edea3]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`} />
+                <span className={`text-[10px] font-black font-data-mono ${channelStatus === 'ONLINE' ? 'text-secondary' : 'text-red-500'}`}>{channelStatus}</span>
+              </div>
+           </div>
            <div className="flex flex-col items-end">
-              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-label-caps">Team_Node_ID</span>
-              <span className="text-[11px] text-secondary font-data-mono uppercase">{session?.teamId?.slice(0, 12)}</span>
+              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Team_Node_ID</span>
+              <span className="text-[11px] text-secondary font-data-mono uppercase font-black tracking-tighter">{session?.teamId?.slice(0, 12)}</span>
            </div>
         </div>
       </header>
