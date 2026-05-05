@@ -28,3 +28,14 @@ export async function updateTeamConfig(teamId: string, repoUrl: string) {
   revalidatePath("/lab/config");
   return { success: true };
 }
+
+export async function verifyTeamSync(teamId: string) {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("repository_commits")
+    .select("*", { count: 'exact', head: true })
+    .eq("team_id", teamId);
+    
+  if (error) return { success: false, error: error.message };
+  return { success: true, count: count || 0 };
+}

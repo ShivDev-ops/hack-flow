@@ -53,6 +53,25 @@ export default function TerminalPage() {
         if (teamData) setEventId(teamData.event_id);
 
         await fetchData(activeTeamId);
+
+        // REAL-TIME UPLINK: Listen for new commits and task updates
+        const channel = supabase
+          .channel(`team-${activeTeamId}`)
+          .on(
+            'postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'repository_commits', filter: `team_id=eq.${activeTeamId}` },
+            () => fetchData(activeTeamId)
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'hf_tasks', filter: `team_id=eq.${activeTeamId}` },
+            () => fetchData(activeTeamId)
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
       } catch (error) {
         console.error("Terminal initialization failed:", error);
       } finally {
