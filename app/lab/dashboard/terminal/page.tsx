@@ -9,6 +9,8 @@ import { Loader2 } from "lucide-react";
 import { Commit, Task } from "@/types/common";
 import { KanbanBoard } from "@/components/lab/dashboard/kanban-board";
 import { GitFeed } from "@/components/lab/dashboard/git-feed";
+import { ObservabilityPanel } from "@/components/lab/dashboard/observability-panel";
+import { getSystemObservability } from "@/lib/lab-config/observability";
 
 export default function TerminalPage() {
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -19,6 +21,8 @@ export default function TerminalPage() {
   
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
+  
+  const obsData = useMemo(() => getSystemObservability(), []);
   
   const supabase = useMemo(() => createClient(), []);
 
@@ -95,16 +99,30 @@ export default function TerminalPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-8">
-      <header>
-        <h1 className="text-2xl font-black uppercase tracking-tighter italic text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-          Command Terminal
-        </h1>
-        <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Proof of Work & Task Management</p>
+    <div className="p-6 md:p-10 space-y-10 max-w-[1600px] mx-auto min-h-full selection:bg-secondary/30">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-1.5 bg-secondary rounded-full pulse-emerald shadow-[0_0_10px_#4edea3]" />
+            <span className="text-[9px] font-black text-secondary uppercase tracking-[0.4em] font-label-caps">Mission_Control // Operational</span>
+          </div>
+          <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+            Command <span className="text-white/20">Terminal</span>
+          </h1>
+          <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mt-3 ml-1 font-label-caps font-bold">Proof of Work & Objective Synchronization</p>
+        </div>
+        
+        <div className="flex items-center gap-4 bg-white/[0.02] border border-white/5 px-6 py-3 rounded-2xl rim-light shadow-xl">
+           <div className="flex flex-col items-end">
+              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-label-caps">Team_Node_ID</span>
+              <span className="text-[11px] text-secondary font-data-mono uppercase">{session?.teamId?.slice(0, 12)}</span>
+           </div>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-3">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="lg:col-span-3 space-y-6">
+          <ObservabilityPanel obs={obsData} />
           <GitFeed commits={commits} />
         </div>
         <div className="lg:col-span-9">

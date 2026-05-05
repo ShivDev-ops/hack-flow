@@ -10,7 +10,11 @@ import {
   Save, 
   Loader2, 
   CheckCircle2,
-  ShieldAlert
+  ShieldAlert,
+  Terminal,
+  Zap,
+  ExternalLink,
+  Info
 } from "lucide-react";
 import { getLabSession } from "@/app/actions/lab-auth";
 import { getTeamConfig, updateTeamConfig } from "@/app/actions/lab-config";
@@ -20,6 +24,7 @@ export default function LabConfigPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [appUrl, setAppUrl] = useState("");
 
   const [formData, setFormData] = useState({
     repoUrl: "",
@@ -28,6 +33,7 @@ export default function LabConfigPage() {
   });
 
   useEffect(() => {
+    setAppUrl(window.location.origin);
     async function init() {
       const session = await getLabSession();
       if (session?.teamId) {
@@ -61,104 +67,143 @@ export default function LabConfigPage() {
 
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white font-mono p-4 md:p-6 lg:p-8 flex justify-center">
-      <div className="max-w-2xl w-full space-y-8">
+    <div className="min-h-screen bg-background text-white p-6 md:p-10 flex flex-col items-center custom-scrollbar">
+      <div className="max-w-4xl w-full space-y-10">
         
-        <header className="border-b border-[#1e293b] pb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-[#1e293b] flex items-center justify-center border border-[#334155]">
-              <Network className="text-emerald-500" size={20} />
+        <header className="border-b border-white/5 pb-8">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center border border-secondary/20 rim-light">
+              <Network className="text-secondary" size={24} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter italic">Sys_Config</h1>
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Resource Linkage & Telemetry Setup</p>
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tighter italic leading-none">Sys_Setup</h1>
+              <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] mt-3 font-label-caps">Resource Linkage & Telemetry Synchronization</p>
             </div>
           </div>
         </header>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-[#1e293b]/30 border border-[#1e293b] rounded-3xl p-6 md:p-8 shadow-2xl"
-        >
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-8 flex gap-3 items-start">
-            <ShieldAlert size={16} className="text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-[10px] text-amber-500/80 uppercase leading-relaxed font-bold tracking-widest">
-              Provide these resources to activate the full Mission Control dashboard. Incorrect configurations will result in missing telemetry data.
-            </p>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
+          
+          {/* CONFIG FORM */}
+          <div className="lg:col-span-3 space-y-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel rim-light rounded-[2.5rem] p-8 md:p-10 shadow-2xl space-y-8"
+            >
+              <div className="bg-secondary/5 border border-secondary/10 rounded-2xl p-6 flex gap-4 items-start">
+                <Info size={18} className="text-secondary mt-1 shrink-0" />
+                <p className="text-[11px] text-white/60 uppercase leading-relaxed font-bold tracking-widest font-label-caps">
+                  Connect your <span className="text-secondary">Primary Git Node</span> to activate the Live Git Feed and enable task verification.
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-8">
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-[10px] text-red-500 uppercase font-bold tracking-widest font-label-caps">
+                    {error}
+                  </div>
+                )}
+                
+                {/* GitHub Repo */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase text-white/40 tracking-widest flex items-center gap-2 ml-1 font-label-caps">
+                    <GitBranch size={12} className="text-secondary" /> Primary_Git_Node
+                  </label>
+                  <div className="relative group">
+                    <input 
+                      type="url"
+                      style={{ colorScheme: 'dark' }}
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-[13px] text-white focus:border-secondary/50 outline-none font-data-mono transition-all placeholder:text-white/10 group-hover:border-white/20"
+                      placeholder="https://github.com/org/repo"
+                      value={formData.repoUrl}
+                      onChange={(e) => setFormData({...formData, repoUrl: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Deployment URL */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase text-white/40 tracking-widest flex items-center gap-2 ml-1 font-label-caps">
+                    <Globe size={12} className="text-blue-400" /> Deployment_Uplink
+                  </label>
+                  <div className="relative group">
+                    <input 
+                      type="url"
+                      style={{ colorScheme: 'dark' }}
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-[13px] text-white focus:border-secondary/50 outline-none font-data-mono transition-all placeholder:text-white/10 group-hover:border-white/20"
+                      placeholder="https://project.vercel.app"
+                      value={formData.deploymentUrl}
+                      onChange={(e) => setFormData({...formData, deploymentUrl: e.target.value})}
+                    />
+                  </div>
+                  <p className="text-[9px] text-white/20 ml-1 font-label-caps uppercase tracking-widest">Optional // Required for Live Status Badge</p>
+                </div>
+
+                <div className="pt-6 border-t border-white/5">
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-secondary hover:bg-[#5affb4] text-black font-black uppercase tracking-[0.3em] text-xs py-5 rounded-[1.5rem] transition-all flex justify-center items-center gap-3 shadow-[0_0_40px_rgba(78,222,163,0.2)] active:scale-[0.98] disabled:bg-white/5 disabled:text-white/20 font-label-caps"
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : success ? <CheckCircle2 size={18} /> : <Zap size={18} fill="currentColor" />}
+                    {loading ? "COMMITTING..." : success ? "CONFIGURATION_SAVED" : "COMMIT_CONFIGURATION"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-[10px] text-red-500 uppercase font-bold tracking-widest">
-                {error}
-              </div>
-            )}
-            
-            {/* GitHub Repo */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2 ml-1">
-                <GitBranch size={12} className="text-slate-300" /> Primary Git Node
-              </label>
-              <div className="relative">
-                <input 
-                  type="url"
-                  className="w-full bg-[#0f172a] border border-[#1e293b] rounded-xl px-4 py-3 text-xs text-white focus:border-emerald-500 outline-none transition-all placeholder:text-slate-600"
-                  placeholder="https://github.com/your-team/project"
-                  value={formData.repoUrl}
-                  onChange={(e) => setFormData({...formData, repoUrl: e.target.value})}
-                  required
-                />
-              </div>
-            </div>
+          {/* HELP / WEBHOOK GUIDE */}
+          <div className="lg:col-span-2 space-y-6">
+             <div className="glass-panel rim-light rounded-[2rem] p-8 space-y-6 border-secondary/20">
+                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-secondary flex items-center gap-2 font-label-caps">
+                  <Terminal size={14} /> Webhook_Setup
+                </h3>
+                <p className="text-[10px] text-white/40 leading-relaxed font-bold tracking-widest font-label-caps uppercase">
+                  To stream commits into your terminal, you MUST configure a GitHub Webhook.
+                </p>
+                
+                <div className="space-y-6 pt-4">
+                  <div className="space-y-2">
+                    <p className="text-[9px] text-secondary font-black uppercase tracking-widest font-label-caps">1. Payload URL</p>
+                    <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[10px] text-white/80 break-all select-all cursor-pointer hover:bg-black/80 transition-all">
+                      {appUrl}/api/webhooks/github
+                    </div>
+                  </div>
 
-            {/* Deployment URL */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2 ml-1">
-                <Globe size={12} className="text-blue-400" /> Active Deployment Uplink
-              </label>
-              <div className="relative">
-                <input 
-                  type="url"
-                  className="w-full bg-[#0f172a] border border-[#1e293b] rounded-xl px-4 py-3 text-xs text-white focus:border-blue-500 outline-none transition-all placeholder:text-slate-600"
-                  placeholder="https://your-project.vercel.app"
-                  value={formData.deploymentUrl}
-                  onChange={(e) => setFormData({...formData, deploymentUrl: e.target.value})}
-                />
-              </div>
-              <p className="text-[9px] text-slate-500 ml-1">Optional. Required for Live Status Badge.</p>
-            </div>
+                  <div className="space-y-2">
+                    <p className="text-[9px] text-secondary font-black uppercase tracking-widest font-label-caps">2. Content Type</p>
+                    <p className="text-[10px] text-white font-data-mono">application/json</p>
+                  </div>
 
-            {/* DB Health Check */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2 ml-1">
-                <Database size={12} className="text-emerald-500" /> Database Health API (Pulse)
-              </label>
-              <div className="relative">
-                <input 
-                  type="url"
-                  className="w-full bg-[#0f172a] border border-[#1e293b] rounded-xl px-4 py-3 text-xs text-white focus:border-emerald-500 outline-none transition-all placeholder:text-slate-600"
-                  placeholder="https://your-api.com/health"
-                  value={formData.dbConnection}
-                  onChange={(e) => setFormData({...formData, dbConnection: e.target.value})}
-                />
-              </div>
-              <p className="text-[9px] text-slate-500 ml-1">Optional. Endpoint must return HTTP 200 for nominal status.</p>
-            </div>
+                  <div className="space-y-2">
+                    <p className="text-[9px] text-secondary font-black uppercase tracking-widest font-label-caps">3. Events</p>
+                    <p className="text-[10px] text-white font-data-mono">Just the <span className="text-secondary">push</span> event.</p>
+                  </div>
+                </div>
 
-            <div className="pt-6 border-t border-[#1e293b]">
-              <button 
-                type="submit"
-                disabled={loading}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-widest text-xs py-4 rounded-xl transition-all flex justify-center items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.2)] disabled:opacity-50"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : success ? <CheckCircle2 size={16} /> : <Save size={16} />}
-                {loading ? "Committing..." : success ? "Configuration Saved" : "Commit Configuration"}
-              </button>
-            </div>
+                <a 
+                  href="https://github.com/settings/hooks" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-4 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all font-label-caps"
+                >
+                  Open GitHub Settings <ExternalLink size={12} />
+                </a>
+             </div>
 
-          </form>
-        </motion.div>
+             <div className="glass-panel rim-light rounded-[2rem] p-8 space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/60 flex items-center gap-2 font-label-caps">
+                  <ShieldAlert size={14} /> Security_Notice
+                </h3>
+                <p className="text-[10px] text-white/30 leading-relaxed font-medium uppercase tracking-widest font-label-caps">
+                  Uplinks are per-team. Ensure you are using the correct repository. Only one repository can be linked per team node.
+                </p>
+             </div>
+          </div>
+        </div>
       </div>
     </div>
   );

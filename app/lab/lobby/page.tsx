@@ -95,88 +95,93 @@ export default function LobbyPage() {
   const isOver = timeLeft === "OVER";
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-[16px] relative overflow-hidden">
-      {/* Background aesthetic - Swapped to a subtle white/glassy glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.02] blur-[150px] rounded-full pointer-events-none" />
+    <div className="min-h-screen bg-background text-white flex flex-col items-center justify-center p-6 relative overflow-hidden selection:bg-secondary/30">
+      {/* Background Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-secondary/5 blur-[150px] rounded-full pointer-events-none -z-10" />
       
-      {/* THE NUCLEAR FIX: Hardcoded max-width to prevent v4 collapse */}
       <div 
-        className="w-full z-10 text-center space-y-[40px]"
-        style={{ maxWidth: '576px' }}
+        className="w-full z-10 text-center space-y-12"
+        style={{ maxWidth: '640px' }}
       >
         
-        <div className={`inline-flex items-center justify-center p-[16px] rounded-full border mb-[16px] transition-all duration-700 ${
+        <div className={`inline-flex items-center justify-center w-20 h-20 rounded-[2rem] border transition-all duration-1000 ${
           isLive 
-            ? 'bg-white shadow-[0_0_40px_rgba(255,255,255,0.3)] border-white' 
+            ? 'bg-secondary text-black shadow-[0_0_50px_rgba(78,222,163,0.4)] border-transparent' 
             : isOver 
-            ? 'bg-red-500/10 border-red-500/20' 
-            : 'bg-white/[0.02] border-white/10 animate-pulse'
-        }`}>
-          {isLive ? <Rocket className="text-black" size={32} /> : isOver ? <Lock className="text-red-500" size={32} /> : <Lock className="text-[#a1a1aa]" size={32} />}
+            ? 'bg-red-500/10 border-red-500/20 text-red-500' 
+            : 'bg-white/[0.02] border-white/10 animate-pulse text-white/20'
+        } rim-light`}>
+          {isLive ? <Rocket size={32} fill="currentColor" /> : isOver ? <Lock size={32} /> : <Lock size={32} />}
         </div>
 
         <div>
-          <h1 className="text-3xl md:text-5xl font-black font-sans uppercase tracking-tighter italic">
-            {isLive ? "Systems Active" : isOver ? "Event Concluded" : "Systems Locked"}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-secondary pulse-emerald shadow-[0_0_10px_#4edea3]' : isOver ? 'bg-red-500' : 'bg-white/20'}`} />
+            <span className={`text-[10px] font-black uppercase tracking-[0.5em] font-label-caps ${isLive ? 'text-secondary' : isOver ? 'text-red-500' : 'text-white/20'}`}>
+              System_State: {isLive ? "Operational" : isOver ? "Terminated" : "Restricted"}
+            </span>
+          </div>
+          <h1 className="text-5xl md:text-7xl font-black uppercase tracking-tighter italic leading-none">
+            {isLive ? "Systems_Active" : isOver ? "Protocol_End" : "Systems_Locked"}
           </h1>
-          <p className="text-[#a1a1aa] font-mono text-[10px] md:text-xs uppercase tracking-[0.2em] mt-[16px]">
+          <p className="text-white/40 font-bold text-[10px] md:text-xs uppercase tracking-[0.3em] mt-6 font-label-caps max-w-lg mx-auto leading-relaxed">
             {isLive 
-              ? "Mission parameters unsealed. Uplink established." 
+              ? "Mission parameters unsealed. Full command uplink established. Prepare for deployment." 
               : isOver
-              ? "The operational window has closed. Thank you for participating."
-              : `Waiting for ${event?.name || 'Event'} uplink. Mission parameters are classified.`
+              ? "The operational window has expired. Terminal access revoked. Synchronization concluded."
+              : `Awaiting centralized command uplink for ${event?.name || 'Assigned_Sector'}. Mission specs classified.`
             }
           </p>
         </div>
 
         {/* COUNTDOWN CORE / ACTIVATE BUTTON */}
-        <div className="bg-[#050505] border border-white/10 rounded-3xl p-[32px] md:p-[48px] shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-[16px] opacity-10"><Zap size={40} className="text-white" /></div>
+        <div className="glass-panel rim-light rounded-[3rem] p-10 md:p-16 shadow-2xl relative overflow-hidden bg-white/[0.01]">
+          <div className="absolute top-0 right-0 p-8 opacity-[0.03] rotate-12"><Zap size={120} className="text-white" /></div>
           
           {isLive ? (
-            <div className="space-y-[24px]">
-              <p className="text-[10px] text-white font-mono font-black uppercase tracking-widest flex items-center justify-center gap-[8px]">
-                <ShieldCheck size={12} className="text-white" /> Authorization Verified
+            <div className="space-y-8 animate-in zoom-in-95 duration-500">
+              <p className="text-[10px] text-secondary font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 font-label-caps">
+                <ShieldCheck size={14} className="pulse-emerald" /> Identity_Verified // Link_Ready
               </p>
               <button 
                 onClick={() => router.push("/lab/dashboard/terminal")}
-                className="w-full bg-white hover:bg-zinc-200 text-black font-black py-[24px] rounded-2xl uppercase text-sm flex items-center justify-center gap-[12px] transition-all shadow-[0_0_40px_rgba(255,255,255,0.15)] active:scale-[0.98]"
+                className="w-full bg-secondary hover:bg-[#5affb4] text-black font-black py-6 rounded-[1.5rem] uppercase text-xs tracking-[0.3em] flex items-center justify-center gap-4 transition-all shadow-[0_0_50px_rgba(78,222,163,0.3)] active:scale-95 font-label-caps"
               >
-                Enter Terminal <Rocket size={18} />
+                Establish_Terminal_Uplink <Rocket size={20} />
               </button>
             </div>
           ) : isOver ? (
-            <div className="space-y-[24px]">
-               <p className="text-[10px] text-red-500 font-mono font-black uppercase tracking-widest flex items-center justify-center gap-[8px]">
-                <Lock size={12} /> Terminal Locked
+            <div className="space-y-8">
+               <p className="text-[10px] text-red-500 font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 font-label-caps">
+                <Lock size={14} /> Authorization_Revoked
               </p>
-              <div className="font-mono text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-red-500/40 tabular-nums">
+              <div className="font-data-mono text-6xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-red-500 to-red-500/10 tabular-nums">
                 00:00:00
               </div>
             </div>
           ) : (
-            <>
-              <p className="text-[10px] text-[#a1a1aa] font-mono font-black uppercase tracking-widest mb-[16px] flex items-center justify-center gap-[8px]">
-                <Clock size={12} className="text-white" /> T-Minus to Unseal
+            <div className="space-y-8">
+              <p className="text-[10px] text-white/40 font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 font-label-caps">
+                <Clock size={14} className="text-secondary" /> T-Minus_to_Unseal
               </p>
               
-              <div className="font-mono text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/40 tabular-nums">
+              <div className="font-data-mono text-6xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/10 tabular-nums">
                 {timeLeft || "00:00:00"}
               </div>
-            </>
+            </div>
           )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-[16px] text-left">
-           {['Identity Sync', 'Git Webhooks', 'Database Link', 'Mission Specs'].map((step, i) => (
-             <div key={step} className="bg-white/[0.02] border border-white/5 p-[16px] rounded-xl">
-                <div className="flex justify-between items-center mb-[8px]">
-                  <div className={`w-[6px] h-[6px] rounded-full ${isLive || isOver ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-white/20'}`} />
-                  <span className="text-[8px] text-zinc-600 font-black">0{i+1}</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+           {['Identity Sync', 'Git Node', 'Resource Pulse', 'Task Ingress'].map((step, i) => (
+             <div key={step} className="glass-panel rim-light p-5 rounded-2xl bg-white/[0.01] hover:border-secondary/20 transition-colors">
+                <div className="flex justify-between items-center mb-3">
+                  <div className={`w-1.5 h-1.5 rounded-full ${isLive || isOver ? 'bg-secondary shadow-[0_0_8px_#4edea3]' : 'bg-white/10'}`} />
+                  <span className="text-[8px] text-white/10 font-black font-data-mono">0{i+1}</span>
                 </div>
-                <div className="text-[9px] font-mono uppercase font-bold text-[#a1a1aa]">{step}</div>
-                <div className="text-[8px] font-mono text-white uppercase mt-[4px] flex items-center gap-[4px]">
-                  <ShieldCheck size={8} className="text-white" /> Verified
+                <div className="text-[10px] font-label-caps uppercase font-black text-white/60 tracking-wider mb-2">{step}</div>
+                <div className={`text-[8px] font-data-mono uppercase flex items-center gap-2 ${isLive || isOver ? 'text-secondary/60' : 'text-white/10'}`}>
+                  {isLive || isOver ? <><ShieldCheck size={8} /> Verified</> : <><Lock size={8} /> Locked</>}
                 </div>
              </div>
            ))}

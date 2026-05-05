@@ -58,165 +58,188 @@ export default function ConfigSysPage() {
   const verified = tasks.filter(t => t.status === 'Verified');
 
   return (
-    <div className="p-4 md:p-lg pb-12 flex flex-col xl:flex-row gap-lg min-h-full">
+    <div className="p-6 md:p-10 space-y-10 max-w-[1600px] mx-auto min-h-full selection:bg-secondary/30">
       
-      {/* SIDEBAR METRICS (25%) */}
-      <section className="w-full xl:w-1/4 flex flex-col gap-lg">
-        <div className="glass-panel rim-light p-md rounded-lg space-y-md">
-          <h4 className="font-label-caps text-on-surface-variant flex items-center gap-sm">
-            <span className="material-symbols-outlined text-sm">analytics</span>
-            SYSTEM_METRICS
-          </h4>
-          <div className="space-y-sm">
-            <div className="flex justify-between items-center bg-white/5 p-sm rounded border border-white/5">
-              <span className="font-data-mono text-xs text-on-surface-variant">DB_LATENCY</span>
-              <span className="font-data-mono text-xs text-secondary">12ms</span>
-            </div>
-            <div className="flex justify-between items-center bg-white/5 p-sm rounded border border-white/5">
-              <span className="font-data-mono text-xs text-on-surface-variant">TASKS_TOTAL</span>
-              <span className="px-2 py-[2px] bg-black text-[9px] border border-secondary text-secondary rounded font-bold uppercase">{tasks.length}</span>
-            </div>
-            <div className="flex justify-between items-center bg-white/5 p-sm rounded border border-white/5">
-              <span className="font-data-mono text-xs text-on-surface-variant">COMPLETION</span>
-              <div className="w-20 h-1 bg-surface-container-highest rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-primary to-secondary" style={{ width: `${tasks.length ? (verified.length / tasks.length) * 100 : 0}%` }}></div>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-1.5 bg-secondary rounded-full pulse-emerald shadow-[0_0_10px_#4edea3]" />
+            <span className="text-[9px] font-black text-secondary uppercase tracking-[0.4em] font-label-caps">System_Validator // Monitoring</span>
+          </div>
+          <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+            Config <span className="text-white/20">System</span>
+          </h1>
+          <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mt-3 ml-1 font-label-caps font-bold">Project Lead Verification & Registry Monitoring</p>
+        </div>
+      </header>
+
+      <div className="flex flex-col xl:flex-row gap-10">
+        
+        {/* SIDEBAR METRICS (25%) */}
+        <section className="w-full xl:w-1/4 flex flex-col gap-8">
+          <div className="glass-panel rim-light p-8 rounded-[2rem] space-y-6 bg-white/[0.01]">
+            <h4 className="font-label-caps text-xs font-black text-white/40 flex items-center gap-3 tracking-[0.2em] uppercase">
+              <Zap size={14} className="text-secondary" /> System_Metrics
+            </h4>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-black/40 p-5 rounded-2xl border border-white/5">
+                <span className="font-data-mono text-[10px] text-white/40 uppercase tracking-widest">Latency</span>
+                <span className="font-data-mono text-[11px] text-secondary font-black">12ms</span>
+              </div>
+              <div className="flex justify-between items-center bg-black/40 p-5 rounded-2xl border border-white/5">
+                <span className="font-data-mono text-[10px] text-white/40 uppercase tracking-widest">Tasks_Total</span>
+                <span className="px-3 py-1 bg-secondary/10 text-[10px] border border-secondary/20 text-secondary rounded-full font-black font-data-mono">{tasks.length}</span>
+              </div>
+              <div className="space-y-3 bg-black/40 p-5 rounded-2xl border border-white/5">
+                <div className="flex justify-between items-center">
+                  <span className="font-data-mono text-[10px] text-white/40 uppercase tracking-widest">Completion</span>
+                  <span className="font-data-mono text-[10px] text-secondary font-black">{tasks.length ? Math.round((verified.length / tasks.length) * 100) : 0}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-secondary pulse-emerald shadow-[0_0_8px_#4edea3]" style={{ width: `${tasks.length ? (verified.length / tasks.length) * 100 : 0}%` }}></div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="glass-panel rim-light p-md rounded-lg h-96 flex flex-col">
-          <h4 className="font-label-caps text-on-surface-variant flex items-center gap-sm mb-md">
-            <span className="material-symbols-outlined text-sm">history</span>
-            RECENT_COMMITS
-          </h4>
-          <div className="flex-1 overflow-y-auto space-y-md pr-2 custom-scrollbar">
-            {verified.length === 0 && <p className="text-xs text-slate-500 font-data-mono">No verified commits yet.</p>}
-            {verified.map(task => (
-              <div key={task.id} className="space-y-1">
-                <div className="flex justify-between items-start">
-                  <span className="font-data-mono text-[10px] text-primary truncate max-w-[120px]">
-                    {task.commit_sha || `#${task.id.substring(0,6)}`}
-                  </span>
+          <div className="glass-panel rim-light p-8 rounded-[2rem] h-[500px] flex flex-col bg-white/[0.01]">
+            <h4 className="font-label-caps text-xs font-black text-white/40 flex items-center gap-3 tracking-[0.2em] uppercase mb-6">
+              <Loader2 size={14} className="text-primary" /> Verified_Feed
+            </h4>
+            <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+              {verified.length === 0 && (
+                <div className="h-full flex flex-col items-center justify-center opacity-20 py-20 italic">
+                  <span className="text-[10px] uppercase font-data-mono tracking-[0.3em]">No_Verified_Nodes</span>
                 </div>
-                <p className="font-body-main text-xs text-white line-clamp-2">{task.title}</p>
-                <p className="font-data-mono text-[9px] text-on-surface-variant">Verified Node Entry</p>
+              )}
+              {verified.map(task => (
+                <div key={task.id} className="space-y-3 group border-l border-white/5 pl-4 hover:border-secondary transition-colors">
+                  <div className="flex justify-between items-start">
+                    <span className="font-data-mono text-[9px] text-secondary truncate max-w-[140px] uppercase tracking-tighter">
+                      {task.commit_sha?.slice(0, 12) || `#${task.id.substring(0,8)}`}
+                    </span>
+                  </div>
+                  <p className="font-body-main text-xs text-white font-medium line-clamp-2 leading-snug">{task.title}</p>
+                  <p className="font-label-caps text-[8px] text-white/20 font-black tracking-widest uppercase italic">Verified_Node_Entry</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* KANBAN BOARD (75%) */}
+        <section className="w-full xl:w-3/4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          {/* BACKLOG */}
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between px-2 text-white/40">
+              <h5 className="font-label-caps text-[10px] font-black tracking-[0.3em] uppercase">Backlog</h5>
+              <span className="bg-white/5 px-3 py-1 rounded-full text-[9px] font-black font-data-mono">{backlog.length}</span>
+            </div>
+            {backlog.map(task => (
+              <div key={task.id} className="glass-panel rim-light p-6 rounded-2xl space-y-4 bg-white/[0.01] border-white/5 hover:border-white/20 transition-all">
+                <div className="flex items-start justify-between">
+                  <span className="px-2 py-1 bg-white/5 text-white/40 text-[8px] font-black rounded uppercase tracking-widest font-label-caps">Status: Idle</span>
+                </div>
+                <h6 className="font-black text-sm text-white uppercase tracking-tight">{task.title}</h6>
+                <p className="text-[11px] text-white/40 line-clamp-2 leading-relaxed">{task.description}</p>
+                <button 
+                  disabled={updating === task.id}
+                  onClick={() => handleStatusChange(task.id, "Progress", task.event_id)}
+                  className="w-full py-3 bg-white/5 hover:bg-secondary hover:text-black text-white font-black font-label-caps text-[9px] rounded-xl flex items-center justify-center gap-2 border border-white/5 transition-all tracking-widest uppercase active:scale-95"
+                >
+                  {updating === task.id ? <Loader2 size={12} className="animate-spin" /> : "Init_Work"}
+                </button>
               </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      {/* KANBAN BOARD (75%) */}
-      <section className="w-full xl:w-3/4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md">
-        
-        {/* BACKLOG */}
-        <div className="flex flex-col gap-md">
-          <div className="flex items-center justify-between px-sm">
-            <h5 className="font-label-caps text-xs text-white">BACKLOG</h5>
-            <span className="bg-surface-container-high px-2 py-[2px] rounded text-[10px] font-bold">{backlog.length}</span>
-          </div>
-          {backlog.map(task => (
-            <div key={task.id} className="glass-panel rim-light p-md rounded-lg space-y-md">
-              <div className="flex items-start justify-between">
-                <span className="px-2 py-1 bg-primary/10 text-primary text-[9px] font-bold rounded">PENDING</span>
-              </div>
-              <h6 className="font-h3 text-sm text-white">{task.title}</h6>
-              <p className="text-xs text-on-surface-variant line-clamp-2">{task.description}</p>
-              <button 
-                disabled={updating === task.id}
-                onClick={() => handleStatusChange(task.id, "Progress", task.event_id)}
-                className="w-full py-2 bg-white/5 hover:bg-white/10 text-white font-label-caps text-[10px] rounded flex items-center justify-center gap-2 border border-white/5 transition-all"
-              >
-                {updating === task.id ? <Loader2 size={12} className="animate-spin" /> : "START WORK"}
-              </button>
+          {/* IN PROGRESS */}
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between px-2 text-white/40">
+              <h5 className="font-label-caps text-[10px] font-black tracking-[0.3em] uppercase">In_Progress</h5>
+              <span className="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-full text-[9px] font-black font-data-mono">{inProgress.length}</span>
             </div>
-          ))}
-        </div>
-
-        {/* IN PROGRESS */}
-        <div className="flex flex-col gap-md">
-          <div className="flex items-center justify-between px-sm">
-            <h5 className="font-label-caps text-xs text-white">IN_PROGRESS</h5>
-            <span className="bg-primary/20 text-primary px-2 py-[2px] rounded text-[10px] font-bold border border-primary/30">{inProgress.length}</span>
-          </div>
-          {inProgress.map(task => (
-            <div key={task.id} className="glass-panel border-primary/30 bg-primary/5 p-md rounded-lg space-y-md glow-blue">
-              <div className="flex items-start justify-between">
-                <span className="px-2 py-1 bg-secondary/10 text-secondary text-[9px] font-bold rounded">ACTIVE</span>
-              </div>
-              <h6 className="font-h3 text-sm text-white">{task.title}</h6>
-              <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
-                <div className="h-full bg-secondary w-[50%]"></div>
-              </div>
-              <button 
-                disabled={updating === task.id}
-                onClick={() => handleStatusChange(task.id, "Review", task.event_id)}
-                className="w-full py-2 bg-white/5 hover:bg-primary/20 text-primary font-label-caps text-[10px] rounded border border-primary/30 transition-all"
-              >
-                REQUEST REVIEW
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* REVIEW */}
-        <div className="flex flex-col gap-md">
-          <div className="flex items-center justify-between px-sm">
-            <h5 className="font-label-caps text-xs text-white">REVIEW</h5>
-            <span className="bg-surface-container-high px-2 py-[2px] rounded text-[10px] font-bold">{review.length}</span>
-          </div>
-          {review.map(task => (
-             <div key={task.id} className="glass-panel rim-light p-md rounded-lg border-dashed border-primary/30 flex flex-col items-center justify-center gap-sm text-center py-lg relative">
-              <span className="material-symbols-outlined text-primary text-2xl opacity-50">assignment_turned_in</span>
-              <p className="font-label-caps text-[10px] text-on-surface-variant line-clamp-1">{task.title}</p>
-              
-              <div className="w-full mt-md space-y-sm">
-                <input 
-                  value={commitUrl}
-                  onChange={(e) => setCommitUrl(e.target.value)}
-                  className="w-full bg-surface-container-lowest border-none border-b border-outline focus:border-secondary text-[10px] font-data-mono h-8 px-2 text-white outline-none" 
-                  placeholder="PASTE_COMMIT_URL_TO_VERIFY" 
-                />
+            {inProgress.map(task => (
+              <div key={task.id} className="glass-panel border-secondary/20 bg-secondary/[0.02] p-6 rounded-2xl space-y-4 shadow-[0_0_30px_rgba(78,222,163,0.05)]">
+                <div className="flex items-start justify-between">
+                  <span className="px-2 py-1 bg-secondary/10 text-secondary text-[8px] font-black rounded uppercase tracking-widest font-label-caps animate-pulse">Status: Active</span>
+                </div>
+                <h6 className="font-black text-sm text-white uppercase tracking-tight">{task.title}</h6>
+                <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-secondary pulse-emerald w-[60%]"></div>
+                </div>
                 <button 
-                  disabled={updating === task.id || !commitUrl}
-                  onClick={() => handleStatusChange(task.id, "Verified", task.event_id, commitUrl)}
-                  className="w-full py-2 bg-secondary/10 hover:bg-secondary/20 text-secondary disabled:opacity-50 font-label-caps text-[9px] border border-secondary/30 rounded uppercase"
+                  disabled={updating === task.id}
+                  onClick={() => handleStatusChange(task.id, "Review", task.event_id)}
+                  className="w-full py-3 bg-secondary/10 hover:bg-secondary text-secondary hover:text-black font-black font-label-caps text-[9px] rounded-xl border border-secondary/20 transition-all tracking-widest uppercase active:scale-95"
                 >
-                  {updating === task.id ? "VERIFYING..." : "FINALIZE_WORK"}
+                  Request_Sync
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* VERIFIED DONE */}
-        <div className="flex flex-col gap-md">
-          <div className="flex items-center justify-between px-sm">
-            <h5 className="font-label-caps text-xs text-white">VERIFIED_DONE</h5>
-            <span className="bg-secondary/20 text-secondary px-2 py-[2px] rounded text-[10px] font-bold border border-secondary/30">{verified.length}</span>
+            ))}
           </div>
-          {verified.map(task => (
-            <div key={task.id} className="glass-panel rim-light p-md rounded-lg opacity-80 border-secondary/20 space-y-md grayscale-[0.5] hover:grayscale-0 transition-all">
-              <div className="flex items-start justify-between">
-                <span className="px-2 py-1 bg-white/5 text-on-surface-variant text-[9px] font-bold rounded">SUCCESS</span>
-                <span className="material-symbols-outlined text-secondary text-sm">check_circle</span>
-              </div>
-              <h6 className="font-h3 text-sm text-white line-clamp-1">{task.title}</h6>
-              <div className="space-y-xs">
-                <p className="font-label-caps text-[8px] text-on-surface-variant">VERIFIED_BY_COMMIT</p>
-                <input 
-                  className="w-full bg-black/40 border border-secondary/20 rounded p-1 text-[9px] font-data-mono text-secondary outline-none" 
-                  readOnly 
-                  type="text" 
-                  value={task.commit_sha || "MANUAL_OVERRIDE"} 
-                />
-              </div>
-            </div>
-          ))}
-        </div>
 
-      </section>
+          {/* REVIEW */}
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between px-2 text-white/40">
+              <h5 className="font-label-caps text-[10px] font-black tracking-[0.3em] uppercase">Review</h5>
+              <span className="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-3 py-1 rounded-full text-[9px] font-black font-data-mono">{review.length}</span>
+            </div>
+            {review.map(task => (
+               <div key={task.id} className="glass-panel rim-light p-6 rounded-2xl border-dashed border-amber-500/20 bg-amber-500/[0.01] flex flex-col items-center justify-center gap-4 text-center py-8 relative">
+                <div className="p-3 bg-amber-500/10 rounded-full">
+                  <Shield size={20} className="text-amber-500 opacity-50" />
+                </div>
+                <p className="font-black text-[10px] text-white uppercase tracking-widest line-clamp-1 font-label-caps">{task.title}</p>
+                
+                <div className="w-full mt-2 space-y-3">
+                  <div className="relative group">
+                    <input 
+                      style={{ colorScheme: 'dark' }}
+                      value={commitUrl}
+                      onChange={(e) => setCommitUrl(e.target.value)}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-[10px] font-data-mono text-white outline-none focus:border-secondary/50 transition-all placeholder:text-white/10" 
+                      placeholder="COMMIT_SHA_OR_URL" 
+                    />
+                  </div>
+                  <button 
+                    disabled={updating === task.id || !commitUrl}
+                    onClick={() => handleStatusChange(task.id, "Verified", task.event_id, commitUrl)}
+                    className="w-full py-3 bg-secondary text-black hover:bg-[#5affb4] disabled:opacity-30 disabled:bg-white/5 disabled:text-white/20 font-black font-label-caps text-[9px] rounded-xl uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                  >
+                    {updating === task.id ? "Verifying..." : "Finalize_Verify"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* VERIFIED DONE */}
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between px-2 text-white/40">
+              <h5 className="font-label-caps text-[10px] font-black tracking-[0.3em] uppercase">Verified</h5>
+              <span className="bg-secondary/10 text-secondary border border-secondary/20 px-3 py-1 rounded-full text-[9px] font-black font-data-mono">{verified.length}</span>
+            </div>
+            {verified.map(task => (
+              <div key={task.id} className="glass-panel rim-light p-6 rounded-2xl opacity-60 border-secondary/10 space-y-4 bg-white/[0.01] group hover:opacity-100 transition-all">
+                <div className="flex items-start justify-between">
+                  <span className="px-2 py-1 bg-secondary/10 text-secondary text-[8px] font-black rounded uppercase tracking-widest font-label-caps">Status: Success</span>
+                  <CheckCircle2 className="text-secondary" size={14} />
+                </div>
+                <h6 className="font-black text-sm text-white uppercase tracking-tight line-clamp-1">{task.title}</h6>
+                <div className="space-y-2">
+                  <p className="font-label-caps text-[8px] text-white/20 font-black tracking-widest uppercase">Verified_By_Telemetry</p>
+                  <div className="w-full bg-black/60 border border-secondary/20 rounded-lg p-2.5 text-[9px] font-data-mono text-secondary truncate uppercase tracking-tighter">
+                    {task.commit_sha || "MANUAL_OVERRIDE"}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+        </section>
+      </div>
     </div>
   );
 }

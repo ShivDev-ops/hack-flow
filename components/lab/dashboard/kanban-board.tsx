@@ -24,91 +24,94 @@ export function KanbanBoard({
   const statuses = ['Todo', 'Progress', 'Review'];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {statuses.map((status) => {
         const columnTasks = tasks.filter(t => t.status === status);
         const isTodo = status === 'Todo';
         const isActive = status === 'Progress';
         const isReview = status === 'Review';
         
-        const title = isTodo ? "To-Do" : isActive ? "Active" : "Verified";
-        const dotColor = isTodo ? "bg-slate-500" : isActive ? "bg-amber-500" : "bg-emerald-500";
+        const title = isTodo ? "Backlog" : isActive ? "Active_Work" : "Awaiting_Verification";
+        const dotColor = isTodo ? "bg-white/20" : isActive ? "bg-secondary" : "bg-amber-500";
 
         return (
-          <div key={status} className="bg-[#1e293b]/30 border border-[#1e293b] rounded-2xl p-4 flex flex-col min-h-[500px]">
-            <div className="text-[10px] font-black uppercase text-slate-400 mb-4 flex items-center justify-between tracking-widest border-b border-[#1e293b] pb-3">
-              <span className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${dotColor} ${isActive ? 'animate-pulse shadow-[0_0_8px_#f59e0b]' : ''}`} />
+          <div key={status} className="glass-panel rim-light rounded-[2rem] p-6 flex flex-col min-h-[600px] bg-white/[0.01]">
+            <div className="text-[10px] font-black uppercase text-white/40 mb-6 flex items-center justify-between tracking-[0.3em] font-label-caps border-b border-white/5 pb-5">
+              <span className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${dotColor} ${isActive ? 'animate-pulse shadow-[0_0_10px_#4edea3]' : ''}`} />
                   {title}
               </span>
-              <span className="bg-[#1e293b] px-2 py-1 rounded text-white">{columnTasks.length}</span>
+              <span className="bg-white/5 px-3 py-1 rounded-full text-white/60 font-data-mono text-[9px]">{columnTasks.length}</span>
             </div>
             
-            <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-1">
-              <AnimatePresence>
+            <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-1">
+              <AnimatePresence mode="popLayout">
                 {columnTasks.map((task) => (
                   <motion.div 
                     layout
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     key={task.id} 
-                    className="p-4 bg-[#0f172a] border border-[#1e293b] rounded-xl space-y-3 hover:border-emerald-500/50 transition-colors shadow-lg relative group overflow-hidden"
+                    className="p-6 bg-black/40 border border-white/10 rounded-2xl space-y-4 hover:border-secondary/40 transition-all shadow-xl relative group overflow-hidden"
                   >
-                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent to-transparent group-hover:from-emerald-500/50 transition-all" />
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-secondary/0 group-hover:bg-secondary/40 transition-all" />
                     
-                    <h4 className="text-xs font-bold text-white/90 leading-tight">{task.title}</h4>
-                    <p className="text-[10px] text-slate-500 line-clamp-2">{task.description}</p>
+                    <h4 className="text-sm font-black text-white leading-tight uppercase tracking-tight">{task.title}</h4>
+                    <p className="text-[11px] text-white/40 font-medium leading-relaxed line-clamp-2">{task.description}</p>
                     
-                    <div className="pt-2 flex flex-col gap-2">
+                    <div className="pt-2">
                       {isTodo && (
                         <button 
                           onClick={() => onMoveTask(task.id, 'Progress')}
                           disabled={updatingId === task.id}
-                          className="w-full py-2 bg-[#1e293b] hover:bg-emerald-500 hover:text-black text-[9px] font-black uppercase text-white rounded transition-colors"
+                          className="w-full py-3 bg-white/5 hover:bg-secondary hover:text-black text-[10px] font-black uppercase tracking-widest text-white rounded-xl transition-all font-label-caps active:scale-95 disabled:opacity-30"
                         >
-                          {updatingId === task.id ? "..." : "Start Task"}
+                          {updatingId === task.id ? "Initializing..." : "Start_Objective"}
                         </button>
                       )}
 
                       {isActive && (
-                        <div className="space-y-2 bg-[#1e293b]/50 p-2 rounded-lg border border-[#1e293b]">
-                          <div className="text-[8px] uppercase text-emerald-500 font-bold mb-1">Proof of Work</div>
+                        <div className="space-y-4 bg-secondary/5 p-4 rounded-xl border border-secondary/10">
+                          <div className="text-[9px] uppercase text-secondary font-black tracking-widest font-label-caps flex items-center gap-2">
+                            <GitBranch size={12} /> Proof_of_Work
+                          </div>
                           <select 
-                            className="w-full bg-[#0f172a] border border-[#1e293b] rounded p-1.5 text-[9px] text-white outline-none focus:border-emerald-500 cursor-pointer"
+                            style={{ colorScheme: 'dark' }}
+                            className="w-full bg-black/60 border border-white/10 rounded-lg p-3 text-[10px] text-white outline-none focus:border-secondary/50 cursor-pointer font-data-mono transition-all appearance-none"
                             onChange={(e) => onSelectCommit(task.id, e.target.value)}
                             value={selectedCommit[task.id] || ""}
                           >
-                            <option value="" disabled>Select recent commit...</option>
+                            <option value="" disabled className="text-white/20">Select commit telemetry...</option>
                             {commits.map(c => (
-                              <option key={c.commit_sha} value={c.commit_sha}>
-                                {c.commit_sha.substring(0,7)}: {c.message.substring(0,20)}...
+                              <option key={c.commit_sha} value={c.commit_sha} className="bg-zinc-900">
+                                {c.commit_sha.substring(0,7)}: {c.message.substring(0,24)}...
                               </option>
                             ))}
                           </select>
                           <button 
                             onClick={() => onMoveTask(task.id, 'Review')}
                             disabled={updatingId === task.id || !selectedCommit[task.id]}
-                            className="w-full py-1.5 bg-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black text-[9px] font-black uppercase rounded transition-all disabled:opacity-30"
+                            className="w-full py-3 bg-secondary text-black hover:bg-[#5affb4] text-[10px] font-black uppercase tracking-widest rounded-xl transition-all font-label-caps shadow-lg active:scale-95 disabled:opacity-30 disabled:bg-white/10 disabled:text-white/20"
                           >
-                             {updatingId === task.id ? "..." : "Link & Complete"}
+                             {updatingId === task.id ? "Syncing..." : "Submit_Telemetery"}
                           </button>
                         </div>
                       )}
 
                       {isReview && (
-                        <div className="flex flex-col gap-2 border-t border-[#1e293b] pt-2 mt-1">
+                        <div className="flex flex-col gap-3 border-t border-white/5 pt-4 mt-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-[9px] text-emerald-500 font-black uppercase flex items-center gap-1">
-                                <CheckCircle2 size={12} /> Verified
+                            <span className="text-[10px] text-amber-500 font-black uppercase flex items-center gap-2 tracking-widest font-label-caps">
+                                <Loader2 size={12} className="animate-spin" /> Pending_Verify
                             </span>
                             {task.commit_sha && (
-                              <a href="#" className="flex items-center gap-1 text-[9px] font-mono bg-[#1e293b] px-2 py-1 rounded hover:bg-white/10 text-white transition-colors">
+                              <div className="flex items-center gap-2 text-[9px] font-data-mono bg-white/5 px-3 py-1.5 rounded-lg text-secondary border border-white/5">
                                 <GitBranch size={10}/> {task.commit_sha.substring(0,7)}
-                              </a>
+                              </div>
                             )}
                           </div>
-                          <div className="text-[8px] uppercase text-slate-500">+10 Accountability Score</div>
+                          <p className="text-[8px] uppercase text-white/20 font-bold tracking-[0.2em] font-label-caps">Awaiting Project Lead validation</p>
                         </div>
                       )}
                     </div>
