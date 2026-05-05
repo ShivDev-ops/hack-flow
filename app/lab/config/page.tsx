@@ -238,61 +238,62 @@ export default function LabConfigPage() {
         </div>
       </div>
 
-      {/* VERIFICATION MODAL */}
+      {/* VERIFICATION MODAL - REBUILT B&W AESTHETIC */}
       <AnimatePresence>
         {showVerifyModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-xl p-6">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-sm p-6">
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="glass-panel rim-light w-full max-w-md rounded-[3rem] p-10 text-center space-y-8 shadow-[0_0_100px_rgba(78,222,163,0.2)]"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="bg-zinc-950 border border-white/10 w-full max-w-[440px] rounded-2xl p-8 md:p-10 shadow-2xl relative flex flex-col gap-8"
             >
-              <div className="mx-auto w-20 h-20 rounded-3xl bg-secondary/10 flex items-center justify-center border border-secondary/20 rim-light pulse-emerald">
-                {syncCount && syncCount > 0 ? <CheckCircle2 className="text-secondary" size={40} /> : <Network className="text-secondary" size={40} />}
-              </div>
-              
-              <div>
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">Sync_Verification</h2>
-                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] mt-4 font-label-caps">Testing connection to Git Node</p>
-              </div>
+              <header className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-white rounded-full" />
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em] font-mono">System_Handshake_Protocol</span>
+                </div>
+                <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">Sync_Verify</h2>
+              </header>
 
-              <div className="bg-black/40 border border-white/5 rounded-2xl p-6 space-y-3">
-                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest font-label-caps">
-                  <span className="text-white/40">Status</span>
+              <div className="space-y-px bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                <div className="bg-black/40 p-5 flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest font-mono">Status</span>
                   {verifying ? (
-                    <span className="text-secondary flex items-center gap-2 italic">Scanning...</span>
+                    <span className="text-[10px] font-black text-white uppercase animate-pulse">Scanning...</span>
                   ) : syncCount && syncCount > 0 ? (
-                    <span className="text-secondary flex items-center gap-2 italic">Handshake_Verified</span>
+                    <span className="text-[10px] font-black text-white uppercase">Nominal_Uplink</span>
                   ) : (
-                    <span className="text-amber-500 flex items-center gap-2 italic">No_Data_Detected</span>
+                    <span className="text-[10px] font-black text-white/40 uppercase">No_Telemetry</span>
                   )}
                 </div>
-                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest font-label-caps pt-3 border-t border-white/5">
-                  <span className="text-white/40">Ingested Commits</span>
-                  <span className="text-white font-data-mono">{syncCount ?? 0}</span>
+                <div className="bg-black/40 p-5 flex justify-between items-center border-t border-white/5">
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest font-mono">Ingested</span>
+                  <span className="text-xl font-black text-white font-mono">{syncCount ?? 0}</span>
                 </div>
               </div>
 
               {(!syncCount || syncCount === 0) && !verifying && (
-                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-left">
-                  <p className="text-[9px] text-amber-500/80 uppercase leading-relaxed font-bold font-label-caps">
-                    Tip: Make sure you have pushed at least one commit after setting up the webhook. GitHub only sends future events.
+                <div className="bg-white/5 border border-white/10 p-5 rounded-xl flex gap-3 items-start">
+                  <Info size={16} className="text-white mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-white/40 leading-relaxed font-bold uppercase tracking-widest font-mono">
+                    GitHub only streams <span className="text-white underline decoration-white/20">future events</span>. Push a commit after setup to verify the node.
                   </p>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-3">
+              <div className="flex flex-col gap-3">
                 <button 
                   onClick={handleVerify}
                   disabled={verifying}
-                  className="w-full py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-2 font-label-caps"
+                  className="w-full bg-white text-black font-black py-5 rounded-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-zinc-200 transition-all disabled:opacity-50 active:scale-95"
                 >
-                  {verifying ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />} Re-Verify Connection
+                  {verifying ? <Loader2 className="animate-spin" size={16} /> : <Zap size={14} fill="currentColor" />}
+                  {verifying ? "Verifying..." : "Re-Verify Uplink"}
                 </button>
                 <button 
                   onClick={() => setShowVerifyModal(false)}
-                  className="w-full py-5 bg-secondary text-black font-black uppercase tracking-[0.3em] text-xs rounded-[1.5rem] transition-all font-label-caps active:scale-95"
+                  className="w-full bg-transparent border border-white/10 text-white/60 font-black py-4 rounded-xl uppercase text-[10px] tracking-widest hover:bg-white/5 hover:text-white transition-all active:scale-95"
                 >
                   Return to Dashboard
                 </button>
