@@ -43,7 +43,11 @@ export default function LabConfigPage() {
         setTeamId(session.teamId);
         const res = await getTeamConfig(session.teamId);
         if (res.success && res.config) {
-          setFormData(prev => ({ ...prev, repoUrl: res.config.repo_url || "" }));
+          setFormData({
+            repoUrl: res.config.repo_url || "",
+            deploymentUrl: res.config.deployment_url || "",
+            dbConnection: res.config.db_connection || ""
+          });
         }
       }
     }
@@ -57,7 +61,12 @@ export default function LabConfigPage() {
     setLoading(true);
     setError(null);
 
-    const res = await updateTeamConfig(teamId, formData.repoUrl);
+    const res = await updateTeamConfig(
+      teamId, 
+      formData.repoUrl, 
+      formData.deploymentUrl, 
+      formData.dbConnection
+    );
 
     setLoading(false);
     if (res.success) {
@@ -134,7 +143,6 @@ export default function LabConfigPage() {
                       placeholder="https://github.com/org/repo"
                       value={formData.repoUrl}
                       onChange={(e) => setFormData({...formData, repoUrl: e.target.value})}
-                      required
                     />
                   </div>
                 </div>
