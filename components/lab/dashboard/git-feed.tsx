@@ -7,9 +7,11 @@ import { Commit } from "@/types/common";
 
 interface GitFeedProps {
   commits: Commit[];
+  onHoverCommit?: (sha: string | null) => void;
+  onStartWiring?: (sha: string) => void;
 }
 
-export function GitFeed({ commits }: GitFeedProps) {
+export function GitFeed({ commits, onHoverCommit, onStartWiring }: GitFeedProps) {
   const [page, setPage] = useState(0);
   const itemsPerPage = 5;
 
@@ -76,10 +78,19 @@ export function GitFeed({ commits }: GitFeedProps) {
                   <div 
                     key={commit.id}
                     id={`commit-${commit.commit_sha}`}
+                    onMouseEnter={() => onHoverCommit?.(commit.commit_sha)}
+                    onMouseLeave={() => onHoverCommit?.(null)}
                     className="group border-l-2 border-white/5 hover:border-secondary pl-4 py-4 transition-all bg-white/[0.01] hover:bg-white/[0.03] rounded-r-2xl relative"
                   >
                     {/* Neural Port for Wire System */}
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white/10 group-hover:bg-secondary transition-colors" />
+                    <div 
+                      id={`commit-port-${commit.commit_sha}`}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        onStartWiring?.(commit.commit_sha);
+                      }}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white/10 group-hover:bg-secondary transition-all cursor-crosshair z-30 border border-black shadow-[0_0_8px_rgba(255,255,255,0.1)] hover:scale-150" 
+                    />
                     
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center shrink-0 border border-white/5 text-[10px] font-black text-secondary font-label-caps uppercase">

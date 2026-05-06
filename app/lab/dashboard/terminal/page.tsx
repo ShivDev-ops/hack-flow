@@ -78,7 +78,9 @@ export default function TerminalPage() {
   // NEURAL LINK STATE
   const [isWiring, setIsWiring] = useState<string | null>(null);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+  const [hoveredCommitSha, setHoveredCommitSha] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isMobile, setIsMobile] = useState(false);
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
@@ -88,6 +90,13 @@ export default function TerminalPage() {
 
   // Neural Link Handlers
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (isWiring) setMousePos({ x: e.clientX, y: e.clientY });
     };
@@ -95,11 +104,11 @@ export default function TerminalPage() {
     const handleGlobalMouseUp = (e: MouseEvent) => {
       if (isWiring) {
         const elements = document.elementsFromPoint(e.clientX, e.clientY);
-        const commitEl = elements.find(el => el.id.startsWith('commit-'));
+        const taskEl = elements.find(el => el.id.startsWith('task-card-'));
         
-        if (commitEl) {
-          const sha = commitEl.id.replace('commit-', '');
-          setSelectedCommit(prev => ({ ...prev, [isWiring]: sha }));
+        if (taskEl) {
+          const taskId = taskEl.id.replace('task-card-', '');
+          setSelectedCommit(prev => ({ ...prev, [taskId]: isWiring }));
         }
         setIsWiring(null);
       }
@@ -230,13 +239,16 @@ export default function TerminalPage() {
 
   return (
     <div className="p-6 md:p-10 space-y-10 max-w-[1600px] mx-auto min-h-full selection:bg-secondary/30 relative">
-      <NeuralLinkOverlay 
-        tasks={tasks} 
-        activeTeamId={session?.teamId || ""} 
-        isWiring={isWiring} 
-        hoveredTaskId={hoveredTaskId}
-        mousePos={mousePos} 
-      />
+      {!isMobile && (
+        <NeuralLinkOverlay 
+          tasks={tasks} 
+          activeTeamId={session?.teamId || ""} 
+          isWiring={isWiring} 
+          hoveredTaskId={hoveredTaskId}
+          hoveredCommitSha={hoveredCommitSha}
+          mousePos={mousePos} 
+        />
+      )}
       
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10">
         <div>
@@ -300,7 +312,11 @@ export default function TerminalPage() {
           )}
 
           <DatabaseTelemetry logs={dbLogs} />
-          <GitFeed commits={commits} />
+          <GitFeed 
+            commits={commits} 
+            onHoverCommit={(sha) => setHoveredCommitSha(sha)}
+            onStartWiring={(sha) => setIsWiring(sha)}
+          />
         </div>
         <div className="lg:col-span-9">
           <KanbanBoard 
@@ -313,7 +329,6 @@ export default function TerminalPage() {
             onMoveTask={handleMoveTask}
             onSelectCommit={(tid, sha) => setSelectedCommit(prev => ({ ...prev, [tid]: sha }))}
             onRefresh={() => session?.teamId && fetchData(session.teamId)}
-            onStartWiring={(tid) => setIsWiring(tid)}
             onHoverTask={(tid) => setHoveredTaskId(tid)}
           />
         </div>
