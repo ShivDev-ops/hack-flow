@@ -283,12 +283,12 @@ export default function TerminalPage() {
         />
       )}
       
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10 border-b border-white/5 pb-8">
+      <header className="flex flex-col gap-6 relative z-10 border-b border-white/5 pb-8">
+        <div className="flex items-center justify-between">
+           <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
+        </div>
+        
         <div className="flex flex-col">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-1.5 h-1.5 bg-secondary rounded-full pulse-emerald shadow-[0_0_10px_#4edea3]" />
-            <span className="text-[9px] font-black text-secondary uppercase tracking-[0.4em] font-label-caps">Mission_Control // Operational</span>
-          </div>
           <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none flex items-center gap-4">
             Command <span className="text-white/20">Terminal</span>
           </h1>
@@ -329,24 +329,8 @@ export default function TerminalPage() {
 
       {/* FOOTER PANELS: DB Pulse at Left, Preview at Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 border-t border-white/5">
-        <div className="lg:col-span-4 space-y-8">
-           {/* STATUS BADGES RELOCATED FROM HEADER */}
-           <div className="flex items-center gap-4 px-6 py-4 bg-white/[0.02] border border-white/5 rounded-2xl rim-light shadow-xl">
-             <div className="flex flex-col items-start border-r border-white/10 pr-6">
-                <span className="text-[7px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Uplink_Status</span>
-                <div className="flex items-center gap-2">
-                  <div className={`w-1 h-1 rounded-full ${channelStatus === 'ONLINE' ? 'bg-secondary animate-pulse shadow-[0_0_8px_#4edea3]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`} />
-                  <span className={`text-[9px] font-black font-data-mono ${channelStatus === 'ONLINE' ? 'text-secondary' : 'text-red-500'}`}>{channelStatus}</span>
-                </div>
-             </div>
-             <div className="flex flex-col items-end flex-1">
-                <span className="text-[7px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Registry_Pulse</span>
-                <span className="text-[10px] text-secondary font-data-mono uppercase font-black tracking-tighter">{session?.teamId?.slice(0, 8)}</span>
-             </div>
-          </div>
-
+        <div className="lg:col-span-4">
            <DatabaseTelemetry logs={dbLogs} />
-           <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
         </div>
         
         <div className="lg:col-span-8">
