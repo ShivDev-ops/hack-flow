@@ -1,16 +1,21 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, GitBranch } from "lucide-react";
+import { GitBranch, Plus, CheckCircle2, Bug, Zap } from "lucide-react";
 import { Task, Commit } from "@/types/common";
+import { CreateTaskModal } from "../create-task-modal";
 
 interface KanbanBoardProps {
   tasks: Task[];
   commits: Commit[];
   updatingId: string | null;
   selectedCommit: Record<string, string>;
+  teamId: string;
+  eventId: string;
   onMoveTask: (taskId: string, newStatus: string) => void;
   onSelectCommit: (taskId: string, commitSha: string) => void;
+  onRefresh: () => void;
 }
 
 export function KanbanBoard({ 
@@ -18,110 +23,164 @@ export function KanbanBoard({
   commits, 
   updatingId, 
   selectedCommit, 
+  teamId,
+  eventId,
   onMoveTask,
-  onSelectCommit
+  onSelectCommit,
+  onRefresh
 }: KanbanBoardProps) {
-  const statuses = ['Todo', 'Progress', 'Review'];
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  
+  const columns = [
+    { id: 'Todo', title: 'To-Do', color: 'bg-white/20', icon: <Plus size={12}/> },
+    { id: 'Progress', title: 'Active_Work', color: 'bg-secondary', icon: <Zap size={12}/> },
+    { id: 'Verified', title: 'Completed', color: 'bg-blue-400', icon: <CheckCircle2 size={12}/> },
+    { id: 'Bugs', title: 'Bugs', color: 'bg-red-500', icon: <Bug size={12}/> }
+  ];
+
+  const handleDragEnd = (event: any, info: any, task: Task) => {
+    setActiveDragId(null);
+    const point = info.point;
+    
+    // Find which column the pointer is currently over
+    let targetColId = task.status;
+    
+    Object.entries(columnRefs.current).forEach(([id, el]) => {
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (
+        point.x >= rect.left && 
+        point.x <= rect.right && 
+        point.y >= rect.top && 
+        point.y <= rect.bottom
+      ) {
+        targetColId = id as any;
+      }
+    });
+
+    if (targetColId !== task.status) {
+      onMoveTask(task.id, targetColId);
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {statuses.map((status) => {
-        const columnTasks = tasks.filter(t => t.status === status);
-        const isTodo = status === 'Todo';
-        const isActive = status === 'Progress';
-        const isReview = status === 'Review';
-        
-        const title = isTodo ? "Backlog" : isActive ? "Active_Work" : "Awaiting_Verification";
-        const dotColor = isTodo ? "bg-white/20" : isActive ? "bg-secondary" : "bg-amber-500";
+    <>
+      <div ref={containerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {columns.map((col) => {
+          const columnTasks = tasks.filter(t => t.status === col.id);
+          const isTodo = col.id === 'Todo';
+          const isActive = col.id === 'Progress';
+          
+          // PRIORITY STACKING: Keep column on top if a card is being dragged or UPDATED within it
+          const isDraggingInThisCol = columnTasks.some(t => t.id === activeDragId);
+          const isUpdatingInThisCol = columnTasks.some(t => t.id === updatingId);
+          const hasPriority = isDraggingInThisCol || isUpdatingInThisCol;
 
-        return (
-          <div key={status} className="glass-panel rim-light rounded-[2rem] p-6 flex flex-col min-h-[600px] bg-white/[0.01]">
-            <div className="text-[10px] font-black uppercase text-white/40 mb-6 flex items-center justify-between tracking-[0.3em] font-label-caps border-b border-white/5 pb-5">
-              <span className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${dotColor} ${isActive ? 'animate-pulse shadow-[0_0_10px_#4edea3]' : ''}`} />
-                  {title}
-              </span>
-              <span className="bg-white/5 px-3 py-1 rounded-full text-white/60 font-data-mono text-[9px]">{columnTasks.length}</span>
-            </div>
-            
-            <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-1">
-              <AnimatePresence mode="popLayout">
-                {columnTasks.map((task) => (
-                  <motion.div 
-                    layout
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    key={task.id} 
-                    className="p-6 bg-black/40 border border-white/10 rounded-2xl space-y-4 hover:border-secondary/40 transition-all shadow-xl relative group overflow-hidden"
-                  >
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-secondary/0 group-hover:bg-secondary/40 transition-all" />
-                    
-                    <h4 className="text-sm font-black text-white leading-tight uppercase tracking-tight">{task.title}</h4>
-                    <p className="text-[11px] text-white/40 font-medium leading-relaxed line-clamp-2">{task.description}</p>
-                    
-                    <div className="pt-2">
-                      {isTodo && (
-                        <button 
-                          onClick={() => onMoveTask(task.id, 'Progress')}
-                          disabled={updatingId === task.id}
-                          className="w-full py-3 bg-white/5 hover:bg-secondary hover:text-black text-[10px] font-black uppercase tracking-widest text-white rounded-xl transition-all font-label-caps active:scale-95 disabled:opacity-30"
-                        >
-                          {updatingId === task.id ? "Initializing..." : "Start_Objective"}
-                        </button>
-                      )}
-
-                      {isActive && (
-                        <div className="space-y-4 bg-secondary/5 p-4 rounded-xl border border-secondary/10">
-                          <div className="text-[9px] uppercase text-secondary font-black tracking-widest font-label-caps flex items-center gap-2">
-                            <GitBranch size={12} /> Proof_of_Work
+          return (
+            <div 
+              key={col.id} 
+              ref={el => { columnRefs.current[col.id] = el; }}
+              className={`glass-panel rim-light rounded-[2rem] p-5 flex flex-col min-h-[600px] bg-white/[0.01] border border-white/5 transition-all group ${activeDragId ? 'border-white/10' : ''} ${hasPriority ? 'z-50' : 'z-10'}`}
+            >
+              <header className="text-[10px] font-black uppercase text-white/40 mb-6 flex items-center justify-between tracking-[0.3em] font-label-caps border-b border-white/5 pb-5">
+                <span className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${col.color} ${isActive ? 'animate-pulse shadow-[0_0_10px_#4edea3]' : ''}`} />
+                    {col.title}
+                </span>
+                <div className="flex items-center gap-3 min-w-[24px] justify-end">
+                  <span className="bg-white/5 px-2.5 py-1 rounded-full text-white/60 font-data-mono text-[9px] group-hover:opacity-0 transition-all">{columnTasks.length}</span>
+                  {isTodo && (
+                    <button 
+                      onClick={() => setIsModalOpen(true)}
+                      className="absolute p-1.5 bg-white text-black rounded-lg hover:bg-zinc-200 transition-all active:scale-90 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 shadow-xl z-20"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  )}
+                </div>
+              </header>
+              
+              <div className="space-y-4 flex-1">
+                <AnimatePresence mode="popLayout">
+                  {columnTasks.map((task) => (
+                    <motion.div 
+                      layout
+                      drag
+                      dragConstraints={containerRef}
+                      dragElastic={0.1}
+                      onDragStart={() => setActiveDragId(task.id)}
+                      onDragEnd={(e, info) => handleDragEnd(e, info, task)}
+                      whileDrag={{ scale: 1.05, zIndex: 10000, cursor: "grabbing" }}
+                      key={task.id} 
+                      className={`p-5 bg-zinc-950 border border-white/10 rounded-2xl space-y-4 shadow-2xl relative group/card cursor-grab active:cursor-grabbing transition-shadow hover:shadow-white/5 ${activeDragId === task.id ? 'opacity-50 border-secondary' : 'z-20'}`}
+                    >
+                      <div className={`absolute top-0 left-0 w-1 h-full opacity-40 ${col.color}`} />
+                      
+                      <div className="space-y-1 pointer-events-none">
+                        <h4 className="text-[13px] font-black text-white leading-tight uppercase tracking-tight font-body italic">{task.title}</h4>
+                        <p className="text-[10px] text-white/30 font-medium leading-relaxed line-clamp-3 uppercase tracking-tight">{task.description}</p>
+                      </div>
+                      
+                      <div className="pt-2 space-y-3">
+                        {task.status === 'Progress' && (
+                          <div className="space-y-3 bg-white/[0.03] p-3 rounded-xl border border-white/5">
+                            <select 
+                              style={{ colorScheme: 'dark' }}
+                              className="w-full bg-black/60 border border-white/5 rounded-lg p-2.5 text-[9px] text-white/60 outline-none focus:border-secondary/50 cursor-pointer font-data-mono appearance-none"
+                              onChange={(e) => onSelectCommit(task.id, e.target.value)}
+                              value={selectedCommit[task.id] || ""}
+                              onPointerDown={e => e.stopPropagation()}
+                            >
+                              <option value="" disabled>Link telemetry...</option>
+                              {commits.map(c => (
+                                <option key={c.commit_sha} value={c.commit_sha}>
+                                  {c.commit_sha.substring(0,7)}: {c.message.substring(0,18)}...
+                                </option>
+                              ))}
+                            </select>
                           </div>
-                          <select 
-                            style={{ colorScheme: 'dark' }}
-                            className="w-full bg-black/60 border border-white/10 rounded-lg p-3 text-[10px] text-white outline-none focus:border-secondary/50 cursor-pointer font-data-mono transition-all appearance-none"
-                            onChange={(e) => onSelectCommit(task.id, e.target.value)}
-                            value={selectedCommit[task.id] || ""}
-                          >
-                            <option value="" disabled className="text-white/20">Select commit telemetry...</option>
-                            {commits.map(c => (
-                              <option key={c.commit_sha} value={c.commit_sha} className="bg-zinc-900">
-                                {c.commit_sha.substring(0,7)}: {c.message.substring(0,24)}...
-                              </option>
-                            ))}
-                          </select>
-                          <button 
-                            onClick={() => onMoveTask(task.id, 'Review')}
-                            disabled={updatingId === task.id || !selectedCommit[task.id]}
-                            className="w-full py-3 bg-secondary text-black hover:bg-[#5affb4] text-[10px] font-black uppercase tracking-widest rounded-xl transition-all font-label-caps shadow-lg active:scale-95 disabled:opacity-30 disabled:bg-white/10 disabled:text-white/20"
-                          >
-                             {updatingId === task.id ? "Syncing..." : "Submit_Telemetery"}
-                          </button>
-                        </div>
-                      )}
+                        )}
 
-                      {isReview && (
-                        <div className="flex flex-col gap-3 border-t border-white/5 pt-4 mt-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-amber-500 font-black uppercase flex items-center gap-2 tracking-widest font-label-caps">
-                                <Loader2 size={12} className="animate-spin" /> Pending_Verify
-                            </span>
-                            {task.commit_sha && (
-                              <div className="flex items-center gap-2 text-[9px] font-data-mono bg-white/5 px-3 py-1.5 rounded-lg text-secondary border border-white/5">
+                        <div className="flex items-center justify-between pointer-events-none">
+                           {task.commit_sha ? (
+                             <div className="flex items-center gap-1.5 text-[8px] font-data-mono text-secondary/60 uppercase">
                                 <GitBranch size={10}/> {task.commit_sha.substring(0,7)}
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-[8px] uppercase text-white/20 font-bold tracking-[0.2em] font-label-caps">Awaiting Project Lead validation</p>
+                             </div>
+                           ) : <div/>}
+                           <div className="text-[8px] text-white/10 font-mono italic">
+                             {new Date(task.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                           </div>
                         </div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                
+                {columnTasks.length === 0 && (
+                  <div className="h-24 flex flex-col items-center justify-center opacity-[0.03] group-hover:opacity-20 transition-opacity border-2 border-dashed border-white/20 rounded-3xl pointer-events-none">
+                    <Plus size={24} className="mb-2" />
+                    <span className="text-[9px] font-black uppercase tracking-widest font-mono">Drop_Objective</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+
+      <CreateTaskModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        teamId={teamId}
+        eventId={eventId}
+        onSuccess={onRefresh}
+      />
+    </>
   );
 }
+
+
+

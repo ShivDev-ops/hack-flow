@@ -11,8 +11,7 @@ export async function updateTaskStatus(
 ) {
   const supabase = await createClient();
 
-  // 1. DEADLINE CHECK (The "Hard Lock")
-  // Prevents any task movement if the hackathon timer has expired.
+  // 1. DEADLINE CHECK
   const { data: event } = await supabase
     .from("hf_events")
     .select("end_time")
@@ -20,33 +19,52 @@ export async function updateTaskStatus(
     .single();
 
   if (event && new Date() > new Date(event.end_time)) {
-    return { 
-      success: false, 
-      error: "EVENT_TERMINATED: Deadline has passed. Write-access is locked." 
-    };
+    return { success: false, error: "EVENT_TERMINATED: Deadline has passed." };
   }
 
-  // 2. PREPARE UPDATE PAYLOAD
-  const updateData: Record<string, string | null> = { 
-    status: newStatus 
-  };
+  const updateData: Record<string, string | null> = { status: newStatus };
+  if (commitSha) updateData.commit_sha = commitSha;
 
-  // 3. ATTACH GIT SIGNATURE (If task is moving to Review)
-  if (commitSha) {
-    updateData.commit_sha = commitSha;
-  }
-
-  // 4. EXECUTE DATABASE UPDATE
   const { error } = await supabase
     .from("hf_tasks")
     .update(updateData)
     .eq("id", taskId);
 
-  if (error) {
-    return { success: false, error: error.message };
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/lab/dashboard/terminal");
+  return { success: true };
+}
+
+export async function createTaskAction(
+  teamId: string,
+  eventId: string,
+  title: string,
+  description: string
+) {
+  const supabase = await createClient();
+
+  // Deadline check
+  const { data: event } = await supabase
+    .from("hf_events")
+    .select("end_time")
+    .eq("id", eventId)
+    .single();
+
+  if (event && new Date() > new Date(event.end_time)) {
+    return { success: false, error: "EVENT_TERMINATED: Backlog is locked." };
   }
 
-  // 5. PURGE CACHE FOR LIVE SYNC
+  const { error } = await supabase
+    .from("hf_tasks")
+    .insert({
+      team_id: teamId,
+      event_id: eventId,
+      title,
+      description,
+      status: "Todo"
+    });
+
+  if (error) return { success: false, error: error.message };
   revalidatePath("/lab/dashboard/terminal");
   return { success: true };
 }

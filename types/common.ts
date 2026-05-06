@@ -31,7 +31,7 @@ export interface Task {
   event_id: string;
   title: string;
   description: string;
-  status: 'Todo' | 'Progress' | 'Review' | 'Verified';
+  status: 'Todo' | 'Progress' | 'Review' | 'Verified' | 'Bugs';
   commit_sha: string | null;
   created_at: string;
 }

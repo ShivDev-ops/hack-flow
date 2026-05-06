@@ -162,18 +162,17 @@ export default function TerminalPage() {
   const handleMoveTask = async (taskId: string, newStatus: string) => {
     setUpdatingId(taskId);
     
+    // SECURITY: Only Leads can move tasks to 'Verified' (Completed)
     if (newStatus === 'Verified' && session?.role !== 'LEAD') {
-      alert("UNAUTHORIZED: Only the Project Lead can verify tasks.");
+      alert("UNAUTHORIZED: Only the Project Lead can finalize objectives.");
       setUpdatingId(null);
       return;
     }
 
-    const commitToLink = newStatus === 'Review' ? selectedCommit[taskId] : null;
-    if (newStatus === 'Review' && !commitToLink) {
-      alert("CRITICAL: You must link a commit (Proof of Work) to submit for review.");
-      setUpdatingId(null);
-      return;
-    }
+    // TELEMETRY: Link commit if moving to Verified
+    const commitToLink = newStatus === 'Verified' ? selectedCommit[taskId] : null;
+    
+    // Optional: Could add mandatory commit check here if desired
 
     const res = await updateTaskStatus(taskId, newStatus, eventId || "", commitToLink);
     
@@ -266,8 +265,11 @@ export default function TerminalPage() {
             commits={commits}
             updatingId={updatingId}
             selectedCommit={selectedCommit}
+            teamId={session?.teamId || ""}
+            eventId={eventId || ""}
             onMoveTask={handleMoveTask}
             onSelectCommit={(tid, sha) => setSelectedCommit(prev => ({ ...prev, [tid]: sha }))}
+            onRefresh={() => session?.teamId && fetchData(session.teamId)}
           />
         </div>
       </div>

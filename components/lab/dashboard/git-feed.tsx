@@ -10,7 +10,7 @@ interface GitFeedProps {
 
 export function GitFeed({ commits }: GitFeedProps) {
   return (
-    <div className="glass-panel rim-light rounded-[2rem] p-6 sm:p-8 shadow-2xl h-full flex flex-col bg-white/[0.01]">
+    <div className="glass-panel rim-light rounded-[2rem] p-6 sm:p-8 shadow-2xl flex flex-col bg-white/[0.01]">
        <header className="flex items-center justify-between border-b border-white/5 pb-6 mb-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-secondary/10 rounded-lg">
@@ -26,7 +26,7 @@ export function GitFeed({ commits }: GitFeedProps) {
           )}
        </header>
 
-       <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-2 mb-6">
+       <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 mb-6 max-h-[400px]">
           <AnimatePresence mode="popLayout">
             {commits.length === 0 ? (
               <motion.div 
