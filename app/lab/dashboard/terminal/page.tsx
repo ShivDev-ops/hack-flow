@@ -216,8 +216,6 @@ export default function TerminalPage() {
     // TELEMETRY: Link commit if moving to Verified
     const commitToLink = newStatus === 'Verified' ? selectedCommit[taskId] : null;
     
-    // Optional: Could add mandatory commit check here if desired
-
     const res = await updateTaskStatus(taskId, newStatus, eventId || "", commitToLink);
     
     if (!res.success) {
@@ -226,6 +224,20 @@ export default function TerminalPage() {
       await fetchData(session.teamId); 
     }
     
+    setUpdatingId(null);
+  };
+
+  const handleRemoveLink = async (taskId: string) => {
+    setUpdatingId(taskId);
+    const res = await updateTaskStatus(taskId, tasks.find(t => t.id === taskId)?.status || 'Todo', eventId || "", null);
+    if (res.success && session?.teamId) {
+      await fetchData(session.teamId);
+      setSelectedCommit(prev => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
+    }
     setUpdatingId(null);
   };
 
@@ -238,7 +250,7 @@ export default function TerminalPage() {
   }
 
   return (
-    <div className="p-6 md:p-10 space-y-10 max-w-[1600px] mx-auto min-h-full selection:bg-secondary/30 relative">
+    <div className="p-4 md:p-8 space-y-8 max-w-[1800px] mx-auto min-h-full selection:bg-secondary/30 relative overflow-x-hidden">
       {!isMobile && (
         <NeuralLinkOverlay 
           tasks={tasks} 
@@ -250,68 +262,37 @@ export default function TerminalPage() {
         />
       )}
       
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-1.5 h-1.5 bg-secondary rounded-full pulse-emerald shadow-[0_0_10px_#4edea3]" />
-            <span className="text-[9px] font-black text-secondary uppercase tracking-[0.4em] font-label-caps">Mission_Control // Operational</span>
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10 border-b border-white/5 pb-8">
+        <div className="flex flex-col md:flex-row md:items-center gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1.5 h-1.5 bg-secondary rounded-full pulse-emerald shadow-[0_0_10px_#4edea3]" />
+              <span className="text-[9px] font-black text-secondary uppercase tracking-[0.4em] font-label-caps">Mission_Control // Operational</span>
+            </div>
+            <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+              Command <span className="text-white/20">Terminal</span>
+            </h1>
           </div>
-          <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
-            Command <span className="text-white/20">Terminal</span>
-          </h1>
-          <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mt-3 ml-1 font-label-caps font-bold">Proof of Work & Objective Synchronization</p>
-        </div>
-        
-        <div className="flex items-center gap-6 bg-white/[0.02] border border-white/5 px-6 py-4 rounded-2xl rim-light shadow-xl">
-           <div className="flex flex-col items-start border-r border-white/10 pr-6">
-              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Uplink_Status</span>
-              <div className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${channelStatus === 'ONLINE' ? 'bg-secondary animate-pulse shadow-[0_0_8px_#4edea3]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`} />
-                <span className={`text-[10px] font-black font-data-mono ${channelStatus === 'ONLINE' ? 'text-secondary' : 'text-red-500'}`}>{channelStatus}</span>
-              </div>
-           </div>
-           <div className="flex flex-col items-end">
-              <span className="text-[8px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Team_Node_ID</span>
-              <span className="text-[11px] text-secondary font-data-mono uppercase font-black tracking-tighter">{session?.teamId?.slice(0, 12)}</span>
-           </div>
+
+          <div className="flex items-center gap-4 px-6 py-3 bg-white/[0.02] border border-white/5 rounded-2xl rim-light shadow-xl">
+             <div className="flex flex-col items-start border-r border-white/10 pr-6">
+                <span className="text-[7px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Uplink_Status</span>
+                <div className="flex items-center gap-2">
+                  <div className={`w-1 h-1 rounded-full ${channelStatus === 'ONLINE' ? 'bg-secondary animate-pulse shadow-[0_0_8px_#4edea3]' : 'bg-red-500 shadow-[0_0_8px_#ef4444]'}`} />
+                  <span className={`text-[9px] font-black font-data-mono ${channelStatus === 'ONLINE' ? 'text-secondary' : 'text-red-500'}`}>{channelStatus}</span>
+                </div>
+             </div>
+             <div className="flex flex-col items-end">
+                <span className="text-[7px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Registry_Pulse</span>
+                <span className="text-[10px] text-secondary font-data-mono uppercase font-black tracking-tighter">{session?.teamId?.slice(0, 8)}</span>
+             </div>
+          </div>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        <div className="lg:col-span-3 space-y-6">
-          <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
-          
-          {deploymentUrl && (
-            <div className="glass-panel rim-light rounded-[2rem] overflow-hidden border border-white/5 bg-black/20 shadow-2xl group transition-all hover:border-blue-500/30">
-              <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_#3b82f6]" />
-                  <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] font-label-caps">Live_Preview</span>
-                </div>
-                <a 
-                  href={deploymentUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-[9px] font-black text-secondary uppercase hover:text-white transition-colors flex items-center gap-1 font-label-caps"
-                >
-                  External <ExternalLink size={10} />
-                </a>
-              </div>
-              <div className="relative aspect-video bg-zinc-900 overflow-hidden">
-                <iframe 
-                  src={deploymentUrl} 
-                  className="w-[1200px] h-[675px] origin-top-left scale-[0.26] md:scale-[0.23] lg:scale-[0.21] border-none pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity duration-700"
-                  title="Live Deployment Preview"
-                />
-                <div 
-                  className="absolute inset-0 bg-transparent cursor-pointer" 
-                  onClick={() => window.open(deploymentUrl, '_blank')}
-                />
-              </div>
-            </div>
-          )}
-
-          <DatabaseTelemetry logs={dbLogs} />
+      {/* MAIN WORKSPACE: Commits & Kanban side-by-side */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="lg:col-span-3">
           <GitFeed 
             commits={commits} 
             onHoverCommit={(sha) => setHoveredCommitSha(sha)}
@@ -330,7 +311,47 @@ export default function TerminalPage() {
             onSelectCommit={(tid, sha) => setSelectedCommit(prev => ({ ...prev, [tid]: sha }))}
             onRefresh={() => session?.teamId && fetchData(session.teamId)}
             onHoverTask={(tid) => setHoveredTaskId(tid)}
+            onRemoveLink={handleRemoveLink}
           />
+        </div>
+      </div>
+
+      {/* FOOTER PANELS: Preview & Database Pulse */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 border-t border-white/5">
+        <div className="lg:col-span-8">
+           {deploymentUrl && (
+            <div className="glass-panel rim-light rounded-[2rem] overflow-hidden border border-white/5 bg-black/20 shadow-2xl group transition-all hover:border-blue-500/30">
+              <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_#3b82f6]" />
+                  <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] font-label-caps">Live_Preview_Uplink</span>
+                </div>
+                <a 
+                  href={deploymentUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[9px] font-black text-secondary uppercase hover:text-white transition-colors flex items-center gap-1 font-label-caps"
+                >
+                  Launch_External <ExternalLink size={10} />
+                </a>
+              </div>
+              <div className="relative h-[400px] bg-zinc-900 overflow-hidden">
+                <iframe 
+                  src={deploymentUrl} 
+                  className="w-full h-[150%] origin-top-left border-none pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity duration-700"
+                  title="Live Deployment Preview"
+                />
+                <div 
+                  className="absolute inset-0 bg-transparent cursor-pointer" 
+                  onClick={() => window.open(deploymentUrl, '_blank')}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="lg:col-span-4 space-y-8">
+           <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
+           <DatabaseTelemetry logs={dbLogs} />
         </div>
       </div>
     </div>

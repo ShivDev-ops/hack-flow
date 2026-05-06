@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GitBranch, Plus, CheckCircle2, Bug, Zap } from "lucide-react";
+import { GitBranch, Plus, CheckCircle2, Bug, Zap, XCircle } from "lucide-react";
 import { Task, Commit } from "@/types/common";
 import { CreateTaskModal } from "../create-task-modal";
 
@@ -17,6 +17,7 @@ interface KanbanBoardProps {
   onSelectCommit: (taskId: string, commitSha: string) => void;
   onRefresh: () => void;
   onHoverTask?: (taskId: string | null) => void;
+  onRemoveLink?: (taskId: string) => void;
 }
 
 export function KanbanBoard({ 
@@ -29,7 +30,8 @@ export function KanbanBoard({
   onMoveTask,
   onSelectCommit,
   onRefresh,
-  onHoverTask
+  onHoverTask,
+  onRemoveLink
 }: KanbanBoardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -127,13 +129,25 @@ export function KanbanBoard({
                         {/* NEURAL PORT - Target point for Wires */}
                         <div 
                           id={`task-port-${task.id}`}
-                          className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white/20 group-hover/card:bg-secondary transition-all z-30 border border-black shadow-[0_0_8px_rgba(255,255,255,0.1)] hover:scale-150" 
-                          title="Neural Link Target"
-                        />
+                          className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white/10 group-hover/card:bg-secondary/40 transition-all z-30 border border-white/5 flex items-center justify-center hover:scale-125" 
+                        >
+                           <div className="w-1 h-1 rounded-full bg-white/40 group-hover/card:bg-secondary" />
+                        </div>
                       
-                      <div className="space-y-1 pointer-events-none">
-                        <h4 className="text-[13px] font-black text-white leading-tight uppercase tracking-tight font-body italic">{task.title}</h4>
-                        <p className="text-[10px] text-white/30 font-medium leading-relaxed line-clamp-3 uppercase tracking-tight">{task.description}</p>
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="space-y-1 pointer-events-none">
+                          <h4 className="text-[13px] font-black text-white leading-tight uppercase tracking-tight font-body italic">{task.title}</h4>
+                          <p className="text-[10px] text-white/30 font-medium leading-relaxed line-clamp-3 uppercase tracking-tight">{task.description}</p>
+                        </div>
+                        {task.commit_sha && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); onRemoveLink?.(task.id); }}
+                            className="p-1 text-white/10 hover:text-red-500 transition-colors z-30 bg-black/40 rounded-lg border border-white/5"
+                            title="Disconnect Neural Link"
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        )}
                       </div>
                       
                       <div className="pt-2 space-y-3">
