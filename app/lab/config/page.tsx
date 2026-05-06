@@ -14,7 +14,8 @@ import {
   Terminal,
   Zap,
   ExternalLink,
-  Info
+  Info,
+  HelpCircle
 } from "lucide-react";
 import { getLabSession } from "@/app/actions/lab-auth";
 import { getTeamConfig, updateTeamConfig, verifyTeamSync } from "@/app/actions/lab-config";
@@ -24,6 +25,7 @@ export default function LabConfigPage() {
   const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [syncCount, setSyncCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -94,7 +96,6 @@ export default function LabConfigPage() {
     <div className="min-h-screen bg-background text-white p-6 md:p-10 flex flex-col items-center custom-scrollbar">
       <div className="max-w-4xl w-full space-y-10">
         
-        {/* ... (Header logic) */}
         <header className="border-b border-white/5 pb-8">
           <div className="flex items-center gap-4 mb-3">
             <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center border border-secondary/20 rim-light">
@@ -183,7 +184,7 @@ export default function LabConfigPage() {
                   <p className="text-[9px] text-white/20 ml-1 font-label-caps uppercase tracking-widest">Optional // Must return HTTP 200 for nominal status</p>
                 </div>
 
-                <div className="pt-6 border-t border-white/5">
+                <div className="pt-6 border-t border-white/5 space-y-4">
                   <button 
                     type="submit"
                     disabled={loading}
@@ -191,6 +192,15 @@ export default function LabConfigPage() {
                   >
                     {loading ? <Loader2 size={18} className="animate-spin" /> : success ? <CheckCircle2 size={18} /> : <Zap size={18} fill="currentColor" />}
                     {loading ? "COMMITTING..." : success ? "CONFIGURATION_SAVED" : "COMMIT_CONFIGURATION"}
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => setShowHelpModal(true)}
+                    className="w-full py-3 flex items-center justify-center gap-2 text-[9px] font-black text-white/30 hover:text-secondary uppercase tracking-[0.2em] transition-all font-label-caps group"
+                  >
+                    <HelpCircle size={14} className="group-hover:rotate-12 transition-transform" />
+                    How to configure live webhooks?
                   </button>
                 </div>
               </form>
@@ -230,6 +240,42 @@ export default function LabConfigPage() {
                   <p className="text-[9px] text-white/40 leading-tight uppercase font-bold">
                     Note: Navigate to your repository settings on GitHub to add this webhook. 
                     Path: <span className="text-white">Settings &gt; Webhooks &gt; Add Webhook</span>
+                  </p>
+                </div>
+             </div>
+
+             <div className="glass-panel rim-light rounded-[2rem] p-8 space-y-6 border-blue-500/20">
+                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-blue-400 flex items-center gap-2 font-label-caps">
+                  <Database size={14} /> DB_Pulse_Setup
+                </h3>
+                <p className="text-[10px] text-white/40 leading-relaxed font-bold tracking-widest font-label-caps uppercase">
+                  Visualize your database changes in real-time by enabling Supabase Webhooks.
+                </p>
+                
+                <div className="space-y-6 pt-4">
+                  <div className="space-y-2">
+                    <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest font-label-caps">1. Payload URL</p>
+                    <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[10px] text-white/80 break-all select-all cursor-pointer hover:bg-black/80 transition-all">
+                      {appUrl}/api/webhooks/supabase
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest font-label-caps">2. HTTP Header</p>
+                    <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[10px] text-white/80">
+                      x-team-id: <span className="text-blue-400">{teamId || "TEAM-XXXX"}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest font-label-caps">3. Events</p>
+                    <p className="text-[10px] text-white font-data-mono">Enable <span className="text-blue-400">INSERT, UPDATE, DELETE</span> on your main tables.</p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+                  <p className="text-[9px] text-white/40 leading-tight uppercase font-bold">
+                    Go to: <span className="text-white">Database &gt; Webhooks &gt; Create Webhook</span> in your Supabase Dashboard.
                   </p>
                 </div>
              </div>
@@ -306,6 +352,110 @@ export default function LabConfigPage() {
                   Return to Dashboard
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* HELP MODAL */}
+      <AnimatePresence>
+        {showHelpModal && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/95 backdrop-blur-md p-6">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-zinc-950 border border-white/10 w-full max-w-[600px] rounded-[2rem] overflow-hidden shadow-2xl flex flex-col"
+            >
+              <header className="p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center text-left">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-secondary/10 rounded-lg text-secondary">
+                    <HelpCircle size={20} />
+                  </div>
+                  <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Uplink_Guide</h2>
+                </div>
+                <button onClick={() => setShowHelpModal(false)} className="text-white/20 hover:text-white transition-colors">
+                   <Zap size={24} className="rotate-45" />
+                </button>
+              </header>
+
+              <div className="p-8 space-y-12 overflow-y-auto max-h-[70vh] custom-scrollbar text-left font-body">
+                
+                {/* SECTION: GITHUB */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <GitBranch size={18} className="text-secondary" />
+                    <h3 className="text-[15px] font-black text-white uppercase tracking-[0.2em] font-label-caps">Part_A: GitHub_Handshake</h3>
+                  </div>
+                  
+                  <div className="space-y-6 ml-1">
+                    <div className="flex gap-5">
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-secondary shrink-0">01</div>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Open your repository on GitHub. Navigate to <span className="text-white">Settings &gt; Webhooks &gt; Add Webhook</span>.</p>
+                    </div>
+                    <div className="flex gap-5">
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-secondary shrink-0">02</div>
+                      <div className="space-y-3 flex-1">
+                        <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Paste the <span className="text-secondary">Payload URL</span> and set Content Type to <span className="text-white font-mono">application/json</span>.</p>
+                        <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-secondary break-all select-all">
+                          {appUrl}/api/webhooks/github
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-5">
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-secondary shrink-0">03</div>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Select <span className="text-white">&quot;Just the push event&quot;</span> and click <span className="text-white">Add Webhook</span>.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-px bg-white/5 w-full" />
+
+                {/* SECTION: SUPABASE */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <Database size={18} className="text-blue-400" />
+                    <h3 className="text-[15px] font-black text-white uppercase tracking-[0.2em] font-label-caps">Part_B: Supabase_Pulse</h3>
+                  </div>
+                  
+                  <div className="space-y-6 ml-1">
+                    <div className="flex gap-5">
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">01</div>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold text-left">Go to <span className="text-white">Database &gt; Webhooks</span>, and enable the feature in your project dashboard.</p>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">02</div>
+                      <div className="space-y-3 flex-1 text-left">
+                        <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Add the <span className="text-blue-400">Payload URL</span> and the required <span className="text-white">Security Header</span>:</p>
+                        <div className="space-y-2">
+                          <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-blue-400 break-all select-all">
+                            {appUrl}/api/webhooks/supabase
+                          </div>
+                          <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-white/80">
+                            x-team-id: <span className="text-blue-400 font-bold">{teamId}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-5 text-left">
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">03</div>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Select the tables you want to pulse (e.g. &quot;users&quot;) and check <span className="text-white">INSERT, UPDATE, DELETE</span>.</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <footer className="p-8 bg-white/[0.02] border-t border-white/5">
+                <button 
+                  onClick={() => setShowHelpModal(false)}
+                  className="w-full bg-white text-black font-black py-5 rounded-xl uppercase text-xs tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-95"
+                >
+                  Understood // Acknowledge
+                </button>
+              </footer>
             </motion.div>
           </div>
         )}

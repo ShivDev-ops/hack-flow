@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getLabSession } from "@/app/actions/lab-auth";
 import { updateTaskStatus } from "@/app/actions/kanban"; 
 import { getTeamConfig } from "@/app/actions/lab-config";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, Database } from "lucide-react";
 
 import { Commit, Task } from "@/types/common";
 import { KanbanBoard } from "@/components/lab/dashboard/kanban-board";
@@ -13,9 +13,61 @@ import { GitFeed } from "@/components/lab/dashboard/git-feed";
 import { ObservabilityPanel } from "@/components/lab/dashboard/observability-panel";
 import { getSystemObservability } from "@/lib/lab-config/observability";
 
+interface TelemetryLog {
+  id: string;
+  action_type: string;
+  table_name: string;
+  details: string;
+  created_at: string;
+}
+
+function DatabaseTelemetry({ logs }: { logs: TelemetryLog[] }) {
+  return (
+    <div className="glass-panel rim-light rounded-[2rem] p-6 shadow-2xl bg-white/[0.01] border border-white/5">
+      <header className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
+        <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
+          <Database size={16} />
+        </div>
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white font-label-caps">DB_Audit_Pulse</span>
+      </header>
+      
+      <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+        {logs.length === 0 ? (
+          <div className="py-10 text-center space-y-2">
+            <p className="text-[9px] text-white/20 font-black uppercase tracking-widest font-mono italic">Waiting_for_Uplink...</p>
+          </div>
+        ) : (
+          logs.map((log) => (
+            <div key={log.id} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-2 group hover:bg-white/[0.04] transition-all">
+              <div className="flex justify-between items-center">
+                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${
+                  log.action_type === 'INSERT' ? 'bg-emerald-500/20 text-emerald-400' : 
+                  log.action_type === 'UPDATE' ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {log.action_type}
+                </span>
+                <span className="text-[8px] text-white/20 font-mono">
+                  {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black text-white/60 uppercase font-mono tracking-widest">{log.table_name}</span>
+                <span className="text-[10px] text-white/40 truncate font-mono italic">
+                  {log.details.length > 40 ? log.details.substring(0, 40) + "..." : log.details}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function TerminalPage() {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [dbLogs, setDbLogs] = useState<TelemetryLog[]>([]);
   const [session, setSession] = useState<{ memberId: string; teamId: string; role: string } | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
@@ -26,17 +78,18 @@ export default function TerminalPage() {
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
   
   const obsData = useMemo(() => getSystemObservability(), []);
-  
   const supabase = useMemo(() => createClient(), []);
 
   const fetchData = useCallback(async (activeTeamId: string) => {
-    const [commitsRes, tasksRes] = await Promise.all([
+    const [commitsRes, tasksRes, telemetryRes] = await Promise.all([
       supabase.from("repository_commits").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: false }).limit(10),
-      supabase.from("hf_tasks").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: true })
+      supabase.from("hf_tasks").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: true }),
+      supabase.from("hf_telemetry_logs").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: false }).limit(10)
     ]);
 
     setCommits(commitsRes.data || []);
     setTasks(tasksRes.data || []);
+    setDbLogs(telemetryRes.data || []);
   }, [supabase]);
 
   useEffect(() => {
@@ -79,7 +132,7 @@ export default function TerminalPage() {
 
     const activeTeamId = session.teamId;
 
-    // REAL-TIME UPLINK: Listen for new commits and task updates
+    // REAL-TIME UPLINK: Listen for new commits, task updates, and telemetry
     const channel = supabase
       .channel(`team-${activeTeamId}`)
       .on(
@@ -90,6 +143,11 @@ export default function TerminalPage() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'hf_tasks', filter: `team_id=eq.${activeTeamId}` },
+        () => fetchData(activeTeamId)
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'hf_telemetry_logs', filter: `team_id=eq.${activeTeamId}` },
         () => fetchData(activeTeamId)
       )
       .subscribe((status) => {
@@ -173,7 +231,7 @@ export default function TerminalPage() {
             <div className="glass-panel rim-light rounded-[2rem] overflow-hidden border border-white/5 bg-black/20 shadow-2xl group transition-all hover:border-blue-500/30">
               <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                 <div className="flex items-center gap-2">
-                  <div className="w-1 h-1 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_#3b82f6]" />
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_#3b82f6]" />
                   <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] font-label-caps">Live_Preview</span>
                 </div>
                 <a 
@@ -199,6 +257,7 @@ export default function TerminalPage() {
             </div>
           )}
 
+          <DatabaseTelemetry logs={dbLogs} />
           <GitFeed commits={commits} />
         </div>
         <div className="lg:col-span-9">
