@@ -17,14 +17,15 @@ export async function POST(req: Request) {
 
     const supabase = await createAdminClient();
 
-    // 1. Verify Team exists
+    // 1. Verify Team exists (Check both Readable ID and UUID for robustness)
     const { data: team, error: teamError } = await supabase
       .from("hf_teams")
       .select("id")
-      .eq("readable_id", teamId.toUpperCase())
-      .single();
+      .or(`readable_id.eq.${teamId.toUpperCase()},id.eq.${teamId}`)
+      .maybeSingle();
 
     if (teamError || !team) {
+      console.error("[SUPABASE_WEBHOOK_LOOKUP_FAIL]:", teamId);
       return NextResponse.json({ error: "TEAM_NOT_FOUND" }, { status: 404 });
     }
 

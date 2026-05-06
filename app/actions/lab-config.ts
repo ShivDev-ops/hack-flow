@@ -7,7 +7,7 @@ export async function getTeamConfig(teamId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("hf_teams")
-    .select("repo_url, deployment_url, db_connection")
+    .select("repo_url, deployment_url, db_connection, readable_id")
     .eq("id", teamId)
     .single();
     

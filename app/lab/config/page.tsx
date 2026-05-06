@@ -29,6 +29,7 @@ export default function LabConfigPage() {
   const [syncCount, setSyncCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [readableId, setReadableId] = useState<string | null>(null);
   const [appUrl, setAppUrl] = useState("");
 
   const [formData, setFormData] = useState({
@@ -45,6 +46,7 @@ export default function LabConfigPage() {
         setTeamId(session.teamId);
         const res = await getTeamConfig(session.teamId);
         if (res.success && res.config) {
+          setReadableId(res.config.readable_id);
           setFormData({
             repoUrl: res.config.repo_url || "",
             deploymentUrl: res.config.deployment_url || "",
@@ -263,7 +265,7 @@ export default function LabConfigPage() {
                   <div className="space-y-2">
                     <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest font-label-caps">2. HTTP Header</p>
                     <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[10px] text-white/80">
-                      x-team-id: <span className="text-blue-400">{teamId || "TEAM-XXXX"}</span>
+                      x-team-id: <span className="text-blue-400">{readableId || "TEAM-XXXX"}</span>
                     </div>
                   </div>
 
@@ -421,19 +423,20 @@ export default function LabConfigPage() {
                   <div className="space-y-6 ml-1">
                     <div className="flex gap-5">
                       <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">01</div>
-                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold text-left">Go to <span className="text-white">Database &gt; Webhooks</span>, and enable the feature in your project dashboard.</p>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold text-left">Go to <span className="text-white underline decoration-blue-500/20">Database &gt; Webhooks</span>, and enable the feature in your project dashboard.</p>
                     </div>
 
                     <div className="flex gap-4">
                       <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">02</div>
                       <div className="space-y-3 flex-1 text-left">
-                        <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Add the <span className="text-blue-400">Payload URL</span> and the required <span className="text-white">Security Header</span>:</p>
+                        <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Add the <span className="text-blue-400">Payload URL</span> and the exact <span className="text-white underline decoration-blue-500/20">HTTP Header</span>:</p>
                         <div className="space-y-2">
                           <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-blue-400 break-all select-all">
                             {appUrl}/api/webhooks/supabase
                           </div>
                           <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-white/80">
-                            x-team-id: <span className="text-blue-400 font-bold">{teamId}</span>
+                            Name: <span className="text-blue-400 font-bold">x-team-id</span> <br/>
+                            Value: <span className="text-blue-400 font-bold">{readableId}</span>
                           </div>
                         </div>
                       </div>
@@ -441,7 +444,18 @@ export default function LabConfigPage() {
 
                     <div className="flex gap-5 text-left">
                       <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">03</div>
-                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Select the tables you want to pulse (e.g. &quot;users&quot;) and check <span className="text-white">INSERT, UPDATE, DELETE</span>.</p>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Select the tables you want to pulse (e.g. &quot;users&quot;) and check <span className="text-white">INSERT, UPDATE, DELETE</span>. Click <span className="text-white underline">Save</span>.</p>
+                    </div>
+                  </div>
+
+                  {/* TROUBLESHOOTING NOTE */}
+                  <div className="p-6 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex gap-4">
+                    <ShieldAlert size={20} className="text-blue-400 shrink-0 mt-1" />
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-black text-blue-400 uppercase tracking-widest font-label-caps">Troubleshooting_Notice</p>
+                      <p className="text-[11px] text-white/40 leading-relaxed uppercase font-bold">
+                        Webhooks <span className="text-white underline">will not work</span> on localhost. You must use your deployed URL. Ensure the header name is exactly <span className="text-white">x-team-id</span>.
+                      </p>
                     </div>
                   </div>
                 </div>
