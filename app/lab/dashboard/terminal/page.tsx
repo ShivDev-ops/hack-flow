@@ -284,18 +284,18 @@ export default function TerminalPage() {
       )}
       
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10 border-b border-white/5 pb-8">
-        <div className="flex flex-col md:flex-row md:items-center gap-6">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-center gap-8">
+          <div className="flex flex-col">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-1.5 h-1.5 bg-secondary rounded-full pulse-emerald shadow-[0_0_10px_#4edea3]" />
               <span className="text-[9px] font-black text-secondary uppercase tracking-[0.4em] font-label-caps">Mission_Control // Operational</span>
             </div>
-            <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+            <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none flex items-center gap-4">
               Command <span className="text-white/20">Terminal</span>
             </h1>
           </div>
 
-          <div className="flex items-center gap-4 px-6 py-3 bg-white/[0.02] border border-white/5 rounded-2xl rim-light shadow-xl">
+          <div className="flex items-center gap-4 px-6 py-3 bg-white/[0.02] border border-white/5 rounded-2xl rim-light shadow-xl mt-2">
              <div className="flex flex-col items-start border-r border-white/10 pr-6">
                 <span className="text-[7px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-1">Uplink_Status</span>
                 <div className="flex items-center gap-2">
@@ -343,8 +343,13 @@ export default function TerminalPage() {
         </div>
       </div>
 
-      {/* FOOTER PANELS: Preview & Database Pulse */}
+      {/* FOOTER PANELS: DB Pulse at Left, Preview at Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 border-t border-white/5">
+        <div className="lg:col-span-4 space-y-8">
+           <DatabaseTelemetry logs={dbLogs} />
+           <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
+        </div>
+        
         <div className="lg:col-span-8">
            {deploymentUrl && (
             <div className="glass-panel rim-light rounded-[2rem] overflow-hidden border border-white/5 bg-black/20 shadow-2xl group transition-all hover:border-blue-500/30">
@@ -362,7 +367,7 @@ export default function TerminalPage() {
                   Launch_External <ExternalLink size={10} />
                 </a>
               </div>
-              <div className="relative h-[400px] bg-zinc-900 overflow-hidden">
+              <div className="relative h-[480px] bg-zinc-900 overflow-hidden">
                 <iframe 
                   src={deploymentUrl} 
                   className="w-full h-[150%] origin-top-left border-none pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity duration-700"
@@ -375,10 +380,6 @@ export default function TerminalPage() {
               </div>
             </div>
           )}
-        </div>
-        <div className="lg:col-span-4 space-y-8">
-           <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
-           <DatabaseTelemetry logs={dbLogs} />
         </div>
       </div>
     </div>

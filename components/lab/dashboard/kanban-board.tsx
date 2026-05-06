@@ -52,7 +52,7 @@ export function KanbanBoard({
     const point = info.point;
     
     // Find which column the pointer is currently over
-    let targetColId = task.status;
+    let targetColId = null;
     
     Object.entries(columnRefs.current).forEach(([id, el]) => {
       if (!el) return;
@@ -63,11 +63,12 @@ export function KanbanBoard({
         point.y >= rect.top && 
         point.y <= rect.bottom
       ) {
-        targetColId = id as any;
+        targetColId = id;
       }
     });
 
-    if (targetColId !== task.status) {
+    // If dropped in "middle" (no column match) or same column, it will naturally return via layout prop
+    if (targetColId && targetColId !== task.status) {
       onMoveTask(task.id, targetColId);
     }
   };
@@ -116,13 +117,19 @@ export function KanbanBoard({
                         layout
                         drag
                         dragConstraints={containerRef}
-                        dragElastic={0.05}
-                        dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+                        dragElastic={0.02}
+                        dragTransition={{ bounceStiffness: 1000, bounceDamping: 40 }}
                         onDragStart={() => setActiveDragId(task.id)}
                         onDragEnd={(e, info) => handleDragEnd(e, info, task)}
                         onMouseEnter={() => onHoverTask?.(task.id)}
                         onMouseLeave={() => onHoverTask?.(null)}
-                        whileDrag={{ scale: 1.02, zIndex: 10000, cursor: "grabbing", boxShadow: "0 20px 40px rgba(0,0,0,0.4)" }}
+                        whileDrag={{ 
+                          scale: 0.8, 
+                          zIndex: 10000, 
+                          cursor: "grabbing", 
+                          boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+                          opacity: 0.9 
+                        }}
                         key={task.id} 
                         id={`task-card-${task.id}`}
                         className={`p-5 bg-zinc-950 border border-white/10 rounded-2xl space-y-4 shadow-2xl relative group/card cursor-grab active:cursor-grabbing transition-shadow hover:shadow-white/5 ${activeDragId === task.id ? 'opacity-50 border-secondary' : 'z-20'}`}
