@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getLabSession } from "@/app/actions/lab-auth";
-import { updateTaskStatus } from "@/app/actions/kanban"; 
+import { updateTaskStatus, deleteTaskAction } from "@/app/actions/kanban"; 
 import { getTeamConfig } from "@/app/actions/lab-config";
 import { Loader2, ExternalLink, Database } from "lucide-react";
 
@@ -161,6 +161,18 @@ export default function TerminalPage() {
         if (teamData) setEventId(teamData.event_id);
 
         await fetchData(activeTeamId);
+
+        // SYSTEM TELEMETRY: Log terminal access if no logs exist
+        const { count } = await supabase.from("hf_telemetry_logs").select('*', { count: 'exact', head: true }).eq("team_id", activeTeamId);
+        if (count === 0) {
+          await supabase.from("hf_telemetry_logs").insert({
+            team_id: activeTeamId,
+            action_type: "SYSTEM",
+            table_name: "hf_terminal",
+            details: "Neural Uplink Established: Terminal Online"
+          });
+          fetchData(activeTeamId);
+        }
       } catch (error) {
         console.error("Terminal initialization failed:", error);
       } finally {
@@ -224,6 +236,15 @@ export default function TerminalPage() {
       await fetchData(session.teamId); 
     }
     
+    setUpdatingId(null);
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm("Are you sure you want to delete this task?")) return;
+    setUpdatingId(taskId);
+    const res = await deleteTaskAction(taskId, eventId || "");
+    if (!res.success) alert(res.error);
+    else if (session?.teamId) fetchData(session.teamId);
     setUpdatingId(null);
   };
 
@@ -296,7 +317,12 @@ export default function TerminalPage() {
           <GitFeed 
             commits={commits} 
             onHoverCommit={(sha) => setHoveredCommitSha(sha)}
-            onStartWiring={(sha) => setIsWiring(sha)}
+            onStartWiring={(sha) => {
+              setIsWiring(sha);
+              // Capture initial mouse position to prevent wire jump
+              const e = window.event as MouseEvent;
+              if (e) setMousePos({ x: e.clientX, y: e.clientY });
+            }}
           />
         </div>
         <div className="lg:col-span-9">
@@ -312,6 +338,7 @@ export default function TerminalPage() {
             onRefresh={() => session?.teamId && fetchData(session.teamId)}
             onHoverTask={(tid) => setHoveredTaskId(tid)}
             onRemoveLink={handleRemoveLink}
+            onDeleteTask={handleDeleteTask}
           />
         </div>
       </div>

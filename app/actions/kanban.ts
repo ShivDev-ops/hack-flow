@@ -31,6 +31,56 @@ export async function updateTaskStatus(
     .eq("id", taskId);
 
   if (error) return { success: false, error: error.message };
+
+  // 3. TELEMETRY: Manually log the action for the Terminal Audit Pulse
+  const { data: task } = await supabase.from("hf_tasks").select("team_id").eq("id", taskId).single();
+  if (task) {
+    await supabase.from("hf_telemetry_logs").insert({
+      team_id: task.team_id,
+      action_type: "UPDATE",
+      table_name: "hf_tasks",
+      details: `Moved objective to ${newStatus}`
+    });
+  }
+
+  revalidatePath("/lab/dashboard/terminal");
+  return { success: true };
+}
+
+export async function deleteTaskAction(taskId: string, eventId: string) {
+  const supabase = await createClient();
+
+  // Deadline check (optional for delete, but let's keep it consistent)
+  const { data: event } = await supabase
+    .from("hf_events")
+    .select("end_time")
+    .eq("id", eventId)
+    .single();
+
+  if (event && new Date() > new Date(event.end_time)) {
+    return { success: false, error: "EVENT_TERMINATED: Modifications are locked." };
+  }
+
+  // Get team_id for telemetry before deleting
+  const { data: task } = await supabase.from("hf_tasks").select("team_id, title").eq("id", taskId).single();
+
+  const { error } = await supabase
+    .from("hf_tasks")
+    .delete()
+    .eq("id", taskId);
+
+  if (error) return { success: false, error: error.message };
+
+  // TELEMETRY
+  if (task) {
+    await supabase.from("hf_telemetry_logs").insert({
+      team_id: task.team_id,
+      action_type: "DELETE",
+      table_name: "hf_tasks",
+      details: `Deleted objective: ${task.title}`
+    });
+  }
+
   revalidatePath("/lab/dashboard/terminal");
   return { success: true };
 }
@@ -65,6 +115,15 @@ export async function createTaskAction(
     });
 
   if (error) return { success: false, error: error.message };
+
+  // TELEMETRY
+  await supabase.from("hf_telemetry_logs").insert({
+    team_id: teamId,
+    action_type: "INSERT",
+    table_name: "hf_tasks",
+    details: `Created new objective: ${title}`
+  });
+
   revalidatePath("/lab/dashboard/terminal");
   return { success: true };
-}
+  }

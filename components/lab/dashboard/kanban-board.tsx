@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GitBranch, Plus, CheckCircle2, Bug, Zap, XCircle } from "lucide-react";
+import { GitBranch, Plus, CheckCircle2, Bug, Zap, XCircle, Trash2 } from "lucide-react";
 import { Task, Commit } from "@/types/common";
 import { CreateTaskModal } from "../create-task-modal";
 
@@ -18,6 +18,7 @@ interface KanbanBoardProps {
   onRefresh: () => void;
   onHoverTask?: (taskId: string | null) => void;
   onRemoveLink?: (taskId: string) => void;
+  onDeleteTask?: (taskId: string) => void;
 }
 
 export function KanbanBoard({ 
@@ -31,7 +32,8 @@ export function KanbanBoard({
   onSelectCommit,
   onRefresh,
   onHoverTask,
-  onRemoveLink
+  onRemoveLink,
+  onDeleteTask
 }: KanbanBoardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -114,12 +116,13 @@ export function KanbanBoard({
                         layout
                         drag
                         dragConstraints={containerRef}
-                        dragElastic={0.1}
+                        dragElastic={0.05}
+                        dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
                         onDragStart={() => setActiveDragId(task.id)}
                         onDragEnd={(e, info) => handleDragEnd(e, info, task)}
                         onMouseEnter={() => onHoverTask?.(task.id)}
                         onMouseLeave={() => onHoverTask?.(null)}
-                        whileDrag={{ scale: 1.05, zIndex: 10000, cursor: "grabbing" }}
+                        whileDrag={{ scale: 1.02, zIndex: 10000, cursor: "grabbing", boxShadow: "0 20px 40px rgba(0,0,0,0.4)" }}
                         key={task.id} 
                         id={`task-card-${task.id}`}
                         className={`p-5 bg-zinc-950 border border-white/10 rounded-2xl space-y-4 shadow-2xl relative group/card cursor-grab active:cursor-grabbing transition-shadow hover:shadow-white/5 ${activeDragId === task.id ? 'opacity-50 border-secondary' : 'z-20'}`}
@@ -139,15 +142,24 @@ export function KanbanBoard({
                           <h4 className="text-[13px] font-black text-white leading-tight uppercase tracking-tight font-body italic">{task.title}</h4>
                           <p className="text-[10px] text-white/30 font-medium leading-relaxed line-clamp-3 uppercase tracking-tight">{task.description}</p>
                         </div>
-                        {task.commit_sha && (
+                        <div className="flex flex-col gap-2">
+                          {task.commit_sha && (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); onRemoveLink?.(task.id); }}
+                              className="p-1 text-white/10 hover:text-red-500 transition-colors z-30 bg-black/40 rounded-lg border border-white/5"
+                              title="Disconnect Neural Link"
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          )}
                           <button 
-                            onClick={(e) => { e.stopPropagation(); onRemoveLink?.(task.id); }}
+                            onClick={(e) => { e.stopPropagation(); onDeleteTask?.(task.id); }}
                             className="p-1 text-white/10 hover:text-red-500 transition-colors z-30 bg-black/40 rounded-lg border border-white/5"
-                            title="Disconnect Neural Link"
+                            title="Delete Objective"
                           >
-                            <XCircle size={14} />
+                            <Trash2 size={14} />
                           </button>
-                        )}
+                        </div>
                       </div>
                       
                       <div className="pt-2 space-y-3">
