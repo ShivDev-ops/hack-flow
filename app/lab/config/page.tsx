@@ -429,14 +429,14 @@ export default function LabConfigPage() {
                     <div className="flex gap-4">
                       <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">02</div>
                       <div className="space-y-3 flex-1 text-left">
-                        <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Add the <span className="text-blue-400">Payload URL</span> and the exact <span className="text-white underline decoration-blue-500/20">HTTP Header</span>:</p>
+                        <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Add the <span className="text-blue-400">Payload URL</span> and both <span className="text-white underline decoration-blue-500/20">HTTP Headers</span>:</p>
                         <div className="space-y-2">
                           <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-blue-400 break-all select-all">
                             {appUrl}/api/webhooks/supabase
                           </div>
-                          <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-white/80">
-                            Name: <span className="text-blue-400 font-bold">x-team-id</span> <br/>
-                            Value: <span className="text-blue-400 font-bold">{readableId}</span>
+                          <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-white/80 space-y-1">
+                            <div>Header 1: <span className="text-blue-400 font-bold">Content-Type</span> | <span className="text-white">application/json</span></div>
+                            <div className="pt-1">Header 2: <span className="text-blue-400 font-bold">x-team-id</span> | <span className="text-white">{readableId}</span></div>
                           </div>
                         </div>
                       </div>

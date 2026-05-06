@@ -198,6 +198,12 @@ d:/hack-f/
     - The "Registry / Sync Uplink" logic (`dashboard/registry`, `sync/column-mapper`, `dashboard/registry-uplink`) where organizers map fields extracted from custom Google Forms spreadsheets directly into the uniform `hack-flow` database schema.
 5. **Server Actions (Next 15 Pattern)**: The core backend operations are modeled as App Router Server Actions stored cleanly inside `app/actions/*.ts` (e.g., `events.ts`, `ingest.ts`, `triage.ts`, `test-sync.ts`).
 
+
+**Labs Section Implementation:**
+
+
+
+
 **Suggested Next Steps for AI / Developers:**
 When jumping into this codebase, your likely next steps are:
 1. Validating and finalizing the spreadsheet ingest logic (Google Sheets webhooks -> DB).

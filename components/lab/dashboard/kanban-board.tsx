@@ -16,6 +16,8 @@ interface KanbanBoardProps {
   onMoveTask: (taskId: string, newStatus: string) => void;
   onSelectCommit: (taskId: string, commitSha: string) => void;
   onRefresh: () => void;
+  onStartWiring?: (taskId: string) => void;
+  onHoverTask?: (taskId: string | null) => void;
 }
 
 export function KanbanBoard({ 
@@ -27,7 +29,9 @@ export function KanbanBoard({
   eventId,
   onMoveTask,
   onSelectCommit,
-  onRefresh
+  onRefresh,
+  onStartWiring,
+  onHoverTask
 }: KanbanBoardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -106,18 +110,31 @@ export function KanbanBoard({
               <div className="space-y-4 flex-1">
                 <AnimatePresence mode="popLayout">
                   {columnTasks.map((task) => (
-                    <motion.div 
-                      layout
-                      drag
-                      dragConstraints={containerRef}
-                      dragElastic={0.1}
-                      onDragStart={() => setActiveDragId(task.id)}
-                      onDragEnd={(e, info) => handleDragEnd(e, info, task)}
-                      whileDrag={{ scale: 1.05, zIndex: 10000, cursor: "grabbing" }}
-                      key={task.id} 
-                      className={`p-5 bg-zinc-950 border border-white/10 rounded-2xl space-y-4 shadow-2xl relative group/card cursor-grab active:cursor-grabbing transition-shadow hover:shadow-white/5 ${activeDragId === task.id ? 'opacity-50 border-secondary' : 'z-20'}`}
-                    >
-                      <div className={`absolute top-0 left-0 w-1 h-full opacity-40 ${col.color}`} />
+                      <motion.div 
+                        layout
+                        drag
+                        dragConstraints={containerRef}
+                        dragElastic={0.1}
+                        onDragStart={() => setActiveDragId(task.id)}
+                        onDragEnd={(e, info) => handleDragEnd(e, info, task)}
+                        onMouseEnter={() => onHoverTask?.(task.id)}
+                        onMouseLeave={() => onHoverTask?.(null)}
+                        whileDrag={{ scale: 1.05, zIndex: 10000, cursor: "grabbing" }}
+                        key={task.id} 
+                        className={`p-5 bg-zinc-950 border border-white/10 rounded-2xl space-y-4 shadow-2xl relative group/card cursor-grab active:cursor-grabbing transition-shadow hover:shadow-white/5 ${activeDragId === task.id ? 'opacity-50 border-secondary' : 'z-20'}`}
+                      >
+                        <div className={`absolute top-0 left-0 w-1 h-full opacity-40 ${col.color}`} />
+                        
+                        {/* NEURAL PORT - Starting point for Wires */}
+                        <div 
+                          id={`task-port-${task.id}`}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            onStartWiring?.(task.id);
+                          }}
+                          className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white/20 group-hover/card:bg-secondary transition-colors cursor-crosshair z-30 border border-black shadow-[0_0_8px_rgba(255,255,255,0.1)] hover:scale-150 transition-transform" 
+                          title="Click to initiate Neural Link"
+                        />
                       
                       <div className="space-y-1 pointer-events-none">
                         <h4 className="text-[13px] font-black text-white leading-tight uppercase tracking-tight font-body italic">{task.title}</h4>

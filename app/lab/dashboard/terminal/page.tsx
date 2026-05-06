@@ -11,6 +11,7 @@ import { Commit, Task } from "@/types/common";
 import { KanbanBoard } from "@/components/lab/dashboard/kanban-board";
 import { GitFeed } from "@/components/lab/dashboard/git-feed";
 import { ObservabilityPanel } from "@/components/lab/dashboard/observability-panel";
+import { NeuralLinkOverlay } from "@/components/lab/dashboard/neural-link-overlay";
 import { getSystemObservability } from "@/lib/lab-config/observability";
 
 interface TelemetryLog {
@@ -74,11 +75,45 @@ export default function TerminalPage() {
   const [loading, setLoading] = useState(true);
   const [channelStatus, setChannelStatus] = useState<string>("CONNECTING");
   
+  // NEURAL LINK STATE
+  const [isWiring, setIsWiring] = useState<string | null>(null);
+  const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
   
   const obsData = useMemo(() => getSystemObservability(), []);
   const supabase = useMemo(() => createClient(), []);
+
+  // Neural Link Handlers
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (isWiring) setMousePos({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+      if (isWiring) {
+        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        const commitEl = elements.find(el => el.id.startsWith('commit-'));
+        
+        if (commitEl) {
+          const sha = commitEl.id.replace('commit-', '');
+          setSelectedCommit(prev => ({ ...prev, [isWiring]: sha }));
+        }
+        setIsWiring(null);
+      }
+    };
+
+    if (isWiring) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isWiring]);
 
   const fetchData = useCallback(async (activeTeamId: string) => {
     const [commitsRes, tasksRes, telemetryRes] = await Promise.all([
@@ -194,8 +229,16 @@ export default function TerminalPage() {
   }
 
   return (
-    <div className="p-6 md:p-10 space-y-10 max-w-[1600px] mx-auto min-h-full selection:bg-secondary/30">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+    <div className="p-6 md:p-10 space-y-10 max-w-[1600px] mx-auto min-h-full selection:bg-secondary/30 relative">
+      <NeuralLinkOverlay 
+        tasks={tasks} 
+        activeTeamId={session?.teamId || ""} 
+        isWiring={isWiring} 
+        hoveredTaskId={hoveredTaskId}
+        mousePos={mousePos} 
+      />
+      
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-10">
         <div>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-1.5 h-1.5 bg-secondary rounded-full pulse-emerald shadow-[0_0_10px_#4edea3]" />
@@ -270,6 +313,8 @@ export default function TerminalPage() {
             onMoveTask={handleMoveTask}
             onSelectCommit={(tid, sha) => setSelectedCommit(prev => ({ ...prev, [tid]: sha }))}
             onRefresh={() => session?.teamId && fetchData(session.teamId)}
+            onStartWiring={(tid) => setIsWiring(tid)}
+            onHoverTask={(tid) => setHoveredTaskId(tid)}
           />
         </div>
       </div>
