@@ -93,3 +93,17 @@ export async function updateEventMapping(eventId: string, mapping: Record<string
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+export async function getActiveEventAction() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('hf_events')
+    .select('*')
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, event: data };
+}
