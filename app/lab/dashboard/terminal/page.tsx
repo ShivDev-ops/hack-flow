@@ -27,36 +27,28 @@ function DatabaseTelemetry({ logs }: { logs: TelemetryLog[] }) {
     <div className="glass-panel rim-light rounded-[2rem] p-6 shadow-2xl bg-white/[0.01] border border-white/5">
       <header className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
         <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
-          <Database size={16} />
+          <Database size={18} />
         </div>
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white font-label-caps">DB_Audit_Pulse</span>
+        <span className="text-[12px] font-black uppercase tracking-[0.3em] text-white font-label-caps">Audit_Pulse</span>
       </header>
       
-      <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+      <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
         {logs.length === 0 ? (
           <div className="py-10 text-center space-y-2">
-            <p className="text-[9px] text-white/20 font-black uppercase tracking-widest font-mono italic">Waiting_for_Uplink...</p>
+            <p className="text-[11px] text-white/20 font-black uppercase tracking-widest font-mono italic">Waiting_for_Uplink...</p>
           </div>
         ) : (
           logs.map((log) => (
-            <div key={log.id} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-2 group hover:bg-white/[0.04] transition-all">
-              <div className="flex justify-between items-center">
-                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${
-                  log.action_type === 'INSERT' ? 'bg-emerald-500/20 text-emerald-400' : 
-                  log.action_type === 'UPDATE' ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'
-                }`}>
-                  {log.action_type}
-                </span>
-                <span className="text-[8px] text-white/20 font-mono">
-                  {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black text-white/60 uppercase font-mono tracking-widest">{log.table_name}</span>
-                <span className="text-[10px] text-white/40 truncate font-mono italic">
-                  {log.details.length > 40 ? log.details.substring(0, 40) + "..." : log.details}
-                </span>
-              </div>
+            <div key={log.id} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl flex items-center gap-4 group hover:bg-white/[0.04] transition-all">
+              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0 ${
+                log.action_type === 'INSERT' ? 'bg-emerald-500/20 text-emerald-400' : 
+                log.action_type === 'UPDATE' ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'
+              }`}>
+                {log.action_type}
+              </span>
+              <span className="text-[11px] text-white/50 truncate font-mono italic flex-1">
+                {log.details}
+              </span>
             </div>
           ))
         )}
@@ -339,15 +331,15 @@ export default function TerminalPage() {
               <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_#3b82f6]" />
-                  <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] font-label-caps">Live_Preview_Uplink</span>
+                  <span className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] font-label-caps">Live_Preview_Uplink</span>
                 </div>
                 <a 
                   href={deploymentUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-[9px] font-black text-secondary uppercase hover:text-white transition-colors flex items-center gap-1 font-label-caps"
+                  className="text-[11px] font-black text-secondary uppercase hover:text-white transition-colors flex items-center gap-1 font-label-caps"
                 >
-                  Launch_External <ExternalLink size={10} />
+                  Launch_External <ExternalLink size={12} />
                 </a>
               </div>
               <div className="relative h-[480px] bg-zinc-900 overflow-hidden">
