@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { GitBranch, Plus, CheckCircle2, Bug, Zap, XCircle, Trash2 } from "lucide-react";
+import { GitBranch, Plus, CheckCircle2, Bug, Zap, XCircle, Trash2, Eye } from "lucide-react";
 import { Task, Commit } from "@/types/common";
 import { CreateTaskModal } from "../create-task-modal";
 
@@ -43,6 +43,7 @@ export function KanbanBoard({
   const columns = [
     { id: 'Todo', title: 'To-Do', color: 'bg-white/20', icon: <Plus size={12}/> },
     { id: 'Progress', title: 'Active_Work', color: 'bg-secondary', icon: <Zap size={12}/> },
+    { id: 'Review', title: 'In_Review', color: 'bg-amber-400', icon: <Eye size={12}/> },
     { id: 'Verified', title: 'Completed', color: 'bg-blue-400', icon: <CheckCircle2 size={12}/> },
     { id: 'Bugs', title: 'Bugs', color: 'bg-red-500', icon: <Bug size={12}/> }
   ];
@@ -75,7 +76,7 @@ export function KanbanBoard({
 
   return (
     <>
-      <div ref={containerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div ref={containerRef} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
         {columns.map((col) => {
           const columnTasks = tasks.filter(t => t.status === col.id);
           const isTodo = col.id === 'Todo';

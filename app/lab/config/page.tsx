@@ -234,14 +234,16 @@ export default function LabConfigPage() {
 
                   <div className="space-y-2">
                     <p className="text-[9px] text-secondary font-black uppercase tracking-widest font-label-caps">3. Events</p>
-                    <p className="text-[10px] text-white font-data-mono">Select the <span className="text-secondary">push</span> event.</p>
+                    <p className="text-[10px] text-white font-data-mono">Enable <span className="text-secondary">Push</span> and <span className="text-secondary">Pull Request</span> events.</p>
                   </div>
                 </div>
 
-                <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
-                  <p className="text-[9px] text-white/40 leading-tight uppercase font-bold">
-                    Note: Navigate to your repository settings on GitHub to add this webhook. 
-                    Path: <span className="text-white">Settings &gt; Webhooks &gt; Add Webhook</span>
+                <div className="p-4 bg-secondary/5 border border-secondary/10 rounded-xl">
+                  <p className="text-[9px] text-secondary leading-tight uppercase font-bold mb-1">
+                    Neural PR Link Active
+                  </p>
+                  <p className="text-[9px] text-white/40 leading-tight uppercase font-medium">
+                    Add <span className="text-white">"fixes #task-id"</span> to your PR description to auto-move tasks to Review.
                   </p>
                 </div>
              </div>
@@ -406,7 +408,17 @@ export default function LabConfigPage() {
                     </div>
                     <div className="flex gap-5">
                       <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-secondary shrink-0">03</div>
-                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Select <span className="text-white">&quot;Just the push event&quot;</span> and click <span className="text-white">Add Webhook</span>.</p>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold text-left">Select <span className="text-white">Push</span> and <span className="text-white">Pull Request</span> events, then click <span className="text-white">Add Webhook</span>.</p>
+                    </div>
+
+                    <div className="p-4 bg-secondary/5 border border-secondary/10 rounded-xl flex gap-4 mt-4">
+                      <Zap size={20} className="text-secondary shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-black text-secondary uppercase tracking-widest font-label-caps">Pro_Tip: Neural_Automation</p>
+                        <p className="text-[11px] text-white/40 leading-relaxed uppercase font-bold">
+                          Including <span className="text-white">"fixes #task-id"</span> in your PR description will automatically move the task to <span className="text-white">Review</span>.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
