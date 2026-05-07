@@ -1,9 +1,8 @@
 export interface ObservabilityConfig {
   deployment: {
-    status: "Ready" | "Building" | "Failed" | "Offline" | string;
+    status: string;
     color: string;
     showPulse: boolean;
-    error?: string | null;
   };
   dbPulse: {
     latency: string;
@@ -13,11 +12,12 @@ export interface ObservabilityConfig {
 }
 
 export function getSystemObservability(): ObservabilityConfig {
+  // In a real app, this could fetch from an API or env vars
   return {
     deployment: {
-      status: "Offline",
-      color: "bg-white/10",
-      showPulse: false,
+      status: "Ready",
+      color: "bg-blue-500",
+      showPulse: true,
     },
     dbPulse: {
       latency: "14ms",

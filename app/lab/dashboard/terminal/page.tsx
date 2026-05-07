@@ -66,7 +66,6 @@ export default function TerminalPage() {
   const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [channelStatus, setChannelStatus] = useState<string>("CONNECTING");
-  const [obsData, setObsData] = useState(getSystemObservability());
   
   // NEURAL LINK STATE
   const [isWiring, setIsWiring] = useState<string | null>(null);
@@ -78,6 +77,7 @@ export default function TerminalPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
   
+  const obsData = useMemo(() => getSystemObservability(), []);
   const supabase = useMemo(() => createClient(), []);
 
   // Neural Link Handlers
@@ -123,29 +123,9 @@ export default function TerminalPage() {
       supabase.from("hf_telemetry_logs").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: false }).limit(10)
     ]);
 
-    const logs = telemetryRes.data || [];
     setCommits(commitsRes.data || []);
     setTasks(tasksRes.data || []);
-    setDbLogs(logs);
-
-    // EXTRACT DEPLOYMENT STATUS FROM TELEMETRY
-    const deployLog = logs.find(l => l.table_name === 'hf_deployments');
-    if (deployLog) {
-      const details = deployLog.details;
-      const status = details.includes("READY") ? "Ready" : details.includes("FAILED") ? "Failed" : details.includes("BUILDING") ? "Building" : "Offline";
-      const errorMatch = details.match(/\((.*?)\)/);
-      const error = errorMatch ? errorMatch[1] : null;
-      
-      setObsData(prev => ({
-        ...prev,
-        deployment: {
-          status,
-          color: status === "Ready" ? "bg-blue-500" : status === "Failed" ? "bg-red-500" : status === "Building" ? "bg-amber-500" : "bg-white/10",
-          showPulse: status !== "Offline",
-          error
-        }
-      }));
-    }
+    setDbLogs(telemetryRes.data || []);
   }, [supabase]);
 
   useEffect(() => {
