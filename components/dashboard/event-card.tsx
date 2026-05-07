@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Users, Radio, Trash2, Settings, AlertTriangle, LayoutDashboard, Eye, Box, Loader2, Clock, RefreshCw } from "lucide-react";
+import { Users, Radio, Trash2, Settings, AlertTriangle, LayoutDashboard, Eye, Box, Loader2, Clock, RefreshCw, BookOpen } from "lucide-react";
 import { purgeEventAction, syncEventAction } from "@/app/actions/ingest";
 import { EventSettingsModal } from "./event-settings-modal";
 
@@ -93,11 +93,12 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
           </div>
 
           <div className="flex flex-col gap-[8px] mt-auto">
-            <div className="grid grid-cols-2 gap-[8px]">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-[8px]">
               <Link href="/dashboard/triage" className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><LayoutDashboard size={14}/> Triage</Link>
-              <button onClick={() => setIsSettingsOpen(true)} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Settings size={14}/> Config</button>
               <Link href={`/dashboard/event/${event.id}`} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Eye size={14}/> View</Link>
-              <button onClick={() => setIsPurging(true)} className="flex items-center justify-center gap-[8px] bg-red-500/10 py-[12px] rounded-xl text-[10px] font-black text-red-500 uppercase hover:bg-red-500/20 border border-red-500/20 transition-all"><Trash2 size={14}/> Purge</button>
+              <Link href={`/dashboard/event/${event.id}/resources`} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><BookOpen size={14}/> Resources</Link>
+              <button onClick={() => setIsSettingsOpen(true)} className="col-span-2 md:col-span-1 flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Settings size={14}/> Config</button>
+              <button onClick={() => setIsPurging(true)} className="col-span-1 flex items-center justify-center gap-[8px] bg-red-500/10 py-[12px] rounded-xl text-[10px] font-black text-red-500 uppercase hover:bg-red-500/20 border border-red-500/20 transition-all"><Trash2 size={14}/> Purge</button>
             </div>
             <button 
               onClick={handleSync}

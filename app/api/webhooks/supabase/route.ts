@@ -55,8 +55,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
 
-  } catch (err: any) {
-    console.error("[SUPABASE_WEBHOOK_CRITICAL]:", err.message);
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "An unexpected server error occurred.";
+    console.error("[SUPABASE_WEBHOOK_CRITICAL]:", errorMessage);
     return NextResponse.json({ error: "INTERNAL_SERVER_ERROR" }, { status: 500 });
   }
 }

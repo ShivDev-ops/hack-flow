@@ -39,8 +39,8 @@ export default function LabConfigPage() {
   });
 
   useEffect(() => {
-    setAppUrl(window.location.origin);
     async function init() {
+      setAppUrl(window.location.origin);
       const session = await getLabSession();
       if (session?.teamId) {
         setTeamId(session.teamId);
@@ -243,7 +243,7 @@ export default function LabConfigPage() {
                     Neural PR Link Active
                   </p>
                   <p className="text-[9px] text-white/40 leading-tight uppercase font-medium">
-                    Add <span className="text-white">"fixes #task-id"</span> to your PR description to auto-move tasks to Review.
+                    Add <span className="text-white">&quot;fixes #task-id&quot;</span> to your PR description to auto-move tasks to Review.
                   </p>
                 </div>
              </div>
@@ -416,7 +416,7 @@ export default function LabConfigPage() {
                       <div className="space-y-1">
                         <p className="text-[11px] font-black text-secondary uppercase tracking-widest font-label-caps">Pro_Tip: Neural_Automation</p>
                         <p className="text-[11px] text-white/40 leading-relaxed uppercase font-bold">
-                          Including <span className="text-white">"fixes #task-id"</span> in your PR description will automatically move the task to <span className="text-white">Review</span>.
+                          Including <span className="text-white">&quot;fixes #task-id&quot;</span> in your PR description will automatically move the task to <span className="text-white">Review</span>.
                         </p>
                       </div>
                     </div>

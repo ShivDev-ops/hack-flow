@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getLabSession } from "@/app/actions/lab-auth";
 import { updateTaskStatus } from "@/app/actions/kanban";
@@ -16,24 +16,24 @@ export default function ConfigSysPage() {
 
   const supabase = createClient();
 
-  const fetchTasks = async (teamId: string) => {
+  const fetchTasks = useCallback(async (teamId: string) => {
     const { data } = await supabase.from("hf_tasks").select("*").eq("team_id", teamId);
     setTasks(data || []);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     const init = async () => {
       try {
         const sessionData = await getLabSession();
         if (!sessionData || !sessionData.teamId) return;
-        setSession(sessionData as any);
+        setSession(sessionData);
         await fetchTasks(sessionData.teamId);
       } finally {
         setLoading(false);
       }
     };
     init();
-  }, [supabase]);
+  }, [fetchTasks]);
 
   const handleStatusChange = async (taskId: string, newStatus: string, eventId: string, sha: string | null = null) => {
     setUpdating(taskId);

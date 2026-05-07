@@ -12,11 +12,23 @@ import {
   Menu,
   Zap,
   ShieldAlert,
-  Clock
+  Clock,
+  BookOpen
 } from "lucide-react";
 import { getLabSession, destroyLabSession } from "@/app/actions/lab-auth";
 import { getActiveEventAction } from "@/app/actions/events";
 import { Event } from "@/types/common";
+
+import { LabSidebarNav } from "@/components/layout/lab-sidebar-nav";
+
+const navItems = [
+  { name: "Terminal", path: "/lab/dashboard/terminal", icon: Terminal },
+  { name: "Config-Sys", path: "/lab/dashboard/config-sys", icon: ShieldAlert },
+  { name: "Sys_Setup", path: "/lab/config", icon: Network },
+  { name: "Leaderboard", path: "/lab/leaderboard", icon: Trophy },
+  { name: "Mission_Specs", path: "/lab/specs", icon: FileText },
+  { name: "Mission_Briefing", path: "/lab/dashboard/briefing", icon: BookOpen },
+];
 
 export default function LabLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -74,14 +86,6 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
     router.push("/lab/login");
   };
 
-  const navItems = [
-    { name: "Terminal", path: "/lab/dashboard/terminal", icon: Terminal },
-    { name: "Config-Sys", path: "/lab/dashboard/config-sys", icon: ShieldAlert },
-    { name: "Sys_Setup", path: "/lab/config", icon: Network },
-    { name: "Leaderboard", path: "/lab/leaderboard", icon: Trophy },
-    { name: "Mission_Specs", path: "/lab/specs", icon: FileText },
-  ];
-
   if (isAuthOrLobby) {
     return <div className="bg-background min-h-screen font-body-main">{children}</div>;
   }
@@ -112,26 +116,7 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-4">
-          {navItems.map((item) => {
-            const isActive = pathname === item.path;
-            const Icon = item.icon;
-            return (
-              <Link 
-                key={item.name} 
-                href={item.path}
-                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all ${
-                  isActive 
-                    ? "bg-white text-black font-black" 
-                    : "text-white/40 hover:text-white hover:bg-white/5 font-bold"
-                }`}
-              >
-                <Icon size={16} />
-                <span className="text-[10px] uppercase tracking-[0.2em] font-label-caps">{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <LabSidebarNav />
 
         <div className="mt-auto pt-8 border-t border-white/5 pb-10 bg-white/[0.01]">
           <div className="px-8 mb-6">

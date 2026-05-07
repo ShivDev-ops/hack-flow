@@ -44,11 +44,13 @@ export async function POST(req: Request) {
     console.log(`[GITHUB_WEBHOOK] Processing ${event} for: ${normalizedRepoUrl}`);
 
     // Try exact match first
-    let { data: team, error: teamError } = await supabase
+    const { data: teamRes, error: teamError } = await supabase
       .from("hf_teams")
       .select("id, name")
       .eq("repo_url", rawRepoUrl)
       .maybeSingle();
+
+    let team = teamRes;
 
     if (teamError) {
        console.error("[GITHUB_WEBHOOK] Supabase Team Lookup Error:", teamError.message);
@@ -77,7 +79,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ status: "NO_COMMITS_IN_PUSH" });
       }
 
-      const commits = data.commits.map((commit: any) => ({
+      const commits = data.commits.map((commit: { id: string; message: string; author: { username?: string; name: string }; url: string; timestamp: string }) => ({
         team_id: team!.id,
         commit_sha: commit.id,
         message: commit.message,
@@ -110,7 +112,7 @@ export async function POST(req: Request) {
       
       // Regex: fixes #task-id, resolves task-id, linked to #task-id
       const taskRegex = /(?:fixes|closes|resolves|linked to)\s+#?([a-zA-Z0-9-]+)/gi;
-      const matches = [...combinedText.matchAll(taskRegex)];
+      const matches = Array.from(combinedText.matchAll(taskRegex));
       
       if (matches.length === 0) {
         return NextResponse.json({ status: "NO_TASK_REFERENCE_FOUND" });
@@ -146,12 +148,14 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ status: "UNHANDLED_EVENT" });
 
-  } catch (err: any) {
-    console.error("[GITHUB_WEBHOOK] CRITICAL_CRASH:", err.message);
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "An unexpected server error occurred.";
+    const errorStack = err instanceof Error ? err.stack : undefined;
+    console.error("[GITHUB_WEBHOOK] CRITICAL_CRASH:", errorMessage);
     return NextResponse.json({ 
       error: "INTERNAL_SERVER_ERROR", 
-      message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      message: errorMessage,
+      stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
     }, { status: 500 });
   }
 }

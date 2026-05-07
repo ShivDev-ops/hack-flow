@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
+import { getLabSession } from "@/app/actions/lab-auth";
 
 /**
  * PHASE 1: Create the Event Node
@@ -107,3 +108,119 @@ export async function getActiveEventAction() {
   if (error) return { success: false, error: error.message };
   return { success: true, event: data };
 }
+
+export async function getEventDetails(eventId: string) {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('hf_events')
+        .select('name, problem_statement, srs_document_path')
+        .eq('id', eventId)
+        .single();
+    
+    if (error) return { success: false, error: error.message };
+    return { success: true, data };
+}
+
+export async function updateEventResources(formData: FormData) {
+  try {
+    const eventId = formData.get('eventId') as string;
+    const problemStatement = formData.get('problemStatement') as string;
+    const srsDocument = formData.get('srsDocument') as File | null;
+
+    console.log("ACTION: updateEventResources called for eventId:", eventId);
+
+    if (!eventId) {
+      console.error("VALIDATION_ERROR: Event ID is missing from form data.");
+      return { success: false, error: "Event ID is missing." };
+    }
+    
+    const supabase = await createClient();
+    let srsPath: string | undefined = undefined;
+
+    // 1. Handle File Upload to Supabase Storage if a file is present
+    if (srsDocument && srsDocument.size > 0) {
+      console.log(`ACTION: File detected: ${srsDocument.name}, Size: ${srsDocument.size}`);
+      const fileExt = srsDocument.name.split('.').pop();
+      const fileName = `${eventId}-${Date.now()}.${fileExt}`;
+      const filePath = `public/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('event_resources')
+        .upload(filePath, srsDocument);
+
+      if (uploadError) {
+        console.error("SUPABASE_STORAGE_ERROR:", uploadError);
+        return { success: false, error: `Storage Error: ${uploadError.message}` };
+      }
+      srsPath = filePath;
+      console.log(`ACTION: File successfully uploaded to path: ${srsPath}`);
+    }
+
+    // 2. Update the Database
+    const updateData: { problem_statement: string; srs_document_path?: string } = {
+      problem_statement: problemStatement
+    };
+    // Only include the path in the update if a new file was actually uploaded
+    if (srsPath) {
+      updateData.srs_document_path = srsPath;
+    }
+
+    console.log("ACTION: Updating hf_events table with data:", updateData);
+    const { error: dbError } = await supabase
+      .from('hf_events')
+      .update(updateData)
+      .eq('id', eventId);
+
+    if (dbError) {
+      console.error("SUPABASE_DB_ERROR:", dbError);
+      // If DB update fails, attempt to roll back the file upload to prevent orphaned files
+      if (srsPath) {
+        console.log(`ACTION: Rolling back file upload from ${srsPath}`);
+        await supabase.storage.from('event_resources').remove([srsPath]);
+      }
+      return { success: false, error: `Database Error: ${dbError.message}` };
+    }
+
+    console.log("ACTION: Successfully updated event resources.");
+    revalidatePath(`/dashboard/event/${eventId}/resources`);
+    return { success: true, path: srsPath };
+
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "An unexpected server error occurred.";
+    console.error("CRITICAL_ACTION_ERROR in updateEventResources:", err);
+    return { success: false, error: `A critical server error occurred: ${errorMessage}` };
+    }
+    }
+
+    export async function getEventForParticipant() {
+    const supabase = await createClient();
+    const session = await getLabSession();
+
+    if (!session?.teamId) {
+    return { success: false, error: "Participant session not found." };
+    }
+
+    // 1. Get the team's event_id
+    const { data: teamData, error: teamError } = await supabase
+    .from("hf_teams")
+    .select("event_id")
+    .eq("id", session.teamId)
+    .single();
+
+    if (teamError || !teamData) {
+    return { success: false, error: "Could not find the participant's team." };
+    }
+
+    // 2. Use the event_id to get the event resources
+    const { data: eventData, error: eventError } = await supabase
+    .from("hf_events")
+    .select("name, problem_statement, srs_document_path")
+    .eq("id", teamData.event_id)
+    .single();
+
+    if (eventError || !eventData) {
+    return { success: false, error: "Could not retrieve event resources." };
+    }
+
+    return { success: true, data: eventData };
+    }

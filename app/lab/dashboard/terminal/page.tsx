@@ -144,13 +144,18 @@ export default function TerminalPage() {
           return;
         }
 
-        const configRes = await getTeamConfig(activeTeamId);
+        const [configRes, teamDataRes] = await Promise.all([
+            getTeamConfig(activeTeamId),
+            supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single()
+        ]);
+
         if (configRes.success && configRes.config) {
           setDeploymentUrl(configRes.config.deployment_url);
         }
 
-        const { data: teamData } = await supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single();
-        if (teamData) setEventId(teamData.event_id);
+        if (teamDataRes.data) {
+            setEventId(teamDataRes.data.event_id);
+        }
 
         await fetchData(activeTeamId);
 
