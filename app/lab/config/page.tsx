@@ -150,24 +150,6 @@ export default function LabConfigPage() {
                   </div>
                 </div>
 
-                {/* Deployment URL */}
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase text-white/40 tracking-widest flex items-center gap-2 ml-1 font-label-caps">
-                    <Globe size={12} className="text-blue-400" /> Deployment_Uplink
-                  </label>
-                  <div className="relative group">
-                    <input 
-                      type="url"
-                      style={{ colorScheme: 'dark' }}
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-[13px] text-white focus:border-secondary/50 outline-none font-data-mono transition-all placeholder:text-white/10 group-hover:border-white/20"
-                      placeholder="https://project.vercel.app"
-                      value={formData.deploymentUrl}
-                      onChange={(e) => setFormData({...formData, deploymentUrl: e.target.value})}
-                    />
-                  </div>
-                  <p className="text-[9px] text-white/20 ml-1 font-label-caps uppercase tracking-widest">Optional // Required for Live Status Badge</p>
-                </div>
-
                 {/* DB Health Check */}
                 <div className="space-y-3">
                   <label className="text-[10px] font-black uppercase text-white/40 tracking-widest flex items-center gap-2 ml-1 font-label-caps">
@@ -250,35 +232,29 @@ export default function LabConfigPage() {
                 <h3 className="text-xs font-black uppercase tracking-[0.3em] text-blue-400 flex items-center gap-2 font-label-caps">
                   <Database size={14} /> DB_Pulse_Setup
                 </h3>
+                {/* ... existing content ... */}
+             </div>
+
+             <div className="glass-panel rim-light rounded-[2rem] p-8 space-y-6 border-amber-500/20">
+                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-amber-500 flex items-center gap-2 font-label-caps">
+                  <Globe size={14} /> Deployment_Uplink
+                </h3>
                 <p className="text-[10px] text-white/40 leading-relaxed font-bold tracking-widest font-label-caps uppercase">
-                  Visualize your database changes in real-time by enabling Supabase Webhooks.
+                  Automate your live preview and build status via Vercel or Netlify webhooks.
                 </p>
                 
                 <div className="space-y-6 pt-4">
                   <div className="space-y-2">
-                    <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest font-label-caps">1. Payload URL</p>
+                    <p className="text-[9px] text-amber-500 font-black uppercase tracking-widest font-label-caps">1. Payload URL</p>
                     <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[10px] text-white/80 break-all select-all cursor-pointer hover:bg-black/80 transition-all">
-                      {appUrl}/api/webhooks/supabase
+                      {appUrl}/api/webhooks/deployments
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest font-label-caps">2. HTTP Header</p>
-                    <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[10px] text-white/80">
-                      x-team-id: <span className="text-blue-400">{readableId || "TEAM-XXXX"}</span>
-                    </div>
+                    <p className="text-[9px] text-amber-500 font-black uppercase tracking-widest font-label-caps">2. Events</p>
+                    <p className="text-[10px] text-white font-data-mono">Enable <span className="text-amber-500">Deployment Status</span> (Vercel) or <span className="text-amber-500">Deploy Events</span> (Netlify).</p>
                   </div>
-
-                  <div className="space-y-2">
-                    <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest font-label-caps">3. Events</p>
-                    <p className="text-[10px] text-white font-data-mono">Enable <span className="text-blue-400">INSERT, UPDATE, DELETE</span> on your main tables.</p>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
-                  <p className="text-[9px] text-white/40 leading-tight uppercase font-bold">
-                    Go to: <span className="text-white">Database &gt; Webhooks &gt; Create Webhook</span> in your Supabase Dashboard.
-                  </p>
                 </div>
              </div>
 
@@ -413,49 +389,32 @@ export default function LabConfigPage() {
 
                 <div className="h-px bg-white/5 w-full" />
 
-                {/* SECTION: SUPABASE */}
+                {/* SECTION: DEPLOYMENT */}
                 <div className="space-y-6">
                   <div className="flex items-center gap-3">
-                    <Database size={18} className="text-blue-400" />
-                    <h3 className="text-[15px] font-black text-white uppercase tracking-[0.2em] font-label-caps">Part_B: Supabase_Pulse</h3>
+                    <Globe size={18} className="text-amber-500" />
+                    <h3 className="text-[15px] font-black text-white uppercase tracking-[0.2em] font-label-caps">Part_C: Deployment_Uplink</h3>
                   </div>
                   
                   <div className="space-y-6 ml-1">
                     <div className="flex gap-5">
-                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">01</div>
-                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold text-left">Go to <span className="text-white underline decoration-blue-500/20">Database &gt; Webhooks</span>, and enable the feature in your project dashboard.</p>
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-amber-500 shrink-0">01</div>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold text-left">Navigate to your project settings in <span className="text-white">Vercel</span> or <span className="text-white">Netlify</span>. Look for <span className="text-white underline decoration-amber-500/20">Webhooks</span>.</p>
                     </div>
 
                     <div className="flex gap-4">
-                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">02</div>
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-amber-500 shrink-0">02</div>
                       <div className="space-y-3 flex-1 text-left">
-                        <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Add the <span className="text-blue-400">Payload URL</span> and both <span className="text-white underline decoration-blue-500/20">HTTP Headers</span>:</p>
-                        <div className="space-y-2">
-                          <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-blue-400 break-all select-all">
-                            {appUrl}/api/webhooks/supabase
-                          </div>
-                          <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-white/80 space-y-1">
-                            <div>Header 1: <span className="text-blue-400 font-bold">Content-Type</span> | <span className="text-white">application/json</span></div>
-                            <div className="pt-1">Header 2: <span className="text-blue-400 font-bold">x-team-id</span> | <span className="text-white">{readableId}</span></div>
-                          </div>
+                        <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Add the <span className="text-amber-500">Payload URL</span>:</p>
+                        <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[11px] text-amber-500 break-all select-all">
+                          {appUrl}/api/webhooks/deployments
                         </div>
                       </div>
                     </div>
 
                     <div className="flex gap-5 text-left">
-                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-blue-400 shrink-0">03</div>
-                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Select the tables you want to pulse (e.g. &quot;users&quot;) and check <span className="text-white">INSERT, UPDATE, DELETE</span>. Click <span className="text-white underline">Save</span>.</p>
-                    </div>
-                  </div>
-
-                  {/* TROUBLESHOOTING NOTE */}
-                  <div className="p-6 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex gap-4">
-                    <ShieldAlert size={20} className="text-blue-400 shrink-0 mt-1" />
-                    <div className="space-y-2">
-                      <p className="text-[11px] font-black text-blue-400 uppercase tracking-widest font-label-caps">Troubleshooting_Notice</p>
-                      <p className="text-[11px] text-white/40 leading-relaxed uppercase font-bold">
-                        Webhooks <span className="text-white underline">will not work</span> on localhost. You must use your deployed URL. Ensure the header name is exactly <span className="text-white">x-team-id</span>.
-                      </p>
+                      <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-amber-500 shrink-0">03</div>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold">Enable <span className="text-white">&quot;Deployment Status&quot;</span> events. Your terminal will now track build progress in real-time.</p>
                     </div>
                   </div>
                 </div>
