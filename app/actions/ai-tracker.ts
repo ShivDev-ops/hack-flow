@@ -14,9 +14,9 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-// Using stable 1.5 model names
-const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+// Using stable latest aliases
+const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
 const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
 /**
