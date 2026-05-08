@@ -4,8 +4,6 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const pdf = require("pdf-parse");
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -56,6 +54,9 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
 
     // 1. Extract text from PDF if provided
     if (fileData) {
+      // Lazy-load pdf-parse to avoid build-time browser API issues
+      const require = createRequire(import.meta.url);
+      const pdf = require("pdf-parse");
       const result = await pdf(fileData);
       extractedText = result.text;
     }
