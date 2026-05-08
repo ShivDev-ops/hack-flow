@@ -212,8 +212,8 @@ export default function EventViewPage() {
   );
 }
 
-const PodiumCard = ({ rank, team, onAudit, onViewReport, auditingId }: any) => {
-  const rankStyles = {
+const PodiumCard = ({ rank, team, onAudit, onViewReport, auditingId }: { rank: 1 | 2 | 3, team: any, onAudit: any, onViewReport: any, auditingId: any }) => {
+  const rankStyles: Record<number, any> = {
     1: { wrapper: "md:w-[400px] order-1 md:order-2", card: "h-[200px] md:h-[360px] from-amber-400/20 border-amber-400/50 rounded-t-[2.5rem]", icon: Trophy, iconBg: "bg-amber-400/20 border-amber-400/30 text-amber-400", title: "text-2xl md:text-4xl", score: "text-amber-400", rankNum: "text-7xl md:text-9xl text-amber-400/10", button: "flex-[3] bg-amber-400 text-black hover:bg-amber-300", eyeButton: "flex-1 bg-amber-400/20 text-amber-400 border-amber-400/20 hover:bg-amber-400/30" },
     2: { wrapper: "md:w-72 order-2 md:order-1", card: "h-[150px] md:h-[240px] from-white/10 border-white/20", icon: null, iconBg: "", title: "text-xl md:text-2xl", score: "text-white/40", rankNum: "text-5xl md:text-7xl text-white/10", button: "bg-white/10 hover:bg-white/20", eyeButton: "bg-white/10 hover:bg-white/20" },
     3: { wrapper: "md:w-72 order-3", card: "h-[120px] md:h-[180px] from-orange-700/20 border-orange-700/30", icon: null, iconBg: "", title: "text-xl md:text-2xl", score: "text-orange-700/60", rankNum: "text-4xl md:text-6xl text-orange-700/10", button: "text-[9px] bg-white/5 hover:bg-white/10", eyeButton: "text-[9px] bg-white/5 hover:bg-white/10" }
