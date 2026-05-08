@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { auditCodeChange } from "@/app/actions/ai-tracker";
 
 export async function POST(req: Request) {
   try {
@@ -95,6 +96,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: insertError.message }, { status: 500 });
       }
 
+      // --- AI AUDIT TRIGGER (PUSH) ---
+      try {
+        const lastCommit = data.commits[data.commits.length - 1];
+        const diffUrl = `${lastCommit.url}.diff`;
+        const diffRes = await fetch(diffUrl);
+        if (diffRes.ok) {
+           const diffText = await diffRes.text();
+           await auditCodeChange(team.id, diffText, lastCommit.message);
+           console.log(`[AI_AUDITOR] Audit triggered for push: ${lastCommit.id}`);
+        }
+      } catch (auditErr) {
+        console.error("[AI_AUDITOR_ERROR]:", auditErr);
+      }
+
       console.log(`[GITHUB_WEBHOOK] Successfully ingested ${commits.length} commits for ${team.name}.`);
       return NextResponse.json({ success: true });
     }
@@ -102,7 +117,7 @@ export async function POST(req: Request) {
     // 4. Handle Pull Request Event (Task Automation)
     if (event === 'pull_request') {
       const action = data.action;
-      if (action !== 'opened' && action !== 'edited') {
+      if (action !== 'opened' && action !== 'edited' && action !== 'synchronize') {
         return NextResponse.json({ status: "PR_ACTION_IGNORED", action });
       }
 
@@ -110,12 +125,25 @@ export async function POST(req: Request) {
       const prTitle = data.pull_request.title || "";
       const combinedText = `${prTitle} ${prBody}`;
       
+      // --- AI AUDIT TRIGGER (PR) ---
+      try {
+        const diffUrl = `${data.pull_request.html_url}.diff`;
+        const diffRes = await fetch(diffUrl);
+        if (diffRes.ok) {
+           const diffText = await diffRes.text();
+           await auditCodeChange(team.id, diffText, `PR: ${prTitle} | ${prBody}`);
+           console.log(`[AI_AUDITOR] Audit triggered for PR: ${data.pull_request.number}`);
+        }
+      } catch (auditErr) {
+        console.error("[AI_AUDITOR_ERROR]:", auditErr);
+      }
+
       // Regex: fixes #task-id, resolves task-id, linked to #task-id
       const taskRegex = /(?:fixes|closes|resolves|linked to)\s+#?([a-zA-Z0-9-]+)/gi;
       const matches = Array.from(combinedText.matchAll(taskRegex));
       
       if (matches.length === 0) {
-        return NextResponse.json({ status: "NO_TASK_REFERENCE_FOUND" });
+        return NextResponse.json({ status: "NO_TASK_REFERENCE_FOUND_BUT_AUDITED" });
       }
 
       const taskIds = Array.from(new Set(matches.map(match => match[1])));

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { synthesizeProjectDNA } from "./ai-tracker";
 
 export async function getTeamConfig(teamId: string) {
   const supabase = await createClient();
@@ -30,6 +31,7 @@ export async function updateMissionSpecs(formData: FormData) {
         const supabase = await createClient();
         const supabaseAdmin = await createAdminClient();
         let srsPath: string | undefined = undefined;
+        let aiSynthesisSuccess = false;
 
         if (srsDocument && srsDocument.size > 0) {
             const fileExt = srsDocument.name.split('.').pop();
@@ -48,6 +50,20 @@ export async function updateMissionSpecs(formData: FormData) {
                 return { success: false, error: `Storage Error: ${uploadError.message}. This is likely an RLS policy issue on the 'team_resources' bucket.` };
             }
             srsPath = filePath;
+
+            // Trigger AI DNA Synthesis
+            try {
+                const buffer = Buffer.from(await srsDocument.arrayBuffer());
+                const aiRes = await synthesizeProjectDNA(teamId, buffer);
+                if (aiRes.success) {
+                    aiSynthesisSuccess = true;
+                    console.log(`[AI_TRACKER] Successfully synthesized ${aiRes.count} milestones for team ${teamId}`);
+                } else {
+                    console.warn(`[AI_TRACKER] Synthesis failed but file saved: ${aiRes.error}`);
+                }
+            } catch (aiErr) {
+                console.error("[AI_TRACKER_CRITICAL_FAIL]:", aiErr);
+            }
         }
 
         const updateData: { 

@@ -233,17 +233,17 @@ export default function LabConfigPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-[9px] text-secondary font-black uppercase tracking-widest font-label-caps">3. Events</p>
-                    <p className="text-[10px] text-white font-data-mono">Enable <span className="text-secondary">Push</span> and <span className="text-secondary">Pull Request</span> events.</p>
+                    <p className="text-[9px] text-secondary font-black uppercase tracking-widest font-label-caps">3. Events (MANDATORY)</p>
+                    <p className="text-[10px] text-white font-data-mono">Select <span className="text-secondary font-bold underline italic">individual events</span> and enable <span className="text-secondary font-bold underline">Push</span> and <span className="text-secondary font-bold underline">Pull Request</span>.</p>
                   </div>
                 </div>
 
-                <div className="p-4 bg-secondary/5 border border-secondary/10 rounded-xl">
-                  <p className="text-[9px] text-secondary leading-tight uppercase font-bold mb-1">
-                    Neural PR Link Active
+                <div className="p-4 bg-secondary/10 border border-secondary/20 rounded-xl">
+                  <p className="text-[9px] text-secondary leading-tight uppercase font-black mb-1">
+                    AI Tracking Requirements
                   </p>
-                  <p className="text-[9px] text-white/40 leading-tight uppercase font-medium">
-                    Add <span className="text-white">&quot;fixes #task-id&quot;</span> to your PR description to auto-move tasks to Review.
+                  <p className="text-[9px] text-white/60 leading-tight uppercase font-bold">
+                    These events are the <span className="text-white">exclusive data source</span> for the AI Auditor. Without them, your leaderboard rank will not update.
                   </p>
                 </div>
              </div>
@@ -408,7 +408,7 @@ export default function LabConfigPage() {
                     </div>
                     <div className="flex gap-5">
                       <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-secondary shrink-0">03</div>
-                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold text-left">Select <span className="text-white">Push</span> and <span className="text-white">Pull Request</span> events, then click <span className="text-white">Add Webhook</span>.</p>
+                      <p className="text-[13px] text-white/60 leading-relaxed uppercase font-bold text-left">Select <span className="text-white underline italic">individual events</span> and enable <span className="text-secondary font-bold underline">Push</span> and <span className="text-secondary font-bold underline">Pull Request</span>. These are <span className="text-white">MANDATORY</span> for AI progress tracking.</p>
                     </div>
 
                     <div className="p-4 bg-secondary/5 border border-secondary/10 rounded-xl flex gap-4 mt-4">
