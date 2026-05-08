@@ -14,8 +14,8 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+const flashModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+const proModel = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
 const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
 /**
