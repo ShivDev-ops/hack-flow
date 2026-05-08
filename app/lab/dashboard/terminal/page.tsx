@@ -203,7 +203,7 @@ export default function TerminalPage() {
         { event: 'INSERT', schema: 'public', table: 'hf_telemetry_logs', filter: `team_id=eq.${activeTeamId}` },
         () => fetchData(activeTeamId)
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         setChannelStatus(status === 'SUBSCRIBED' ? 'ONLINE' : 'ERROR');
       });
 

@@ -7,8 +7,9 @@ import { PDFParse } from "pdf-parse";
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+const flashModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+const proModel = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
+const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
 /**
  * PHASE 1: DNA Synthesis
@@ -50,7 +51,7 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
       [{"title": string, "description": string, "criteria": string, "weight": number}]
     `;
 
-    const result = await model.generateContent(prompt);
+    const result = await flashModel.generateContent(prompt);
     const responseText = result.response.text();
     
     // Clean JSON response (handle potential markdown blocks)
@@ -150,7 +151,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
       }
     `;
 
-    const result = await model.generateContent(prompt);
+    const result = await flashModel.generateContent(prompt);
     const responseText = result.response.text();
     const evaluation = JSON.parse(responseText.replace(/```json|```/g, "").trim());
 
@@ -194,5 +195,92 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
   } catch (err: unknown) {
     console.error("CODE_AUDIT_FAIL:", err);
     return { success: false, error: "Evaluation failed." };
+  }
+}
+
+/**
+ * PHASE 3: Deep Audit & Judging
+ * A comprehensive evaluation of the project using Gemini 1.5 Pro.
+ */
+export async function performDeepAudit(teamId: string, eventId: string, problemStatement: string, rubric: any) {
+  try {
+    const supabaseAdmin = await createAdminClient();
+
+    // 1. Gather all "Evidence"
+    const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
+    const { data: team } = await supabaseAdmin.from("hf_teams").select("name, repo_url, ai_progress_score").eq("id", teamId).single();
+    
+    const evidence = {
+        milestones: milestones?.map(m => ({ title: m.milestone_title, status: m.status, criteria: m.verification_criteria })),
+        claimed_progress: team?.ai_progress_score || 0
+    };
+
+    const prompt = `
+      You are an elite Hackathon Judge and Senior Architect. 
+      Your task is to perform a DEEP AUDIT of a project implementation.
+
+      PROBLEM STATEMENT (The Goal):
+      "${problemStatement}"
+
+      TEAM PROJECT DNA & PROGRESS:
+      ${JSON.stringify(evidence, null, 2)}
+
+      JUDGING RUBRIC (Weights):
+      ${JSON.stringify(rubric, null, 2)}
+
+      Evaluate the project on these 4 factors (0-100 for each):
+      1. Alignment: How well does the technical implementation solve the problem statement?
+      2. Execution: Based on the milestones, how much high-quality logic is actually finished?
+      3. Innovation: Does the code/approach show creative problem-solving or just boilerplate?
+      4. Technical Depth: Is the architecture robust and technically challenging?
+
+      Respond ONLY with a JSON object:
+      {
+        "alignment_score": number,
+        "execution_score": number,
+        "innovation_score": number,
+        "technical_score": number,
+        "ai_justification": "A detailed 3-4 sentence technical critique of the project.",
+        "total_weighted_score": number
+      }
+    `;
+
+    // Attempt with Pro model first, fallback to Flash if quota exceeded (429)
+    let evaluation;
+    try {
+        const result = await proModel.generateContent(prompt);
+        evaluation = JSON.parse(result.response.text().replace(/```json|```/g, "").trim());
+        console.log(`[AI_AUDITOR] Deep audit successful using Pro model for team ${teamId}`);
+    } catch (proErr: any) {
+        if (proErr.message?.includes("429") || proErr.message?.includes("quota")) {
+            console.warn(`[AI_AUDITOR] Pro model quota exceeded, falling back to Flash model for team ${teamId}`);
+            const result = await flashModel.generateContent(prompt);
+            evaluation = JSON.parse(result.response.text().replace(/```json|```/g, "").trim());
+        } else {
+            throw proErr;
+        }
+    }
+
+    // 2. Save result to DB (Upsert)
+    const { error: insertError } = await supabaseAdmin
+        .from("hf_judging_results")
+        .upsert({
+            team_id: teamId,
+            event_id: eventId,
+            alignment_score: evaluation.alignment_score,
+            execution_score: evaluation.execution_score,
+            innovation_score: evaluation.innovation_score,
+            technical_score: evaluation.technical_score,
+            total_score: evaluation.total_weighted_score,
+            ai_justification: evaluation.ai_justification
+        }, { onConflict: 'team_id' });
+
+    if (insertError) throw insertError;
+
+    return { success: true, evaluation };
+
+  } catch (err: unknown) {
+    console.error("DEEP_AUDIT_FAIL:", err);
+    return { success: false, error: "Deep audit failed." };
   }
 }
