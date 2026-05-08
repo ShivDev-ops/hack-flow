@@ -451,6 +451,13 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     
     console.log(`[DEEP_AUDIT] Results saved to DB for team ${teamId}`);
 
+    // 3. GENERATE TEAM COACHING INSIGHTS (Background)
+    try {
+        await generateAIInsights(teamId);
+    } catch (insightErr) {
+        console.error("[DEEP_AUDIT] Failed to generate insights:", insightErr);
+    }
+
     return { success: true, evaluation: savedResult as JudgingResult };
 
   } catch (err: any) {
@@ -619,3 +626,71 @@ export async function reAuditTeamWork(teamId: string) {
         return { success: false, error: `Re-audit failed: ${errorMessage}` };
     }
 }
+
+/**
+ * PHASE 4: AI Insights & Coaching
+ * Generates actionable advice and reminders for a team based on their current progress and repo.
+ */
+export async function generateAIInsights(teamId: string) {
+    try {
+        const supabaseAdmin = await createAdminClient();
+
+        // 1. Gather Context
+        const { data: team } = await supabaseAdmin.from("hf_teams").select("*").eq("id", teamId).single();
+        const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
+        const { data: judging } = await supabaseAdmin.from("hf_judging_results").select("*").eq("team_id", teamId).maybeSingle();
+
+        if (!team || !milestones) throw new Error("Team context not found.");
+
+        const context = {
+            teamName: team.name,
+            currentProgress: team.ai_progress_score || 0,
+            milestones: milestones.map(m => ({ title: m.milestone_title, status: m.status })),
+            latestJudging: judging ? { 
+                justification: judging.ai_justification,
+                totalScore: judging.total_score 
+            } : null
+        };
+
+        const prompt = `
+            You are a Technical Mentor for a Hackathon. Analyze the following team progress and provide 3-4 actionable insights.
+            - If they are stuck (low progress), give them a roadmap.
+            - If they have good progress but low scores, suggest technical improvements.
+            - Provide 1 specific "Reminder" for their next technical hurdle.
+
+            Team Progress Context:
+            ${JSON.stringify(context, null, 2)}
+
+            Respond ONLY with a JSON object:
+            {
+                "briefing": "A 2-sentence summary of their current situation.",
+                "insights": [
+                    { "type": "suggestion" | "reminder" | "warning", "text": "The advice text" }
+                ],
+                "next_milestone": "The title of the milestone they should focus on now."
+            }
+        `;
+
+        const result = await callWithRetry(() => flashModel.generateContent(prompt));
+        const insightData = extractJSON(result.response.text());
+
+        // Update the team with the latest briefing
+        await supabaseAdmin.from("hf_teams").update({
+            ai_status_summary: insightData.briefing
+        }).eq("id", teamId);
+
+        // Store detailed insights in telemetry for historical tracking
+        await supabaseAdmin.from("hf_telemetry_logs").insert({
+            team_id: teamId,
+            action_type: "AI_INSIGHT",
+            table_name: "hf_teams",
+            details: JSON.stringify(insightData)
+        });
+
+        return { success: true, insights: insightData };
+    } catch (err: any) {
+        console.error("AI_INSIGHTS_FAIL:", err);
+        return { success: false, error: err.message };
+    }
+}
+

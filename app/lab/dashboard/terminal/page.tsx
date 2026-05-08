@@ -12,6 +12,7 @@ import { KanbanBoard } from "@/components/lab/dashboard/kanban-board";
 import { GitFeed } from "@/components/lab/dashboard/git-feed";
 import { ObservabilityPanel } from "@/components/lab/dashboard/observability-panel";
 import { NeuralLinkOverlay } from "@/components/lab/dashboard/neural-link-overlay";
+import { AIInsightPanel } from "@/components/lab/dashboard/ai-insight-panel";
 import { getSystemObservability } from "@/lib/lab-config/observability";
 
 interface TelemetryLog {
@@ -61,6 +62,8 @@ export default function TerminalPage() {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [dbLogs, setDbLogs] = useState<TelemetryLog[]>([]);
+  const [aiInsights, setAIInsights] = useState<any>(null);
+  const [teamData, setTeamData] = useState<any>(null);
   const [session, setSession] = useState<{ memberId: string; teamId: string; role: string } | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
@@ -117,15 +120,27 @@ export default function TerminalPage() {
   }, [isWiring]);
 
   const fetchData = useCallback(async (activeTeamId: string) => {
-    const [commitsRes, tasksRes, telemetryRes] = await Promise.all([
+    const [commitsRes, tasksRes, telemetryRes, teamRes] = await Promise.all([
       supabase.from("repository_commits").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: false }).limit(10),
       supabase.from("hf_tasks").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: true }),
-      supabase.from("hf_telemetry_logs").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: false }).limit(10)
+      supabase.from("hf_telemetry_logs").select("*").eq("team_id", activeTeamId).order("created_at", { ascending: false }).limit(20),
+      supabase.from("hf_teams").select("*").eq("id", activeTeamId).single()
     ]);
 
     setCommits(commitsRes.data || []);
     setTasks(tasksRes.data || []);
     setDbLogs(telemetryRes.data || []);
+    setTeamData(teamRes.data);
+
+    // EXTRACT LATEST AI INSIGHT FROM TELEMETRY
+    const latestInsightLog = telemetryRes.data?.find(log => log.action_type === "AI_INSIGHT");
+    if (latestInsightLog) {
+        try {
+            setAIInsights(JSON.parse(latestInsightLog.details));
+        } catch (e) {
+            console.error("Failed to parse AI insight details", e);
+        }
+    }
   }, [supabase]);
 
   useEffect(() => {
@@ -294,7 +309,13 @@ export default function TerminalPage() {
 
       {/* MAIN WORKSPACE: Commits & Kanban side-by-side */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-8">
+          <AIInsightPanel 
+            briefing={aiInsights?.briefing || teamData?.ai_status_summary || null}
+            insights={aiInsights?.insights || []}
+            nextMilestone={aiInsights?.next_milestone || null}
+            progress={teamData?.ai_progress_score || 0}
+          />
           <GitFeed 
             commits={commits} 
             onHoverCommit={(sha) => setHoveredCommitSha(sha)}
