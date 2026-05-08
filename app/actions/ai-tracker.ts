@@ -156,6 +156,51 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
       }
     }
 
+    // 5. AUTO-KANBAN GENERATION: Generate specific phased tasks
+    const taskPrompt = `
+        You are a Lead Technical Architect and Project Manager. Based on the following Project DNA, generate a comprehensive 3-Phase technical roadmap.
+        
+        CRITICAL: You must generate EXACTLY 4 specific, actionable technical tasks per phase (total 12 tasks).
+
+        Project Milestones:
+        ${JSON.stringify(milestones, null, 2)}
+
+        Phase 1: Foundation (Environment, Auth, DB Schema, Core API structure)
+        Phase 2: Core Logic (Primary features identified in milestones, critical UI/UX paths)
+        Phase 3: Optimization (Edge cases, technical depth, AI refinement, final Deployment)
+
+        Respond ONLY with a JSON array of objects:
+        [{"phase": 1|2|3, "title": string, "description": string}]
+    `;
+
+    try {
+        const taskResult = await callWithRetry(() => flashModel.generateContent(taskPrompt));
+        const tasks = extractJSON(taskResult.response.text());
+
+        // Clear existing tasks to avoid duplicates if re-synthesizing
+        await supabaseAdmin.from("hf_tasks").delete().eq("team_id", teamId);
+
+        for (const task of tasks) {
+            await supabaseAdmin.from("hf_tasks").insert({
+                team_id: teamId,
+                title: `[PHASE ${task.phase}] ${task.title}`,
+                description: task.description,
+                status: 'Todo'
+            });
+        }
+
+        // Log the event to telemetry with the SPECIFIC notification language
+        // The Chat Agent will monitor for "ROADMAP_READY" action_type
+        await supabaseAdmin.from("hf_telemetry_logs").insert({
+            team_id: teamId,
+            action_type: "ROADMAP_READY",
+            table_name: "hf_tasks",
+            details: `Neural Uplink Successful. I have analyzed your SRS and generated 12 technical objectives across 3 implementation phases. Check your Objectives tab to begin.`
+        });
+    } catch (taskErr) {
+        console.error("[AUTO_KANBAN_FAIL]:", taskErr);
+    }
+
     return { success: true, count: milestones.length };
 
   } catch (err: any) {
@@ -705,6 +750,9 @@ export async function neuralChatAction(teamId: string, role: string, history: { 
         // 1. Context Injection
         const { data: team } = await supabaseAdmin.from("hf_teams").select("*").eq("id", teamId).single();
         const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
+        const { data: currentJudging } = await supabaseAdmin.from("hf_judging_results").select("*").eq("team_id", teamId).maybeSingle();
+        const { data: currentTasks } = await supabaseAdmin.from("hf_tasks").select("*").eq("team_id", teamId);
+        const { data: recentCommits } = await supabaseAdmin.from("repository_commits").select("*").eq("team_id", teamId).order("created_at", { ascending: false }).limit(5);
         
         if (!team || !milestones) throw new Error("Neural link unstable: Context lost.");
 
@@ -712,20 +760,38 @@ export async function neuralChatAction(teamId: string, role: string, history: { 
             You are the "Neural Link Agent", a high-tech technical mentor for a hackathon.
             Current User Role: ${role}
             Team Context: "${team.name}" | Progress: ${team.ai_progress_score}%
-            Milestones: ${milestones.map(m => `${m.milestone_title} (${m.status})`).join(", ")}
+            Milestones: ${milestones.map(m => m.milestone_title + " (" + m.status + ")").join(", ")}
+            Current Kanban Objectives: ${currentTasks?.map(t => t.title + " [ID: " + t.id + "] status: " + t.status).join(", ") || "None"}
+            Recent Commits: ${recentCommits?.map(c => c.message + " [SHA: " + c.commit_sha + "]").join(", ") || "No commits detected."}
 
             Role-Based Instructions:
             - If role is LEAD: Focus on high-level architecture, roadmap optimization, and ensuring milestones are met.
             - If role is MEMBER: Focus on specific technical implementations, bug-fixing, and individual task execution.
+
+            SPECIAL COMMAND: /critique
+            - Perform a "Shadow Audit" and provide predictive scores and advice.
+
+            SPECIAL COMMAND: /demo
+            - Generate a 3-minute Pitch Script and technical README outline.
+
+            UNIVERSAL ACTION PROTOCOL:
+            - You can suggest technical actions that the user can approve via a button.
+            - If you suggest actions, you MUST append a JSON block at the VERY END of your response on a new line prefixed with "ACTION_PROTOCOL: ".
+            - Action Types:
+                1. {"type": "ADD_TASK", "payload": {"title": string, "description": string, "phase": 1|2|3}}
+                2. {"type": "LINK_COMMIT", "payload": {"taskId": string, "commitSha": string, "taskTitle": string}}
             
+            - USE LINK_COMMIT when: You see a recent commit that seems to complete an unverified task.
+            - USE ADD_TASK when: The user asks for "next steps" or you identify a missing technical component.
+
+            Library Uplink (Proactive Advice):
+            - Recommend specific tools using the "💡" symbol. No code snippets.
+
             Formatting Instructions:
-            - Use Markdown for organization.
-            - Use ## Headings for major sections.
-            - Use bold text for emphasis on key technical terms.
-            - Use bullet points for lists of tasks or insights.
+            - Use Markdown for organization (## Headings, **bold**, lists).
             - Keep responses structured and professional.
 
-            Personality: Futuristic, direct, slightly robotic but encouraging. Use tech-noir terminology like "uplink," "neural data," "logic gates," etc.
+            Personality: Futuristic, tech-noir terminology ("uplink", "logic gates").
             Goal: Keep the team on track and solve technical hurdles.
         `;
 
@@ -738,13 +804,57 @@ export async function neuralChatAction(teamId: string, role: string, history: { 
             ]
         });
 
-        const result = await callWithRetry(() => chat.sendMessage(userMessage));
-        const response = result.response.text();
+        // 2. Persist User Message
+        await supabaseAdmin.from("hf_telemetry_logs").insert({
+            team_id: teamId,
+            action_type: "CHAT_MESSAGE",
+            table_name: "hf_chat",
+            details: JSON.stringify({ role: 'user', parts: userMessage, user_role: role })
+        });
 
-        return { success: true, response };
+        const result = await callWithRetry(() => chat.sendMessage(userMessage));
+        const fullResponse = result.response.text();
+
+        // 3. Persist Model Response (Keep raw protocol for UI to parse)
+        await supabaseAdmin.from("hf_telemetry_logs").insert({
+            team_id: teamId,
+            action_type: "CHAT_MESSAGE",
+            table_name: "hf_chat",
+            details: JSON.stringify({ role: 'model', parts: fullResponse, user_role: role })
+        });
+
+        return { success: true, response: fullResponse };
     } catch (err: any) {
         console.error("NEURAL_CHAT_FAIL:", err);
         return { success: false, error: "Communication link severed. Try again." };
+    }
+}
+
+export async function getChatHistory(teamId: string) {
+    try {
+        const supabaseAdmin = await createAdminClient();
+        const { data, error } = await supabaseAdmin
+            .from("hf_telemetry_logs")
+            .select("*")
+            .eq("team_id", teamId)
+            .eq("action_type", "CHAT_MESSAGE")
+            .order("created_at", { ascending: true });
+
+        if (error) throw error;
+
+        return { 
+            success: true, 
+            history: data.map(log => {
+                const details = JSON.parse(log.details);
+                return {
+                    role: details.role,
+                    parts: details.parts
+                };
+            }) 
+        };
+    } catch (err: any) {
+        console.error("GET_CHAT_HISTORY_FAIL:", err);
+        return { success: false, history: [] };
     }
 }
 

@@ -95,7 +95,7 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-background text-on-surface font-body-main overflow-hidden selection:bg-primary/30">
       
       {/* SIDEBAR (Desktop) */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-white/5 bg-zinc-950 z-20">
+      <aside className="hidden md:flex flex-col w-64 border-r border-white/5 bg-zinc-950 z-20 overflow-y-auto custom-scrollbar">
         <div className="p-8 mb-8 border-b border-white/5 bg-white/[0.01]">
           <p className="font-label-caps text-white/20 text-[9px] mb-2 tracking-[0.3em]">HACK_FLOW // CORE</p>
           <div className="flex items-center gap-3">
@@ -105,7 +105,7 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* MISSION TIMER */}
-        <div className="px-6 mb-10">
+        <div className="px-6 mb-10 shrink-0">
           <div className="bg-white/[0.02] border border-white/5 p-5 rounded-2xl rim-light shadow-inner group hover:bg-white/[0.04] transition-all">
             <div className="flex items-center gap-2 mb-3">
               <Clock size={12} className="text-secondary animate-pulse" />
@@ -119,7 +119,7 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
 
         <LabSidebarNav />
 
-        <div className="mt-auto pt-8 border-t border-white/5 pb-10 bg-white/[0.01]">
+        <div className="mt-auto pt-8 border-t border-white/5 pb-10 bg-white/[0.01] shrink-0">
           <div className="px-8 mb-6">
             <p className="text-[9px] font-black text-white/20 uppercase tracking-widest font-label-caps mb-3">AUTHORIZED_NODE</p>
             <div className="flex items-center gap-3">
@@ -181,8 +181,8 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
 
       {/* MOBILE OVERLAY */}
       {isMobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-md p-6 flex flex-col">
-          <button onClick={() => setIsMobileOpen(false)} className="text-secondary text-xs mb-8 font-label-caps tracking-widest font-black uppercase tracking-[0.3em]">{"< ABORT_RETURN"}</button>
+        <div className="md:hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-md p-6 flex flex-col overflow-y-auto">
+          <button onClick={() => setIsMobileOpen(false)} className="text-secondary text-xs mb-8 font-label-caps tracking-widest font-black uppercase tracking-[0.3em] shrink-0 text-left">{"< ABORT_RETURN"}</button>
           <nav className="flex-1 space-y-6">
              {navItems.map((item) => (
                 <Link 

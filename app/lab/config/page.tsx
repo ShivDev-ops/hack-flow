@@ -73,6 +73,25 @@ export default function LabConfigPage() {
     setShowcaseLoading(false);
   };
 
+  const ensureProtocol = (url: string) => {
+    if (!url) return url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return `https://${url}`;
+    }
+    return url;
+  };
+
+  const handleUrlChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleBlur = (field: string) => {
+    const value = (formData as any)[field];
+    if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
+        setFormData(prev => ({ ...prev, [field]: `https://${value}` }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teamId) return;
@@ -80,11 +99,16 @@ export default function LabConfigPage() {
     setLoading(true);
     setError(null);
 
+    // Final check on submit
+    const repoUrl = ensureProtocol(formData.repoUrl);
+    const deploymentUrl = ensureProtocol(formData.deploymentUrl);
+    const dbConnection = ensureProtocol(formData.dbConnection);
+
     const res = await updateTeamConfig(
       teamId, 
-      formData.repoUrl, 
-      formData.deploymentUrl, 
-      formData.dbConnection
+      repoUrl, 
+      deploymentUrl, 
+      dbConnection
     );
 
     setLoading(false);
@@ -155,12 +179,13 @@ export default function LabConfigPage() {
                   </label>
                   <div className="relative group">
                     <input 
-                      type="url"
+                      type="text"
                       style={{ colorScheme: 'dark' }}
                       className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-[13px] text-white focus:border-secondary/50 outline-none font-data-mono transition-all placeholder:text-white/10 group-hover:border-white/20"
                       placeholder="https://github.com/org/repo"
                       value={formData.repoUrl}
-                      onChange={(e) => setFormData({...formData, repoUrl: e.target.value})}
+                      onChange={(e) => handleUrlChange('repoUrl', e.target.value)}
+                      onBlur={() => handleBlur('repoUrl')}
                     />
                   </div>
                 </div>
@@ -172,12 +197,13 @@ export default function LabConfigPage() {
                   </label>
                   <div className="relative group">
                     <input 
-                      type="url"
+                      type="text"
                       style={{ colorScheme: 'dark' }}
                       className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-[13px] text-white focus:border-secondary/50 outline-none font-data-mono transition-all placeholder:text-white/10 group-hover:border-white/20"
                       placeholder="https://project.vercel.app"
                       value={formData.deploymentUrl}
-                      onChange={(e) => setFormData({...formData, deploymentUrl: e.target.value})}
+                      onChange={(e) => handleUrlChange('deploymentUrl', e.target.value)}
+                      onBlur={() => handleBlur('deploymentUrl')}
                     />
                   </div>
                   <p className="text-[9px] text-white/20 ml-1 font-label-caps uppercase tracking-widest">Optional // Required for Live Status Badge</p>
@@ -190,12 +216,13 @@ export default function LabConfigPage() {
                   </label>
                   <div className="relative group">
                     <input 
-                      type="url"
+                      type="text"
                       style={{ colorScheme: 'dark' }}
                       className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-[13px] text-white focus:border-secondary/50 outline-none font-data-mono transition-all placeholder:text-white/10 group-hover:border-white/20"
                       placeholder="https://api.your-app.com/health"
                       value={formData.dbConnection}
-                      onChange={(e) => setFormData({...formData, dbConnection: e.target.value})}
+                      onChange={(e) => handleUrlChange('dbConnection', e.target.value)}
+                      onBlur={() => handleBlur('dbConnection')}
                     />
                   </div>
                   <p className="text-[9px] text-white/20 ml-1 font-label-caps uppercase tracking-widest">Optional // Must return HTTP 200 for nominal status</p>

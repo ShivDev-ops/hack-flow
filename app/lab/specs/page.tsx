@@ -78,9 +78,21 @@ export default function MissionSpecsPage() {
       setError("No active team session found.");
       return;
     }
+    
+    // Ensure Protocols
+    let cleanRepoUrl = repoUrl.trim();
+    if (cleanRepoUrl && !cleanRepoUrl.startsWith('http://') && !cleanRepoUrl.startsWith('https://')) {
+        cleanRepoUrl = `https://${cleanRepoUrl}`;
+    }
+
+    let cleanDeploymentUrl = deploymentUrl.trim();
+    if (cleanDeploymentUrl && !cleanDeploymentUrl.startsWith('http://') && !cleanDeploymentUrl.startsWith('https://')) {
+        cleanDeploymentUrl = `https://${cleanDeploymentUrl}`;
+    }
+
     // Basic URL validation
-    if (repoUrl && !repoUrl.startsWith('https://')) {
-        setError("Please enter a valid GitHub URL starting with 'https://'.");
+    if (cleanRepoUrl && !cleanRepoUrl.startsWith('https://github.com')) {
+        setError("Please enter a valid GitHub URL (e.g., https://github.com/org/repo).");
         return;
     }
 
@@ -90,8 +102,8 @@ export default function MissionSpecsPage() {
 
     const formData = new FormData();
     formData.append("teamId", session.teamId);
-    formData.append("repoUrl", repoUrl);
-    formData.append("deploymentUrl", deploymentUrl);
+    formData.append("repoUrl", cleanRepoUrl);
+    formData.append("deploymentUrl", cleanDeploymentUrl);
     if (srsDocument) {
       formData.append("srsDocument", srsDocument);
     }

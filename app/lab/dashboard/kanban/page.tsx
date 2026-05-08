@@ -80,25 +80,45 @@ export default function KanbanPage() {
   }, [supabase]);
 
   useEffect(() => {
+    let taskChannel: any = null;
+
     const init = async () => {
       try {
         const sessionData = await getLabSession();
-        if (!sessionData) {
+        if (!sessionData || !sessionData.teamId) {
+          console.warn("No active lab session found.");
           setLoading(false);
           return;
         }
         setSession(sessionData);
 
         const activeTeamId = sessionData.teamId;
-        if (!activeTeamId) {
-          setLoading(false);
-          return;
-        }
 
-        const { data: teamData } = await supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single();
+        const { data: teamData, error: teamError } = await supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single();
+        if (teamError) {
+          console.error("Error fetching team data:", teamError);
+        }
         if (teamData) setEventId(teamData.event_id);
 
         await fetchData(activeTeamId);
+
+        // REAL-TIME SUBSCRIPTION FOR TASKS
+        taskChannel = supabase
+            .channel(`kanban-sync-${activeTeamId}`)
+            .on(
+                'postgres_changes',
+                { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'hf_tasks', 
+                    filter: `team_id=eq.${activeTeamId}` 
+                },
+                () => {
+                    fetchData(activeTeamId);
+                }
+            )
+            .subscribe();
+
       } catch (error) {
         console.error("Initialization failed:", error);
       } finally {
@@ -107,6 +127,12 @@ export default function KanbanPage() {
     };
 
     init();
+
+    return () => {
+        if (taskChannel) {
+            supabase.removeChannel(taskChannel);
+        }
+    };
   }, [supabase, fetchData]);
 
   const handleMoveTask = async (taskId: string, newStatus: string, reason?: string) => {

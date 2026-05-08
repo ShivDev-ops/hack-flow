@@ -90,3 +90,12 @@ export interface JudgingResult {
   ai_justification: string;
   created_at: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  team_id: string;
+  role: 'user' | 'model';
+  parts: string;
+  user_role: string;
+  created_at: string;
+}

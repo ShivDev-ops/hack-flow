@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { getLabSession } from "@/app/actions/lab-auth";
 import { AuditReportModal } from "@/components/dashboard/audit-report-modal";
+import { TeamDetailsModal } from "@/components/dashboard/team-details-modal";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface LeaderboardTeam {
@@ -37,8 +38,10 @@ interface LeaderboardTeam {
 
 export default function ParticipantLeaderboardPage() {
   const [teams, setTeams] = useState<LeaderboardTeam[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [myTeamId, setTeamId] = useState<string | null>(null);
+  const [myTeamData, setMyTeamData] = useState<any | null>(null);
   const [telemetry, setTelemetry] = useState<any[]>([]);
   
   const [selectedTeam, setSelectedTeam] = useState<any | null>(null);
@@ -47,32 +50,13 @@ export default function ParticipantLeaderboardPage() {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isReportLoading, setIsReportLoading] = useState(false);
 
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+
   const supabase = createClient();
 
-  const handleViewReport = async (team: LeaderboardTeam) => {
-    setIsReportLoading(true);
+  const handleViewTeam = (team: any) => {
     setSelectedTeam(team);
-    setSelectedResults({
-        alignment_score: team.alignment_score,
-        execution_score: team.execution_score,
-        innovation_score: team.innovation_score,
-        technical_score: team.technical_score,
-        total_score: team.total_score,
-        ai_justification: team.ai_justification
-    });
-
-    try {
-        const { data: dna } = await supabase
-            .from('hf_project_dna')
-            .select('*')
-            .eq('team_id', team.id)
-            .order('created_at', { ascending: true });
-        
-        setSelectedMilestones(dna || []);
-        setIsReportOpen(true);
-    } finally {
-        setIsReportLoading(false);
-    }
+    setIsTeamModalOpen(true);
   };
 
   const fetchData = useCallback(async () => {
@@ -83,19 +67,22 @@ export default function ParticipantLeaderboardPage() {
 
       const { data: teamData } = await supabase
         .from('hf_teams')
-        .select('event_id')
+        .select('*')
         .eq('id', session.teamId)
         .single();
 
-      if (!teamData?.event_id) return;
-
+      if (!teamData) return;
+      setMyTeamData(teamData);
       const eventId = teamData.event_id;
 
-      const [teamsRes, resultsRes, telemetryRes] = await Promise.all([
+      const [teamsRes, resultsRes, telemetryRes, membersRes] = await Promise.all([
         supabase.from('hf_teams').select('*').eq('event_id', eventId).order('ai_progress_score', { ascending: false }),
         supabase.from('hf_judging_results').select('*').eq('event_id', eventId),
-        supabase.from('hf_telemetry_logs').select('*, hf_teams(name)').eq('team_id', session.teamId).order('created_at', { ascending: false }).limit(15)
+        supabase.from('hf_telemetry_logs').select('*, hf_teams(name)').eq('team_id', session.teamId).order('created_at', { ascending: false }).limit(15),
+        supabase.from('hf_team_members').select('*').eq('team_id', session.teamId)
       ]);
+
+      setMembers(membersRes.data || []);
 
       const resultsMap: Record<string, any> = {};
       resultsRes.data?.forEach((r: any) => { resultsMap[r.team_id] = r; });
@@ -138,6 +125,25 @@ export default function ParticipantLeaderboardPage() {
   const top3 = useMemo(() => teams.slice(0, 3), [teams]);
   const listTeams = useMemo(() => teams.slice(3), [teams]);
   const showcasedTeams = useMemo(() => teams.filter(t => t.showcase_audit && t.total_score), [teams]);
+
+  const [auditingId, setAuditingId] = useState<string | null>(null);
+  const handleDeepAudit = async (team: any) => {
+    if (!myTeamData) return;
+    setAuditingId(team.id);
+    try {
+        const { triggerTeamReAudit } = await import("@/app/actions/lab-config");
+        const res = await triggerTeamReAudit(team.id);
+        if (res.success) {
+            fetchData();
+        } else {
+            alert(`Audit Failed: ${res.error}`);
+        }
+    } catch (err: any) {
+        alert(`Audit Error: ${err.message}`);
+    } finally {
+        setAuditingId(null);
+    }
+  };
 
   if (loading && teams.length === 0) {
     return (
@@ -196,15 +202,16 @@ export default function ParticipantLeaderboardPage() {
                     key={team.id}
                     whileHover={{ y: -4 }}
                     className="flex-shrink-0 w-72 bg-white/[0.02] border border-white/10 rounded-2xl p-5 space-y-4 hover:border-secondary/30 transition-all cursor-pointer group"
-                    onClick={() => handleViewReport(team)}
                   >
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
                             <p className="text-[11px] font-black text-white uppercase tracking-tight truncate w-40">{team.name}</p>
                             <p className="text-[9px] text-secondary font-bold uppercase tracking-tighter">Technical_Score: {team.total_score}</p>
                         </div>
-                        <div className="p-2 bg-white/5 rounded-lg group-hover:bg-secondary/20 transition-colors">
-                            <Eye size={12} className="group-hover:text-secondary transition-colors" />
+                        <div className="flex gap-1.5">
+                            <button onClick={() => handleViewReport(team)} className="p-2 bg-white/5 rounded-lg hover:bg-secondary/20 transition-colors group/eye" title="View Audit Report">
+                                <Eye size={12} className="group-hover/eye:text-secondary transition-colors" />
+                            </button>
                         </div>
                     </div>
                     <div className="p-3 bg-black/40 rounded-xl border border-white/5">
@@ -219,17 +226,17 @@ export default function ParticipantLeaderboardPage() {
         )}
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
         {/* LEFT SIDE: PODIUM & LIST (70%) */}
-        <div className="flex-1 p-8 md:p-12 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 p-4 md:p-12 overflow-y-auto custom-scrollbar">
             
             {/* HERO PODIUM */}
-            <div className="flex items-end justify-center gap-8 mb-20 min-h-[400px]">
+            <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-8 mb-20 min-h-[400px]">
                 
                 {/* RANK 02 */}
                 {top3[1] && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-col items-center gap-6 w-64">
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex flex-col items-center gap-6 w-full max-w-[256px]">
                         <div className="text-center">
                             <h3 className="text-xl font-black text-white uppercase tracking-tighter truncate w-56">{top3[1].name}</h3>
                             <p className="text-white/40 font-mono text-[10px] uppercase mt-1">Pulse: {top3[1].ai_progress_score}%</p>
@@ -237,16 +244,17 @@ export default function ParticipantLeaderboardPage() {
                         <div className={`w-full h-[200px] bg-gradient-to-b from-white/10 to-transparent border-t-2 border-white/20 backdrop-blur-md rounded-t-3xl flex flex-col items-center pt-6 relative group overflow-hidden ${top3[1].id === myTeamId ? 'ring-2 ring-secondary/40' : ''}`}>
                              {top3[1].id === myTeamId && <div className="absolute top-2 right-2"><Star size={12} className="text-secondary fill-secondary" /></div>}
                              <span className="text-6xl font-black text-white/5 italic">02</span>
-                             <button onClick={() => handleViewReport(top3[1])} className="mt-auto mb-8 p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all opacity-0 group-hover:opacity-100">
-                                <Eye size={18} />
-                             </button>
+                             <div className="mt-auto mb-8 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                <button onClick={() => handleViewReport(top3[1])} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10" title="View Report"><Eye size={18} /></button>
+                                {top3[1].id === myTeamId && <button onClick={() => handleViewTeam(myTeamData)} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10" title="View Team Details"><Users size={18} /></button>}
+                             </div>
                         </div>
                     </motion.div>
                 )}
 
                 {/* RANK 01 */}
                 {top3[0] && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-6 w-80">
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-6 w-full max-w-[320px] order-first md:order-none">
                         <div className="text-center">
                             <div className="flex justify-center mb-2">
                                 <div className="p-2 bg-amber-400/20 rounded-full border border-amber-400/30 text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.2)]">
@@ -259,16 +267,19 @@ export default function ParticipantLeaderboardPage() {
                         <div className={`w-full h-[300px] bg-gradient-to-b from-amber-400/20 to-transparent border-t-4 border-amber-400/50 backdrop-blur-xl rounded-t-[2.5rem] flex flex-col items-center pt-10 relative group overflow-hidden shadow-[0_-20px_100px_rgba(251,191,36,0.05)] ${top3[0].id === myTeamId ? 'ring-2 ring-secondary/40' : ''}`}>
                             {top3[0].id === myTeamId && <div className="absolute top-4 right-4"><Star size={16} className="text-secondary fill-secondary" /></div>}
                             <span className="text-8xl font-black text-amber-400/5 italic leading-none">01</span>
-                            <button onClick={() => handleViewReport(top3[0])} className="mt-auto mb-12 px-8 py-3 bg-amber-400 text-black rounded-xl font-black uppercase text-[10px] tracking-widest transition-all hover:bg-amber-300 opacity-0 group-hover:opacity-100">
-                                View Audit Report
-                            </button>
+                            <div className="mt-auto mb-12 flex flex-col gap-3 opacity-0 group-hover:opacity-100 transition-all items-center">
+                                <button onClick={() => handleViewReport(top3[0])} className="px-8 py-3 bg-amber-400 text-black rounded-xl font-black uppercase text-[10px] tracking-widest transition-all hover:bg-amber-300">
+                                    View Audit Report
+                                </button>
+                                {top3[0].id === myTeamId && <button onClick={() => handleViewTeam(myTeamData)} className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-black uppercase text-[8px] tracking-widest border border-white/10">Team Details</button>}
+                            </div>
                         </div>
                     </motion.div>
                 )}
 
                 {/* RANK 03 */}
                 {top3[2] && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex flex-col items-center gap-6 w-64">
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="flex flex-col items-center gap-6 w-full max-w-[256px]">
                         <div className="text-center">
                             <h3 className="text-xl font-black text-white uppercase tracking-tighter truncate w-56">{top3[2].name}</h3>
                             <p className="text-white/40 font-mono text-[10px] uppercase mt-1">Pulse: {top3[2].ai_progress_score}%</p>
@@ -276,17 +287,18 @@ export default function ParticipantLeaderboardPage() {
                         <div className={`w-full h-[150px] bg-gradient-to-b from-orange-700/20 to-transparent border-t-2 border-orange-700/30 backdrop-blur-md rounded-t-3xl flex flex-col items-center pt-4 relative group overflow-hidden ${top3[2].id === myTeamId ? 'ring-2 ring-secondary/40' : ''}`}>
                              {top3[2].id === myTeamId && <div className="absolute top-2 right-2"><Star size={12} className="text-secondary fill-secondary" /></div>}
                              <span className="text-5xl font-black text-orange-700/5 italic">03</span>
-                             <button onClick={() => handleViewReport(top3[2])} className="mt-auto mb-6 p-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all opacity-0 group-hover:opacity-100">
-                                <Eye size={16} />
-                             </button>
+                             <div className="mt-auto mb-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                <button onClick={() => handleViewReport(top3[2])} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10" title="View Report"><Eye size={16} /></button>
+                                {top3[2].id === myTeamId && <button onClick={() => handleViewTeam(myTeamData)} className="p-2.5 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10" title="View Team Details"><Users size={16} /></button>}
+                             </div>
                         </div>
                     </motion.div>
                 )}
             </div>
 
             {/* LIST SECTION */}
-            <div className="bg-zinc-950/50 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
-                <table className="w-full text-left border-collapse">
+            <div className="bg-zinc-950/50 border border-white/5 rounded-[2.5rem] overflow-x-auto shadow-2xl custom-scrollbar">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead className="bg-white/[0.02] text-white/20 uppercase text-[9px] font-black tracking-[0.3em] border-b border-white/5">
                     <tr>
                     <th className="px-10 py-6">Rank</th>
@@ -335,13 +347,35 @@ export default function ParticipantLeaderboardPage() {
                             )}
                         </td>
                         <td className="px-10 py-6 text-right">
-                            <button
-                                onClick={() => handleViewReport(team)}
-                                disabled={!isAudited || isReportLoading}
-                                className={`p-3 rounded-xl transition-all ${isAudited ? 'bg-white/5 hover:bg-white/10 text-white border border-white/5' : 'opacity-10 cursor-not-allowed'}`}
-                            >
-                                {isReportLoading && selectedTeam?.id === team.id ? <Loader2 size={16} className="animate-spin" /> : <Eye size={18} />}
-                            </button>
+                            <div className="flex justify-end gap-2">
+                                {isMyTeam && (
+                                    <button 
+                                        onClick={() => handleDeepAudit(team)}
+                                        disabled={auditingId === team.id}
+                                        className="p-3 bg-secondary/10 hover:bg-secondary text-secondary hover:text-black rounded-xl border border-secondary/20 transition-all"
+                                        title="Run AI Audit"
+                                    >
+                                        {auditingId === team.id ? <Loader2 size={18} className="animate-spin" /> : <Zap size={18} fill="currentColor" />}
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => handleViewReport(team)}
+                                    disabled={!isAudited || isReportLoading}
+                                    className={`p-3 rounded-xl transition-all ${isAudited ? 'bg-white/5 hover:bg-white/10 text-white border border-white/5' : 'opacity-10 cursor-not-allowed'}`}
+                                    title="View Audit Report"
+                                >
+                                    {isReportLoading && selectedTeam?.id === team.id ? <Loader2 size={16} className="animate-spin" /> : <Eye size={18} />}
+                                </button>
+                                {isMyTeam && (
+                                    <button
+                                        onClick={() => handleViewTeam(myTeamData)}
+                                        className="p-3 bg-white/5 hover:bg-white/10 text-white border border-white/5 rounded-xl transition-all"
+                                        title="View Team Personnel"
+                                    >
+                                        <Users size={18} />
+                                    </button>
+                                )}
+                            </div>
                         </td>
                         </tr>
                     );
@@ -360,7 +394,7 @@ export default function ParticipantLeaderboardPage() {
         </div>
 
         {/* RIGHT SIDE: TEAM PULSE (30%) */}
-        <aside className="w-80 bg-[#0e0e11] border-l border-white/5 flex flex-col p-8 overflow-hidden z-20">
+        <aside className="w-full lg:w-80 bg-[#0e0e11] border-l border-white/5 flex flex-col p-8 overflow-hidden z-20">
              <header className="flex items-center gap-4 mb-8">
                 <div className="p-2.5 bg-secondary/10 rounded-xl text-secondary">
                     <Activity size={18} />
@@ -371,7 +405,7 @@ export default function ParticipantLeaderboardPage() {
                 </div>
             </header>
 
-            <div className="flex-1 space-y-4">
+            <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar">
                 <AnimatePresence mode="popLayout">
                     {telemetry.map((log, i) => (
                         <motion.div 
@@ -396,7 +430,7 @@ export default function ParticipantLeaderboardPage() {
                 )}
             </div>
 
-            <div className="mt-8 pt-6 border-t border-white/5">
+            <div className="mt-8 pt-6 border-t border-white/5 shrink-0">
                 <div className="p-4 bg-secondary/5 rounded-xl border border-secondary/10">
                     <p className="text-[8px] text-secondary/60 font-black uppercase tracking-tighter text-center italic">Continuous Integration Active</p>
                 </div>
@@ -404,6 +438,13 @@ export default function ParticipantLeaderboardPage() {
         </aside>
 
       </div>
+
+      <TeamDetailsModal 
+        isOpen={isTeamModalOpen} 
+        onClose={() => setIsTeamModalOpen(false)} 
+        team={selectedTeam} 
+        members={members} 
+      />
 
       <AuditReportModal 
         isOpen={isReportOpen}

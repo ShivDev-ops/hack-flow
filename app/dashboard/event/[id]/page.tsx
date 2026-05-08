@@ -142,8 +142,14 @@ export default function EventViewPage() {
     }
   };
 
+  const handleViewTeam = (team: Team) => {
+    setSelectedTeam(team);
+    setIsModalOpen(true);
+  };
+
   const top3 = useMemo(() => teams.slice(0, 3), [teams]);
   const runnersUp = useMemo(() => teams.slice(3), [teams]);
+  const showcasedTeams = useMemo(() => teams.filter(t => t.showcase_audit && judgingResults[t.id]));
 
   if (loading && !event) {
     return (
@@ -154,23 +160,66 @@ export default function EventViewPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#0A0A0B] text-white font-sans">
-      <header className="min-h-[96px] px-4 sm:px-6 md:px-12 z-50 flex flex-col md:flex-row justify-between items-center bg-[#0A0A0B]/80 backdrop-blur-xl border-b border-white/5 shadow-[0_0_50px_rgba(78,222,163,0.05)] py-4 gap-4 md:py-0">
+    <div className="flex flex-col h-screen bg-[#0A0A0B] text-white font-sans overflow-hidden">
+      <header className="min-h-[96px] px-4 sm:px-6 md:px-12 z-50 flex flex-col md:flex-row justify-between items-center bg-[#0A0A0B]/80 backdrop-blur-xl border-b border-white/5 shadow-[0_0_50px_rgba(78,222,163,0.05)] py-4 gap-4 md:py-0 shrink-0">
         <div className="flex items-center gap-4 w-full md:w-auto">
           <Link href="/dashboard" className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 transition-all"><ArrowLeft size={18} /></Link>
           <div className="flex flex-col"><span className="text-[10px] font-black text-secondary uppercase tracking-[0.3em]">Command</span><h2 className="text-lg font-black uppercase italic tracking-tighter leading-none">Broadcast</h2></div>
         </div>
         <div className="text-center order-first md:order-none"><h1 className="text-2xl md:text-4xl font-black uppercase italic tracking-tighter leading-none">{event?.name || "LIVE EVENT"}</h1></div>
-        <div className="flex items-center gap-3"><div className="w-2 h-2 bg-secondary rounded-full animate-pulse" /><span className="text-xs font-black uppercase tracking-widest">LIVE_RANKINGS</span></div>
+        <div className="flex items-center gap-3">
+            <div className="w-2 h-2 bg-secondary rounded-full animate-pulse" />
+            <span className="text-xs font-black uppercase tracking-widest">LIVE_RANKINGS</span>
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         <div className="flex-1 flex flex-col p-4 md:p-8 lg:p-12 gap-8 relative overflow-y-auto custom-scrollbar">
           <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-secondary/5 to-transparent pointer-events-none" />
+          
+          {/* SHOWCASE GALLERY (Admin View) */}
+          {showcasedTeams.length > 0 && (
+             <div className="relative z-10 space-y-6 mb-8">
+                <div className="flex items-center gap-3">
+                   <Zap size={14} className="text-amber-400 fill-amber-400" />
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Technical_Evidence_Stream // Global Showcase</h4>
+                </div>
+                <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                  {showcasedTeams.map(team => (
+                    <motion.div 
+                      key={team.id}
+                      whileHover={{ y: -4 }}
+                      className="flex-shrink-0 w-72 bg-white/[0.02] border border-white/10 rounded-2xl p-5 space-y-4 hover:border-secondary/30 transition-all group"
+                    >
+                      <div className="flex justify-between items-start">
+                          <div className="space-y-1">
+                              <p className="text-[11px] font-black text-white uppercase tracking-tight truncate w-40">{team.name}</p>
+                              <p className="text-[9px] text-secondary font-bold uppercase tracking-tighter">Verified_Score: {judgingResults[team.id]?.total_score}</p>
+                          </div>
+                          <div className="flex gap-2">
+                             <button onClick={() => handleViewTeam(team)} className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors" title="View Team Details">
+                                <Users size={12} className="text-white/40" />
+                             </button>
+                             <button onClick={() => handleViewReport(team)} className="p-2 bg-white/5 rounded-lg hover:bg-secondary/20 transition-colors group/eye" title="View Audit Report">
+                                <Eye size={12} className="text-white/40 group-hover/eye:text-secondary" />
+                             </button>
+                          </div>
+                      </div>
+                      <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                          <p className="text-[10px] text-white/40 leading-relaxed italic line-clamp-2">
+                             &quot;{team.ai_status_summary || "Analyzing implementation depth..."}&quot;
+                          </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+             </div>
+          )}
+
           <div className="flex flex-col md:flex-row items-center md:items-end justify-center gap-4 md:gap-8 pb-6 relative z-10 min-h-[300px] md:min-h-[450px]">
-            {top3[1] && <PodiumCard rank={2} team={top3[1]} onAudit={handleDeepAudit} onViewReport={handleViewReport} auditingId={auditingId} />}
-            {top3[0] && <PodiumCard rank={1} team={top3[0]} onAudit={handleDeepAudit} onViewReport={handleViewReport} auditingId={auditingId} />}
-            {top3[2] && <PodiumCard rank={3} team={top3[2]} onAudit={handleDeepAudit} onViewReport={handleViewReport} auditingId={auditingId} />}
+            {top3[1] && <PodiumCard rank={2} team={top3[1]} onAudit={handleDeepAudit} onViewReport={handleViewReport} onViewTeam={handleViewTeam} auditingId={auditingId} />}
+            {top3[0] && <PodiumCard rank={1} team={top3[0]} onAudit={handleDeepAudit} onViewReport={handleViewReport} onViewTeam={handleViewTeam} auditingId={auditingId} />}
+            {top3[2] && <PodiumCard rank={3} team={top3[2]} onAudit={handleDeepAudit} onViewReport={handleViewReport} onViewTeam={handleViewTeam} auditingId={auditingId} />}
           </div>
           <div className="bg-zinc-950/50 border border-white/5 rounded-[1.5rem] md:rounded-[2.5rem] overflow-x-auto shadow-2xl relative z-10">
             <table className="w-full text-left border-collapse min-w-[700px]">
@@ -184,7 +233,7 @@ export default function EventViewPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 font-mono">
-                {runnersUp.map((team, i) => <RunnerUpRow key={team.id} team={team} rank={i+4} onAudit={handleDeepAudit} onViewReport={handleViewReport} auditingId={auditingId} />)}
+                {runnersUp.map((team, i) => <RunnerUpRow key={team.id} team={team} rank={i+4} onAudit={handleDeepAudit} onViewReport={handleViewReport} onViewTeam={handleViewTeam} auditingId={auditingId} />)}
               </tbody>
             </table>
           </div>
@@ -212,7 +261,7 @@ export default function EventViewPage() {
   );
 }
 
-const PodiumCard = ({ rank, team, onAudit, onViewReport, auditingId }: { rank: 1 | 2 | 3, team: any, onAudit: any, onViewReport: any, auditingId: any }) => {
+const PodiumCard = ({ rank, team, onAudit, onViewReport, onViewTeam, auditingId }: { rank: 1 | 2 | 3, team: any, onAudit: any, onViewReport: any, onViewTeam: any, auditingId: any }) => {
   const rankStyles: Record<number, any> = {
     1: { wrapper: "md:w-[400px] order-1 md:order-2", card: "h-[200px] md:h-[360px] from-amber-400/20 border-amber-400/50 rounded-t-[2.5rem]", icon: Trophy, iconBg: "bg-amber-400/20 border-amber-400/30 text-amber-400", title: "text-2xl md:text-4xl", score: "text-amber-400", rankNum: "text-7xl md:text-9xl text-amber-400/10", button: "flex-[3] bg-amber-400 text-black hover:bg-amber-300", eyeButton: "flex-1 bg-amber-400/20 text-amber-400 border-amber-400/20 hover:bg-amber-400/30" },
     2: { wrapper: "md:w-72 order-2 md:order-1", card: "h-[150px] md:h-[240px] from-white/10 border-white/20", icon: null, iconBg: "", title: "text-xl md:text-2xl", score: "text-white/40", rankNum: "text-5xl md:text-7xl text-white/10", button: "bg-white/10 hover:bg-white/20", eyeButton: "bg-white/10 hover:bg-white/20" },
@@ -231,7 +280,8 @@ const PodiumCard = ({ rank, team, onAudit, onViewReport, auditingId }: { rank: 1
         <span className={`font-black italic ${styles.rankNum}`}>{String(rank).padStart(2, '0')}</span>
         <div className="mt-auto pb-6 w-full px-6 flex flex-col items-center gap-3">
           <div className={`flex gap-3 w-full`}>
-            <button onClick={() => onViewReport(team)} className={`p-3 rounded-xl transition-all border border-white/10 ${styles.eyeButton}`}><Eye size={16} /></button>
+            <button onClick={() => onViewTeam(team)} className={`p-3 rounded-xl transition-all border border-white/10 ${styles.eyeButton}`} title="View Team Personnel"><Users size={16} /></button>
+            <button onClick={() => onViewReport(team)} className={`p-3 rounded-xl transition-all border border-white/10 ${styles.eyeButton}`} title="View AI Audit Report"><Eye size={16} /></button>
             <button onClick={() => onAudit(team)} disabled={auditingId === team.id} className={`py-3 rounded-xl transition-all border border-white/10 text-xs font-black uppercase flex items-center justify-center gap-2 ${styles.button}`}>
               {auditingId === team.id ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />} {rank === 1 ? 'Run AI Audit' : 'Audit'}
             </button>
@@ -242,12 +292,12 @@ const PodiumCard = ({ rank, team, onAudit, onViewReport, auditingId }: { rank: 1
   );
 };
 
-const RunnerUpRow = ({ team, rank, onAudit, onViewReport, auditingId }: any) => {
+const RunnerUpRow = ({ team, rank, onAudit, onViewReport, onViewTeam, auditingId }: any) => {
     return (
         <tr className="transition-all hover:bg-white/[0.01] group">
             <td className="px-6 md:px-10 py-6"><span className="text-sm font-black text-white/20 italic">#{String(rank).padStart(2, '0')}</span></td>
             <td className="px-6 md:px-10 py-6">
-                <div className="text-sm font-sans font-black uppercase tracking-tight group-hover:text-secondary transition-colors">{team.name}</div>
+                <button onClick={() => onViewTeam(team)} className="text-sm font-sans font-black uppercase tracking-tight group-hover:text-secondary transition-colors text-left">{team.name}</button>
                 <div className="text-[9px] text-white/10 mt-1 uppercase">Node_{team.readable_id}</div>
             </td>
             <td className="px-6 md:px-10 py-6">
@@ -259,7 +309,8 @@ const RunnerUpRow = ({ team, rank, onAudit, onViewReport, auditingId }: any) => 
             <td className="px-6 md:px-10 py-6"><div className="text-xl font-black text-white italic">{team.total_score || '--'}</div></td>
             <td className="px-6 md:px-10 py-6 text-right">
                 <div className="flex justify-end gap-2">
-                    <button onClick={() => onViewReport(team)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5"><Eye size={16} /></button>
+                    <button onClick={() => onViewTeam(team)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5" title="View Team Personnel"><Users size={16} /></button>
+                    <button onClick={() => onViewReport(team)} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5" title="View AI Audit Report"><Eye size={16} /></button>
                     <button onClick={() => onAudit(team)} disabled={auditingId === team.id} className="px-4 py-2 bg-white/5 hover:bg-secondary/20 hover:text-secondary rounded-xl border border-white/5 text-[9px] font-black uppercase">
                         {auditingId === team.id ? <Loader2 size={12} className="animate-spin" /> : "Audit"}
                     </button>

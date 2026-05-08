@@ -156,8 +156,25 @@ export function KanbanBoard({
                         </div>
                       
                       <div className="flex justify-between items-start gap-3">
-                        <div className="space-y-1 pointer-events-none">
-                          <h4 className="text-[15px] font-black text-white leading-tight uppercase tracking-tight font-body italic">{task.title}</h4>
+                        <div className="space-y-1.5 pointer-events-none flex-1">
+                          {task.title?.includes("[PHASE") ? (
+                            <div className="flex flex-col gap-1.5">
+                               <div className="flex items-center gap-2">
+                                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border ${
+                                    task.title?.includes("PHASE 1") ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                                    task.title?.includes("PHASE 2") ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
+                                    "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                                  }`}>
+                                    {task.title?.match(/\[PHASE \d\]/)?.[0].replace(/[\[\]]/g, "")}
+                                  </span>
+                               </div>
+                               <h4 className="text-[15px] font-black text-white leading-tight uppercase tracking-tight font-body italic">
+                                 {task.title?.replace(/\[PHASE \d\]\s*/, "")}
+                               </h4>
+                            </div>
+                          ) : (
+                            <h4 className="text-[15px] font-black text-white leading-tight uppercase tracking-tight font-body italic">{task.title}</h4>
+                          )}
                           <p className="text-[12px] text-white/30 font-medium leading-relaxed line-clamp-3 uppercase tracking-tight">{task.description}</p>
                         </div>
                         <div className="flex flex-col gap-2">

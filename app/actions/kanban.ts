@@ -53,49 +53,31 @@ export async function updateTaskStatus(
 }
 
 export async function deleteTaskAction(taskId: string, eventId: string) {
-  const supabase = await createClient();
+    const supabase = await createClient();
 
-  // Deadline check (optional for delete, but let's keep it consistent)
-  const { data: event } = await supabase
-    .from("hf_events")
-    .select("end_time")
-    .eq("id", eventId)
-    .single();
+    // Deadline check
+    const { data: event } = await supabase
+        .from("hf_events")
+        .select("end_time")
+        .eq("id", eventId)
+        .single();
 
-  if (event && new Date() > new Date(event.end_time)) {
-    return { success: false, error: "EVENT_TERMINATED: Modifications are locked." };
-  }
+    if (event && new Date() > new Date(event.end_time)) {
+        return { success: false, error: "EVENT_TERMINATED: Mission data is locked." };
+    }
 
-  // Get team_id for telemetry before deleting
-  const { data: task } = await supabase.from("hf_tasks").select("team_id, title").eq("id", taskId).single();
+    const { error } = await supabase
+        .from("hf_tasks")
+        .delete()
+        .eq("id", taskId);
 
-  const { error } = await supabase
-    .from("hf_tasks")
-    .delete()
-    .eq("id", taskId);
+    if (error) return { success: false, error: error.message };
 
-  if (error) return { success: false, error: error.message };
-
-  // TELEMETRY
-  if (task) {
-    await supabase.from("hf_telemetry_logs").insert({
-      team_id: task.team_id,
-      action_type: "DELETE",
-      table_name: "hf_tasks",
-      details: `Deleted objective: ${task.title}`
-    });
-  }
-
-  revalidatePath("/lab/dashboard/terminal");
-  return { success: true };
+    revalidatePath("/lab/dashboard/terminal");
+    return { success: true };
 }
 
-export async function createTaskAction(
-  teamId: string,
-  eventId: string,
-  title: string,
-  description: string
-) {
+export async function createTaskAction(teamId: string, eventId: string, title: string, description: string) {
   const supabase = await createClient();
 
   // Deadline check
@@ -131,4 +113,57 @@ export async function createTaskAction(
 
   revalidatePath("/lab/dashboard/terminal");
   return { success: true };
-  }
+}
+
+export async function bulkAddTasksAction(teamId: string, tasks: { title: string, description: string, phase: number }[]) {
+  const supabase = await createClient();
+
+  const taskData = tasks.map(t => ({
+    team_id: teamId,
+    title: `[PHASE ${t.phase}] ${t.title}`,
+    description: t.description,
+    status: 'Todo'
+  }));
+
+  const { error } = await supabase
+    .from("hf_tasks")
+    .insert(taskData);
+
+  if (error) return { success: false, error: error.message };
+
+  await supabase.from("hf_telemetry_logs").insert({
+    team_id: teamId,
+    action_type: "INSERT",
+    table_name: "hf_tasks",
+    details: `User approved and added ${tasks.length} AI-suggested objectives.`
+  });
+
+  revalidatePath("/lab/dashboard/terminal");
+  return { success: true };
+}
+
+export async function linkCommitToTaskAction(teamId: string, taskId: string, commitSha: string) {
+    const supabase = await createClient();
+  
+    const { error } = await supabase
+      .from("hf_tasks")
+      .update({ 
+          status: 'Review',
+          commit_sha: commitSha 
+      })
+      .eq("id", taskId)
+      .eq("team_id", teamId);
+  
+    if (error) return { success: false, error: error.message };
+  
+    await supabase.from("hf_telemetry_logs").insert({
+      team_id: teamId,
+      action_type: "UPDATE",
+      table_name: "hf_tasks",
+      details: `User approved Neural Link: Commit ${commitSha.substring(0,7)} linked to task.`
+    });
+  
+    revalidatePath("/lab/dashboard/terminal");
+    revalidatePath("/lab/dashboard/kanban");
+    return { success: true };
+}
