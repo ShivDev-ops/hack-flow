@@ -237,7 +237,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
  * PHASE 3: Deep Audit & Judging
  * A comprehensive evaluation of the project using Gemini 1.5 Pro.
  */
-export async function performDeepAudit(teamId: string, eventId: string, problemStatement: string, rubric: any) {
+export async function performDeepAudit(teamId: string, eventId: string, problemStatement: string, rubric: any): Promise<{ success: boolean; evaluation?: any; error?: string }> {
   try {
     const supabaseAdmin = await createAdminClient();
 
@@ -366,6 +366,9 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
 
   } catch (err: unknown) {
     console.error("DEEP_AUDIT_FAIL:", err);
-    throw err; // Re-throw to be caught by UI
+    return { 
+      success: false, 
+      error: err instanceof Error ? err.message : "An unexpected error occurred during deep audit." 
+    };
   }
 }
