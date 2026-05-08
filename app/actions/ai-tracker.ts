@@ -3,13 +3,45 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PDFParse } from "pdf-parse";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const flashModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 const proModel = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
 const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+
+/**
+ * Robust JSON extraction from AI responses that might contain markdown or conversational filler.
+ */
+function extractJSON(text: string) {
+  try {
+    // Attempt 1: Direct parse
+    return JSON.parse(text);
+  } catch {
+    // Attempt 2: Extract content between ```json and ```
+    const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+    if (match && match[1]) {
+      try {
+        return JSON.parse(match[1].trim());
+      } catch {
+        // Fallback: search for first [ or { and last ] or }
+        const start = text.indexOf('{') !== -1 ? text.indexOf('{') : text.indexOf('[');
+        const end = text.lastIndexOf('}') !== -1 ? text.lastIndexOf('}') : text.lastIndexOf(']');
+        if (start !== -1 && end !== -1) {
+          try {
+            return JSON.parse(text.slice(start, end + 1));
+          } catch {
+            throw new Error("Failed to parse AI response as JSON");
+          }
+        }
+      }
+    }
+    throw new Error("Could not find JSON in AI response");
+  }
+}
 
 /**
  * PHASE 1: DNA Synthesis
@@ -24,8 +56,7 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
 
     // 1. Extract text from PDF if provided
     if (fileData) {
-      const parser = new PDFParse({ data: fileData });
-      const result = await parser.getText();
+      const result = await pdf(fileData);
       extractedText = result.text;
     }
 
@@ -52,11 +83,7 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
     `;
 
     const result = await flashModel.generateContent(prompt);
-    const responseText = result.response.text();
-    
-    // Clean JSON response (handle potential markdown blocks)
-    const jsonString = responseText.replace(/```json|```/g, "").trim();
-    const milestones = JSON.parse(jsonString);
+    const milestones = extractJSON(result.response.text());
 
     // 3. Clear existing DNA for this team (Fresh Start)
     await supabaseAdmin.from("hf_project_dna").delete().eq("team_id", teamId);
@@ -131,6 +158,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
 
     const prompt = `
       You are a Senior Technical Auditor. Your task is to evaluate a code change against a set of project milestones.
+      A code change might implement multiple milestones at once (especially in large bulk uploads).
       
       Project Milestones:
       ${milestoneSummary}
@@ -141,33 +169,40 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
       Code Diff:
       ${cleanedDiff}
 
-      Evaluate if this code change directly implements or progresses any of the milestones.
+      Evaluate which milestones are implemented or progressed by this code change.
       Respond ONLY with a JSON object:
       {
-        "milestone_index": number (1-based index from the list above, or 0 if no match),
-        "confidence": number (0-100),
-        "status_update": "in_progress" | "complete" | "none",
-        "reasoning": "1-sentence explanation"
+        "matches": [
+          {
+            "milestone_index": number (1-based index),
+            "confidence": number (0-100),
+            "status_update": "in_progress" | "complete",
+            "reasoning": "1-sentence explanation"
+          }
+        ]
       }
     `;
 
     const result = await flashModel.generateContent(prompt);
-    const responseText = result.response.text();
-    const evaluation = JSON.parse(responseText.replace(/```json|```/g, "").trim());
+    const evaluation = extractJSON(result.response.text());
+    
+    let lastReasoning = "No matches found.";
 
-    if (evaluation.milestone_index > 0 && evaluation.confidence > 70) {
-      const targetMilestone = milestones[evaluation.milestone_index - 1];
-      
-      // Update Milestone Status
-      if (evaluation.status_update !== "none") {
-        await supabaseAdmin
-          .from("hf_project_dna")
-          .update({ status: evaluation.status_update })
-          .eq("id", targetMilestone.id);
+    if (evaluation.matches && Array.isArray(evaluation.matches)) {
+      for (const match of evaluation.matches) {
+        if (match.milestone_index > 0 && match.milestone_index <= milestones.length && match.confidence > 70) {
+          const targetMilestone = milestones[match.milestone_index - 1];
+          
+          await supabaseAdmin
+            .from("hf_project_dna")
+            .update({ status: match.status_update })
+            .eq("id", targetMilestone.id);
+          
+          lastReasoning = match.reasoning;
+        }
       }
 
       // 4. Update Team Progress Score
-      // Calculate new score: sum of weights of completed milestones
       const { data: allMilestones } = await supabaseAdmin
         .from("hf_project_dna")
         .select("weight, status")
@@ -175,7 +210,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
 
       const totalProgress = allMilestones?.reduce((acc, m) => {
         if (m.status === 'complete') return acc + m.weight;
-        if (m.status === 'in_progress') return acc + (m.weight * 0.3); // Partial credit
+        if (m.status === 'in_progress') return acc + (m.weight * 0.3);
         return acc;
       }, 0) || 0;
 
@@ -183,11 +218,11 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
         .from("hf_teams")
         .update({ 
           ai_progress_score: Math.min(Math.round(totalProgress), 100),
-          ai_status_summary: evaluation.reasoning
+          ai_status_summary: lastReasoning
         })
         .eq("id", teamId);
 
-      return { success: true, matched: targetMilestone.milestone_title, progress: totalProgress };
+      return { success: true, matches: evaluation.matches.length, progress: totalProgress };
     }
 
     return { success: true, matched: null };
@@ -210,9 +245,54 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
     const { data: team } = await supabaseAdmin.from("hf_teams").select("name, repo_url, ai_progress_score").eq("id", teamId).single();
     
+    // 2. FETCH GITHUB REPOSITORY STRUCTURE (Bulk Upload Support)
+    let repoStructure = "No repository structure available.";
+    if (team?.repo_url && team.repo_url.includes("github.com")) {
+        try {
+            // Extract owner and repo from URL
+            const parts = team.repo_url.replace(/\/$/, "").split("/");
+            const repo = parts.pop();
+            const owner = parts.pop();
+            
+            if (owner && repo) {
+                // Fetch the default branch's tree recursively
+                const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`;
+                const response = await fetch(treeUrl, {
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    // Filter and format the tree to keep it token-efficient (limit to 200 files)
+                    repoStructure = data.tree
+                        .filter((item: any) => item.type === 'blob')
+                        .slice(0, 200)
+                        .map((item: any) => item.path)
+                        .join("\n");
+                    console.log(`[AI_AUDITOR] Successfully fetched repo structure for ${owner}/${repo}`);
+                } else {
+                    // Try 'master' if 'main' fails
+                    const masterUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`;
+                    const masterResponse = await fetch(masterUrl);
+                    if (masterResponse.ok) {
+                        const data = await masterResponse.json();
+                        repoStructure = data.tree
+                            .filter((item: any) => item.type === 'blob')
+                            .slice(0, 200)
+                            .map((item: any) => item.path)
+                            .join("\n");
+                    }
+                }
+            }
+        } catch (githubErr) {
+            console.warn("[AI_AUDITOR] GitHub structure fetch failed:", githubErr);
+        }
+    }
+
     const evidence = {
         milestones: milestones?.map(m => ({ title: m.milestone_title, status: m.status, criteria: m.verification_criteria })),
-        claimed_progress: team?.ai_progress_score || 0
+        claimed_progress: team?.ai_progress_score || 0,
+        repository_file_structure: repoStructure
     };
 
     const prompt = `
@@ -228,9 +308,14 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
       JUDGING RUBRIC (Weights):
       ${JSON.stringify(rubric, null, 2)}
 
+      IMPORTANT INSTRUCTIONS FOR BULK UPLOADS:
+      Check the "repository_file_structure" carefully. 
+      If the structure contains significant logic files (e.g., controllers, services, UI components) that match the milestones, but the "claimed_progress" is low, it is likely the team performed a BULK UPLOAD.
+      In case of a bulk upload, prioritize the actual repository structure over the incremental progress score to give an accurate evaluation of their execution.
+
       Evaluate the project on these 4 factors (0-100 for each):
       1. Alignment: How well does the technical implementation solve the problem statement?
-      2. Execution: Based on the milestones, how much high-quality logic is actually finished?
+      2. Execution: Based on the milestones and file structure, how much high-quality logic is actually finished?
       3. Innovation: Does the code/approach show creative problem-solving or just boilerplate?
       4. Technical Depth: Is the architecture robust and technically challenging?
 
@@ -249,13 +334,13 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     let evaluation;
     try {
         const result = await proModel.generateContent(prompt);
-        evaluation = JSON.parse(result.response.text().replace(/```json|```/g, "").trim());
+        evaluation = extractJSON(result.response.text());
         console.log(`[AI_AUDITOR] Deep audit successful using Pro model for team ${teamId}`);
     } catch (proErr: any) {
         if (proErr.message?.includes("429") || proErr.message?.includes("quota")) {
             console.warn(`[AI_AUDITOR] Pro model quota exceeded, falling back to Flash model for team ${teamId}`);
             const result = await flashModel.generateContent(prompt);
-            evaluation = JSON.parse(result.response.text().replace(/```json|```/g, "").trim());
+            evaluation = extractJSON(result.response.text());
         } else {
             throw proErr;
         }
@@ -281,6 +366,6 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
 
   } catch (err: unknown) {
     console.error("DEEP_AUDIT_FAIL:", err);
-    return { success: false, error: "Deep audit failed." };
+    throw err; // Re-throw to be caught by UI
   }
 }
