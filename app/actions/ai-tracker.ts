@@ -14,7 +14,7 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const flashModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+const flashModel = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
 const proModel = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
 const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
@@ -347,16 +347,16 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     // Attempt with Pro model first, fallback to Flash if quota exceeded (429)
     let evaluationRaw: any;
     try {
-        console.log(`[DEEP_AUDIT] Calling gemini-1.5-pro...`);
+        console.log(`[DEEP_AUDIT] Calling gemini-pro-latest...`);
         const result = await proModel.generateContent(prompt);
         evaluationRaw = extractJSON(result.response.text());
-        console.log(`[DEEP_AUDIT] gemini-1.5-pro SUCCESS`);
+        console.log(`[DEEP_AUDIT] gemini-pro-latest SUCCESS`);
     } catch (proErr: any) {
-        console.warn(`[DEEP_AUDIT] gemini-1.5-pro failed, trying flash fallback. Error: ${proErr.message}`);
+        console.warn(`[DEEP_AUDIT] gemini-pro-latest failed, trying flash fallback. Error: ${proErr.message}`);
         if (proErr.message?.includes("429") || proErr.message?.includes("quota") || proErr.message?.includes("500")) {
             const result = await flashModel.generateContent(prompt);
             evaluationRaw = extractJSON(result.response.text());
-            console.log(`[DEEP_AUDIT] gemini-1.5-flash fallback SUCCESS`);
+            console.log(`[DEEP_AUDIT] gemini-flash-lite-latest fallback SUCCESS`);
         } else {
             throw proErr;
         }
@@ -476,7 +476,7 @@ export async function reAuditTeamWork(teamId: string) {
         // 4. Re-evaluate Milestones
         const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
         if (milestones && milestones.length > 0) {
-            console.log(`[RE_AUDIT] Re-evaluating ${milestones.length} milestones with Gemini Flash...`);
+            console.log(`[RE_AUDIT] Re-evaluating ${milestones.length} milestones with Gemini Flash Lite...`);
             const milestoneSummary = milestones.map((m: DNAMilestone, i: number) => `${i+1}. ${m.milestone_title}: ${m.verification_criteria}`).join("\n");
             
             const prompt = `
