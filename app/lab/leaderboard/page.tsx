@@ -356,7 +356,7 @@ export default function ParticipantLeaderboardPage() {
                                     {team.name}
                                 </div>
                                 {isMyTeam && <ShieldCheck size={12} className="text-secondary" />}
-                                {team.showcase_audit && <Zap size={10} className="text-amber-400 fill-amber-400" title="Showcasing Audit" />}
+                                {team.showcase_audit && <span title="Showcasing Audit"><Zap size={10} className="text-amber-400 fill-amber-400" /></span>}
                             </div>
                             <div className="text-[10px] text-white/40 mt-2 font-medium italic line-clamp-1 max-w-[300px]">
                                 {team.ai_status_summary || "Establishing technical baseline..."}
