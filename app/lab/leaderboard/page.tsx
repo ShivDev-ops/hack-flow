@@ -59,6 +59,37 @@ export default function ParticipantLeaderboardPage() {
     setIsTeamModalOpen(true);
   };
 
+  const handleViewReport = async (team: any) => {
+    setIsReportLoading(true);
+    setSelectedTeam(team);
+    
+    // Construct results object from team data since it's already mapped
+    const results = {
+      total_score: team.total_score,
+      ai_justification: team.ai_justification,
+      alignment_score: team.alignment_score,
+      execution_score: team.execution_score,
+      innovation_score: team.innovation_score,
+      technical_score: team.technical_score
+    };
+    setSelectedResults(results);
+
+    try {
+        const { data: dna } = await supabase
+          .from('hf_project_dna')
+          .select('*')
+          .eq('team_id', team.id)
+          .order('created_at', { ascending: true });
+        
+        setSelectedMilestones(dna || []);
+        setIsReportOpen(true);
+    } catch (err) {
+        console.error("REPORT_FETCH_ERROR:", err);
+    } finally {
+        setIsReportLoading(false);
+    }
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const session = await getLabSession();
