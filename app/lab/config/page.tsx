@@ -18,11 +18,12 @@ import {
   HelpCircle
 } from "lucide-react";
 import { getLabSession } from "@/app/actions/lab-auth";
-import { getTeamConfig, updateTeamConfig, verifyTeamSync } from "@/app/actions/lab-config";
+import { getTeamConfig, updateTeamConfig, verifyTeamSync, toggleShowcaseAudit } from "@/app/actions/lab-config";
 
 export default function LabConfigPage() {
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [showcaseLoading, setShowcaseLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -31,6 +32,7 @@ export default function LabConfigPage() {
   const [teamId, setTeamId] = useState<string | null>(null);
   const [readableId, setReadableId] = useState<string | null>(null);
   const [appUrl, setAppUrl] = useState("");
+  const [showcaseEnabled, setShowcaseEnabled] = useState(false);
 
   const [formData, setFormData] = useState({
     repoUrl: "",
@@ -47,6 +49,7 @@ export default function LabConfigPage() {
         const res = await getTeamConfig(session.teamId);
         if (res.success && res.config) {
           setReadableId(res.config.readable_id);
+          setShowcaseEnabled(!!(res.config as any).showcase_audit);
           setFormData({
             repoUrl: res.config.repo_url || "",
             deploymentUrl: res.config.deployment_url || "",
@@ -57,6 +60,18 @@ export default function LabConfigPage() {
     }
     init();
   }, []);
+
+  const handleToggleShowcase = async () => {
+    if (!teamId) return;
+    setShowcaseLoading(true);
+    const res = await toggleShowcaseAudit(teamId, !showcaseEnabled);
+    if (res.success) {
+      setShowcaseEnabled(!showcaseEnabled);
+    } else {
+      alert(res.error);
+    }
+    setShowcaseLoading(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,6 +199,26 @@ export default function LabConfigPage() {
                     />
                   </div>
                   <p className="text-[9px] text-white/20 ml-1 font-label-caps uppercase tracking-widest">Optional // Must return HTTP 200 for nominal status</p>
+                </div>
+
+                {/* Showcase Audit Toggle */}
+                <div className="pt-6 border-t border-white/5 space-y-4">
+                   <div className="flex items-center justify-between bg-white/[0.02] border border-white/10 p-6 rounded-2xl group hover:border-secondary/30 transition-all">
+                      <div className="space-y-1">
+                        <h4 className="text-[12px] font-black text-white uppercase tracking-wider flex items-center gap-2">
+                           <ShieldAlert size={14} className="text-secondary" /> Public_Audit_Showcase
+                        </h4>
+                        <p className="text-[10px] text-white/30 uppercase font-bold tracking-tight">Allow other teams to view your technical audit report</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleToggleShowcase}
+                        disabled={showcaseLoading}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${showcaseEnabled ? 'bg-secondary' : 'bg-white/10'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showcaseEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                   </div>
                 </div>
 
                 <div className="pt-6 border-t border-white/5 space-y-4">

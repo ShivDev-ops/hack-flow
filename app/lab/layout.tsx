@@ -20,6 +20,7 @@ import { getActiveEventAction } from "@/app/actions/events";
 import { Event } from "@/types/common";
 
 import { LabSidebarNav } from "@/components/layout/lab-sidebar-nav";
+import { AIChatAgent } from "@/components/lab/dashboard/ai-chat-agent";
 
 const navItems = [
   { name: "Terminal", path: "/lab/dashboard/terminal", icon: Terminal },
@@ -168,6 +169,14 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#050505]">
           {children}
         </main>
+
+        {/* PERSISTENT AI CHAT AGENT (Runs in background across pages) */}
+        {session?.teamId && session?.role && (
+          <AIChatAgent 
+            teamId={session.teamId} 
+            role={session.role as string} 
+          />
+        )}
       </div>
 
       {/* MOBILE OVERLAY */}

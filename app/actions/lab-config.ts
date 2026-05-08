@@ -9,7 +9,7 @@ export async function getTeamConfig(teamId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("hf_teams")
-    .select("repo_url, deployment_url, db_connection, readable_id, srs_document_path")
+    .select("repo_url, deployment_url, db_connection, readable_id, srs_document_path, showcase_audit")
     .eq("id", teamId)
     .single();
     
@@ -155,6 +155,20 @@ export async function triggerTeamReAudit(teamId: string) {
     console.log(`[ACTION] reAuditTeamWork result:`, res.success ? "SUCCESS" : "FAILED", res.error || "");
     if (res.success) {
         revalidatePath("/lab/specs");
+        revalidatePath("/lab/leaderboard");
     }
     return res;
+}
+
+export async function toggleShowcaseAudit(teamId: string, enabled: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("hf_teams")
+    .update({ showcase_audit: enabled })
+    .eq("id", teamId);
+    
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/lab/leaderboard");
+  revalidatePath("/lab/config");
+  return { success: true };
 }

@@ -13,7 +13,6 @@ import { GitFeed } from "@/components/lab/dashboard/git-feed";
 import { ObservabilityPanel } from "@/components/lab/dashboard/observability-panel";
 import { NeuralLinkOverlay } from "@/components/lab/dashboard/neural-link-overlay";
 import { AIInsightPanel } from "@/components/lab/dashboard/ai-insight-panel";
-import { AIChatAgent } from "@/components/lab/dashboard/ai-chat-agent";
 import { getSystemObservability } from "@/lib/lab-config/observability";
 
 interface TelemetryLog {
@@ -353,14 +352,6 @@ export default function TerminalPage() {
            <DatabaseTelemetry logs={dbLogs} />
         </div>
       </div>
-
-      {/* PERSONALIZED AI CHAT AGENT */}
-      {session?.teamId && (
-        <AIChatAgent 
-          teamId={session.teamId} 
-          role={session.role} 
-        />
-      )}
     </div>
   );
 }

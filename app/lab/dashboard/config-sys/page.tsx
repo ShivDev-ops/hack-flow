@@ -35,9 +35,9 @@ export default function ConfigSysPage() {
     init();
   }, [fetchTasks]);
 
-  const handleStatusChange = async (taskId: string, newStatus: string, eventId: string, sha: string | null = null) => {
+  const handleStatusChange = async (taskId: string, newStatus: string, eventId: string, sha: string | null = null, reason: string | null = null) => {
     setUpdating(taskId);
-    const res = await updateTaskStatus(taskId, newStatus, eventId, sha);
+    const res = await updateTaskStatus(taskId, newStatus, eventId, sha, reason);
     if (res.success) {
       await fetchTasks(session!.teamId);
       setCommitUrl("");
@@ -45,6 +45,13 @@ export default function ConfigSysPage() {
       alert(res.error);
     }
     setUpdating(null);
+  };
+
+  const handleReject = async (task: Task) => {
+    const reason = prompt("SYSTEM_PROTOCOL: Enter reason for rejection (this will be logged to the team pulse):");
+    if (reason === null) return; // Cancelled
+    
+    await handleStatusChange(task.id, "Todo", task.event_id, null, reason || "No specific reason provided.");
   };
 
   if (loading) {
@@ -161,21 +168,31 @@ export default function ConfigSysPage() {
                   <Shield size={24} className="text-amber-500 opacity-50" />
                 </div>
                 <p className="font-black text-[12px] text-white uppercase tracking-widest line-clamp-1">{task.title}</p>
-                <div className="w-full mt-2 space-y-4">
+                <div className="w-full mt-2 space-y-3">
                   <input 
                     style={{ colorScheme: 'dark' }}
                     value={commitUrl}
                     onChange={(e) => setCommitUrl(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-xl py-4 px-5 text-[12px] font-data-mono text-white outline-none focus:border-secondary/50 transition-all placeholder:text-white/10" 
+                    className="w-full bg-black/40 border border-white/10 rounded-xl py-3 px-4 text-[12px] font-data-mono text-white outline-none focus:border-secondary/50 transition-all placeholder:text-white/10" 
                     placeholder="COMMIT_SHA" 
                   />
-                  <button 
-                    disabled={updating === task.id || !commitUrl}
-                    onClick={() => handleStatusChange(task.id, "Verified", task.event_id, commitUrl)}
-                    className="w-full py-4 bg-secondary text-black hover:bg-[#5affb4] font-black text-[11px] rounded-xl uppercase tracking-widest transition-all shadow-lg"
-                  >
-                    Finalize_Verify
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                        disabled={updating === task.id || !commitUrl}
+                        onClick={() => handleStatusChange(task.id, "Verified", task.event_id, commitUrl)}
+                        className="flex-1 py-3 bg-secondary text-black hover:bg-[#5affb4] font-black text-[10px] rounded-xl uppercase tracking-widest transition-all shadow-lg"
+                    >
+                        Verify
+                    </button>
+                    <button 
+                        disabled={updating === task.id || session?.role !== 'LEAD'}
+                        onClick={() => handleReject(task)}
+                        className="px-4 py-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 font-black text-[10px] rounded-xl uppercase tracking-widest transition-all"
+                        title="Reject and push to backlog"
+                    >
+                        Reject
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

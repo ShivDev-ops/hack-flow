@@ -12,7 +12,6 @@ import { GitFeed } from "@/components/lab/dashboard/git-feed";
 import { NeuralLinkOverlay } from "@/components/lab/dashboard/neural-link-overlay";
 import { ObservabilityPanel } from "@/components/lab/dashboard/observability-panel";
 import { getSystemObservability } from "@/lib/lab-config/observability";
-import { AIChatAgent } from "@/components/lab/dashboard/ai-chat-agent";
 
 export default function KanbanPage() {
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -110,7 +109,7 @@ export default function KanbanPage() {
     init();
   }, [supabase, fetchData]);
 
-  const handleMoveTask = async (taskId: string, newStatus: string) => {
+  const handleMoveTask = async (taskId: string, newStatus: string, reason?: string) => {
     setUpdatingId(taskId);
     if (newStatus === 'Verified' && session?.role !== 'LEAD') {
       alert("UNAUTHORIZED: Only the Project Lead can finalize objectives.");
@@ -119,7 +118,7 @@ export default function KanbanPage() {
     }
 
     const commitToLink = newStatus === 'Verified' ? selectedCommit[taskId] : null;
-    const res = await updateTaskStatus(taskId, newStatus, eventId || "", commitToLink);
+    const res = await updateTaskStatus(taskId, newStatus, eventId || "", commitToLink, reason);
     
     if (!res.success) alert(res.error); 
     else if (session?.teamId) await fetchData(session.teamId); 
@@ -186,6 +185,7 @@ export default function KanbanPage() {
           selectedCommit={selectedCommit}
           teamId={session?.teamId || ""}
           eventId={eventId || ""}
+          userRole={session?.role}
           onMoveTask={handleMoveTask}
           onSelectCommit={(tid, sha) => setSelectedCommit(prev => ({ ...prev, [tid]: sha }))}
           onRefresh={() => session?.teamId && fetchData(session.teamId)}
@@ -205,8 +205,6 @@ export default function KanbanPage() {
             }}
         />
       </div>
-
-      {session?.teamId && <AIChatAgent teamId={session.teamId} role={session.role} />}
     </div>
   );
 }

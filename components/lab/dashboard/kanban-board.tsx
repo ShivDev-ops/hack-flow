@@ -13,7 +13,8 @@ interface KanbanBoardProps {
   selectedCommit: Record<string, string>;
   teamId: string;
   eventId: string;
-  onMoveTask: (taskId: string, newStatus: string) => void;
+  userRole?: string;
+  onMoveTask: (taskId: string, newStatus: string, reason?: string) => void;
   onSelectCommit: (taskId: string, commitSha: string) => void;
   onRefresh: () => void;
   onHoverTask?: (taskId: string | null) => void;
@@ -28,6 +29,7 @@ export function KanbanBoard({
   selectedCommit, 
   teamId,
   eventId,
+  userRole,
   onMoveTask,
   onSelectCommit,
   onRefresh,
@@ -39,6 +41,8 @@ export function KanbanBoard({
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const isLead = userRole === 'LEAD';
   
   const columns = [
     { id: 'Todo', title: 'To-Do', color: 'bg-white/20', icon: <Plus size={12}/> },
@@ -70,7 +74,12 @@ export function KanbanBoard({
 
     // If dropped in "middle" (no column match) or same column, it will naturally return via layout prop
     if (targetColId && targetColId !== task.status) {
-      onMoveTask(task.id, targetColId);
+      if (targetColId === 'Todo' && task.status === 'Review' && isLead) {
+          const reason = prompt("Enter rejection reason:");
+          if (reason !== null) onMoveTask(task.id, targetColId, reason);
+      } else {
+          onMoveTask(task.id, targetColId);
+      }
     }
   };
 
@@ -80,6 +89,7 @@ export function KanbanBoard({
         {columns.map((col) => {
           const columnTasks = tasks.filter(t => t.status === col.id);
           const isTodo = col.id === 'Todo';
+          const isReview = col.id === 'Review';
           const isActive = col.id === 'Progress';
           
           // PRIORITY STACKING: Keep column on top if a card is being dragged or UPDATED within it
@@ -171,6 +181,19 @@ export function KanbanBoard({
                       </div>
                       
                       <div className="pt-2 space-y-3">
+                        {isReview && isLead && (
+                             <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const reason = prompt("Enter rejection reason:");
+                                    if (reason !== null) onMoveTask(task.id, 'Todo', reason);
+                                }}
+                                className="w-full py-2 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 font-black text-[10px] rounded-lg border border-red-500/20 transition-all uppercase tracking-widest mb-2"
+                             >
+                                Reject_Objective
+                             </button>
+                        )}
+
                         {task.status === 'Progress' && (
                           <div className="space-y-3 bg-white/[0.03] p-3 rounded-xl border border-white/5">
                             <select 

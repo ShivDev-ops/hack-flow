@@ -7,7 +7,8 @@ export async function updateTaskStatus(
   taskId: string, 
   newStatus: string, 
   eventId: string, 
-  commitSha: string | null = null
+  commitSha: string | null = null,
+  reason: string | null = null
 ) {
   const supabase = await createClient();
 
@@ -33,13 +34,17 @@ export async function updateTaskStatus(
   if (error) return { success: false, error: error.message };
 
   // 3. TELEMETRY: Manually log the action for the Terminal Audit Pulse
-  const { data: task } = await supabase.from("hf_tasks").select("team_id").eq("id", taskId).single();
+  const { data: task } = await supabase.from("hf_tasks").select("team_id, title").eq("id", taskId).single();
   if (task) {
+    const logDetail = reason 
+      ? `Task "${task.title}" -> ${newStatus} | Reason: ${reason}`
+      : `Moved objective to ${newStatus}`;
+
     await supabase.from("hf_telemetry_logs").insert({
       team_id: task.team_id,
       action_type: "UPDATE",
       table_name: "hf_tasks",
-      details: `Moved objective to ${newStatus}`
+      details: logDetail
     });
   }
 

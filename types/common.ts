@@ -54,6 +54,7 @@ export interface Team {
   deployment_url?: string;
   ai_progress_score?: number;
   ai_status_summary?: string;
+  showcase_audit?: boolean;
   created_at: string;
 }
 

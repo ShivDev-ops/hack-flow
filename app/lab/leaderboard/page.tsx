@@ -25,6 +25,8 @@ interface LeaderboardTeam {
   name: string;
   readable_id: string;
   ai_progress_score: number;
+  ai_status_summary?: string;
+  showcase_audit?: boolean;
   total_score?: number;
   ai_justification?: string;
   alignment_score?: number;
@@ -103,6 +105,8 @@ export default function ParticipantLeaderboardPage() {
         name: t.name,
         readable_id: t.readable_id,
         ai_progress_score: t.ai_progress_score || 0,
+        ai_status_summary: t.ai_status_summary,
+        showcase_audit: t.showcase_audit,
         total_score: resultsMap[t.id]?.total_score,
         ai_justification: resultsMap[t.id]?.ai_justification,
         alignment_score: resultsMap[t.id]?.alignment_score,
@@ -133,6 +137,7 @@ export default function ParticipantLeaderboardPage() {
 
   const top3 = useMemo(() => teams.slice(0, 3), [teams]);
   const listTeams = useMemo(() => teams.slice(3), [teams]);
+  const showcasedTeams = useMemo(() => teams.filter(t => t.showcase_audit && t.total_score), [teams]);
 
   if (loading && teams.length === 0) {
     return (
@@ -146,14 +151,14 @@ export default function ParticipantLeaderboardPage() {
   return (
     <div className="flex flex-col min-h-full bg-[#0A0A0B] text-white font-sans overflow-hidden">
       
-      {/* BROADCASR HEADER */}
-      <header className="p-8 md:p-12 flex justify-between items-end border-b border-white/5 relative overflow-hidden">
+      {/* HEADER & SHOWCASE GALLERY */}
+      <header className="p-8 md:p-12 flex flex-col gap-12 border-b border-white/5 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-secondary/10 rounded-full blur-[100px]" />
         </div>
         
-        <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-4">
+        <div className="flex justify-between items-end relative z-10">
+          <div className="flex items-center gap-4">
             <div className="p-3 bg-secondary/10 rounded-2xl text-secondary border border-secondary/20 shadow-[0_0_20px_rgba(78,222,163,0.1)]">
               <Trophy size={24} />
             </div>
@@ -162,9 +167,8 @@ export default function ParticipantLeaderboardPage() {
                 <p className="text-[10px] text-white/30 uppercase tracking-[0.4em] font-label-caps mt-2">Real-time implementation standings & AI ranking</p>
             </div>
           </div>
-        </div>
 
-        <div className="hidden lg:flex items-center gap-10 relative z-10">
+          <div className="hidden lg:flex items-center gap-10">
             <div className="text-right">
                 <p className="text-[9px] font-black text-white/20 uppercase tracking-widest mb-1">Avg_Implementation</p>
                 <p className="text-2xl font-black text-secondary">
@@ -174,9 +178,45 @@ export default function ParticipantLeaderboardPage() {
             <div className="h-10 w-px bg-white/10" />
             <div className="bg-white/[0.03] border border-white/10 px-6 py-3 rounded-2xl flex items-center gap-4">
                 <div className="w-2 h-2 bg-secondary rounded-full animate-pulse shadow-[0_0_10px_#4edea3]" />
-                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Broadcast_Node_Active</span>
+                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">Neural_Sync_Active</span>
             </div>
+          </div>
         </div>
+
+        {/* SHOWCASE GALLERY (Replacing Broadcast Node) */}
+        {showcasedTeams.length > 0 && (
+           <div className="relative z-10 space-y-6">
+              <div className="flex items-center gap-3">
+                 <ShieldCheck size={14} className="text-secondary" />
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Evidence_Showcase // Verified Technical Audits</h4>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                {showcasedTeams.map(team => (
+                  <motion.div 
+                    key={team.id}
+                    whileHover={{ y: -4 }}
+                    className="flex-shrink-0 w-72 bg-white/[0.02] border border-white/10 rounded-2xl p-5 space-y-4 hover:border-secondary/30 transition-all cursor-pointer group"
+                    onClick={() => handleViewReport(team)}
+                  >
+                    <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                            <p className="text-[11px] font-black text-white uppercase tracking-tight truncate w-40">{team.name}</p>
+                            <p className="text-[9px] text-secondary font-bold uppercase tracking-tighter">Technical_Score: {team.total_score}</p>
+                        </div>
+                        <div className="p-2 bg-white/5 rounded-lg group-hover:bg-secondary/20 transition-colors">
+                            <Eye size={12} className="group-hover:text-secondary transition-colors" />
+                        </div>
+                    </div>
+                    <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                        <p className="text-[10px] text-white/40 leading-relaxed italic line-clamp-2">
+                           &quot;{team.ai_status_summary || "Scanning repository logic for optimized implementation patterns..."}&quot;
+                        </p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+           </div>
+        )}
       </header>
 
       <div className="flex-1 flex overflow-hidden">
@@ -273,8 +313,11 @@ export default function ParticipantLeaderboardPage() {
                                     {team.name}
                                 </div>
                                 {isMyTeam && <ShieldCheck size={12} className="text-secondary" />}
+                                {team.showcase_audit && <Zap size={10} className="text-amber-400 fill-amber-400" title="Showcasing Audit" />}
                             </div>
-                            <div className="text-[9px] text-white/10 mt-1 uppercase tracking-widest">Node_{team.readable_id}</div>
+                            <div className="text-[10px] text-white/40 mt-2 font-medium italic line-clamp-1 max-w-[300px]">
+                                {team.ai_status_summary || "Establishing technical baseline..."}
+                            </div>
                         </td>
                         <td className="px-10 py-6 min-w-[200px]">
                             <div className="flex items-center gap-4">
