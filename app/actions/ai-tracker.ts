@@ -1,7 +1,6 @@
 "use server";
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRequire } from "module";
 import { JudgingResult, DNAMilestone } from "@/types/common";
@@ -14,8 +13,8 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const flashModel = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
-const proModel = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
+const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
 /**
@@ -32,16 +31,30 @@ function extractJSON(text: string) {
       try {
         return JSON.parse(match[1].trim());
       } catch {
-        // Fallback: search for first [ or { and last ] or }
-        const start = text.indexOf('{') !== -1 ? text.indexOf('{') : text.indexOf('[');
-        const end = text.lastIndexOf('}') !== -1 ? text.lastIndexOf('}') : text.lastIndexOf(']');
-        if (start !== -1 && end !== -1) {
-          try {
-            return JSON.parse(text.slice(start, end + 1));
-          } catch {
-            throw new Error("Failed to parse AI response as JSON");
-          }
-        }
+        // Fall through to Attempt 3
+      }
+    }
+
+    // Attempt 3: Find the first and last structural characters ({ or [ and } or ])
+    const firstBrace = text.indexOf('{');
+    const firstBracket = text.indexOf('[');
+    let start = -1;
+    if (firstBrace !== -1 && firstBracket !== -1) start = Math.min(firstBrace, firstBracket);
+    else if (firstBrace !== -1) start = firstBrace;
+    else if (firstBracket !== -1) start = firstBracket;
+
+    const lastBrace = text.lastIndexOf('}');
+    const lastBracket = text.lastIndexOf(']');
+    let end = -1;
+    if (lastBrace !== -1 && lastBracket !== -1) end = Math.max(lastBrace, lastBracket);
+    else if (lastBrace !== -1) end = lastBrace;
+    else if (lastBracket !== -1) end = lastBracket;
+
+    if (start !== -1 && end !== -1 && end > start) {
+      try {
+        return JSON.parse(text.slice(start, end + 1));
+      } catch {
+        throw new Error("Failed to parse AI response as JSON");
       }
     }
     throw new Error("Could not find JSON in AI response");
@@ -347,20 +360,30 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     // Attempt with Pro model first, fallback to Flash if quota exceeded (429)
     let evaluationRaw: any;
     try {
-        console.log(`[DEEP_AUDIT] Calling gemini-pro-latest...`);
+        console.log(`[DEEP_AUDIT] Calling gemini-1.5-pro...`);
         const result = await proModel.generateContent(prompt);
-        evaluationRaw = extractJSON(result.response.text());
-        console.log(`[DEEP_AUDIT] gemini-pro-latest SUCCESS`);
+        const responseText = result.response.text();
+        console.log(`[DEEP_AUDIT] Raw response received, length: ${responseText.length}`);
+        evaluationRaw = extractJSON(responseText);
+        console.log(`[DEEP_AUDIT] gemini-1.5-pro SUCCESS`);
     } catch (proErr: any) {
-        console.warn(`[DEEP_AUDIT] gemini-pro-latest failed, trying flash fallback. Error: ${proErr.message}`);
-        if (proErr.message?.includes("429") || proErr.message?.includes("quota") || proErr.message?.includes("500")) {
+        console.warn(`[DEEP_AUDIT] gemini-1.5-pro failed, trying flash fallback. Error: ${proErr.message}`);
+        try {
             const result = await flashModel.generateContent(prompt);
-            evaluationRaw = extractJSON(result.response.text());
-            console.log(`[DEEP_AUDIT] gemini-flash-lite-latest fallback SUCCESS`);
-        } else {
-            throw proErr;
+            const responseText = result.response.text();
+            evaluationRaw = extractJSON(responseText);
+            console.log(`[DEEP_AUDIT] gemini-1.5-flash fallback SUCCESS`);
+        } catch (flashErr: any) {
+            console.error(`[DEEP_AUDIT] Flash fallback also failed: ${flashErr.message}`);
+            throw new Error(`AI Audit failed: ${flashErr.message}`);
         }
     }
+
+    if (!evaluationRaw) {
+        throw new Error("AI returned an empty or invalid evaluation.");
+    }
+
+    console.log(`[DEEP_AUDIT] Evaluation data ready. Saving to DB...`);
 
     // 2. Save result to DB (Upsert)
     const { data: savedResult, error: insertError } = await supabaseAdmin
@@ -368,26 +391,31 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
         .upsert({
             team_id: teamId,
             event_id: eventId,
-            alignment_score: evaluationRaw.alignment_score,
-            execution_score: evaluationRaw.execution_score,
-            innovation_score: evaluationRaw.innovation_score,
-            technical_score: evaluationRaw.technical_score,
-            total_score: evaluationRaw.total_weighted_score,
-            ai_justification: evaluationRaw.ai_justification
+            alignment_score: evaluationRaw.alignment_score || 0,
+            execution_score: evaluationRaw.execution_score || 0,
+            innovation_score: evaluationRaw.innovation_score || 0,
+            technical_score: evaluationRaw.technical_score || 0,
+            total_score: evaluationRaw.total_weighted_score || evaluationRaw.total_score || 0,
+            ai_justification: evaluationRaw.ai_justification || "No justification provided."
         }, { onConflict: 'team_id' })
         .select()
         .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+        console.error(`[DEEP_AUDIT] DB Insert Error: ${insertError.message}`);
+        throw insertError;
+    }
+    
     console.log(`[DEEP_AUDIT] Results saved to DB for team ${teamId}`);
 
     return { success: true, evaluation: savedResult as JudgingResult };
 
   } catch (err: unknown) {
-    console.error("[DEEP_AUDIT_CRITICAL_FAIL]:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("[DEEP_AUDIT_CRITICAL_FAIL]:", errorMessage);
     return { 
       success: false, 
-      error: err instanceof Error ? err.message : "An unexpected error occurred during deep audit." 
+      error: `Audit Error: ${errorMessage}` 
     };
   }
 }
