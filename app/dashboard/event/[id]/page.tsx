@@ -149,7 +149,7 @@ export default function EventViewPage() {
 
   const top3 = useMemo(() => teams.slice(0, 3), [teams]);
   const runnersUp = useMemo(() => teams.slice(3), [teams]);
-  const showcasedTeams = useMemo(() => teams.filter(t => t.showcase_audit && judgingResults[t.id]));
+  const showcasedTeams = useMemo(() => teams.filter(t => t.showcase_audit && judgingResults[t.id]), [teams, judgingResults]);
 
   if (loading && !event) {
     return (
