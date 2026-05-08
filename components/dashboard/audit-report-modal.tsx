@@ -3,13 +3,14 @@
 import React from "react";
 import { X, Zap, BarChart3, MessageSquare, Target, Cpu, CheckCircle2, Circle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Team, JudgingResult, DNAMilestone } from "@/types/common";
 
 interface AuditReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  team: any;
-  results: any;
-  milestones: any[];
+  team: Team | null;
+  results: JudgingResult | null;
+  milestones: DNAMilestone[];
 }
 
 export function AuditReportModal({ isOpen, onClose, team, results, milestones }: AuditReportModalProps) {

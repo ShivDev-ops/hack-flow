@@ -133,7 +133,7 @@ export default function MissionSpecsPage() {
           const res = await triggerTeamReAudit(session.teamId);
           if (res.success) {
               setSuccess("Re-audit complete! DNA updated and report generated.");
-              setAuditResults(res.audit);
+              setAuditResults(res.audit ?? null);
               // Refresh milestones
               const { data: dna } = await supabase
                 .from("hf_project_dna")
