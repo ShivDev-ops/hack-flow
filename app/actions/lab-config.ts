@@ -31,7 +31,6 @@ export async function updateMissionSpecs(formData: FormData) {
         const supabase = await createClient();
         const supabaseAdmin = await createAdminClient();
         let srsPath: string | undefined = undefined;
-        let aiSynthesisSuccess = false;
 
         if (srsDocument && srsDocument.size > 0) {
             const fileExt = srsDocument.name.split('.').pop();
@@ -56,7 +55,6 @@ export async function updateMissionSpecs(formData: FormData) {
                 const buffer = Buffer.from(await srsDocument.arrayBuffer());
                 const aiRes = await synthesizeProjectDNA(teamId, buffer);
                 if (aiRes.success) {
-                    aiSynthesisSuccess = true;
                     console.log(`[AI_TRACKER] Successfully synthesized ${aiRes.count} milestones for team ${teamId}`);
                 } else {
                     console.warn(`[AI_TRACKER] Synthesis failed but file saved: ${aiRes.error}`);
@@ -136,4 +134,25 @@ export async function verifyTeamSync(teamId: string) {
     
   if (error) return { success: false, error: error.message };
   return { success: true, count: count || 0 };
+}
+
+export async function getTeamAuditResults(teamId: string) {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from("hf_judging_results")
+        .select("*")
+        .eq("team_id", teamId)
+        .single();
+    
+    if (error) return { success: false, error: error.message };
+    return { success: true, audit: data };
+}
+
+export async function triggerTeamReAudit(teamId: string) {
+    const { reAuditTeamWork } = await import("./ai-tracker");
+    const res = await reAuditTeamWork(teamId);
+    if (res.success) {
+        revalidatePath("/lab/specs");
+    }
+    return res;
 }

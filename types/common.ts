@@ -50,6 +50,10 @@ export interface Team {
   event_id: string;
   name: string;
   readable_id: string;
+  repo_url?: string;
+  deployment_url?: string;
+  ai_progress_score?: number;
+  ai_status_summary?: string;
   created_at: string;
 }
 
@@ -59,5 +63,29 @@ export interface TeamMember {
   user_id: string | null;
   role: 'LEAD' | 'MEMBER';
   is_verified: boolean;
+  created_at: string;
+}
+
+export interface DNAMilestone {
+  id: string;
+  team_id: string;
+  milestone_title: string;
+  milestone_description: string;
+  verification_criteria: string;
+  weight: number;
+  status: 'pending' | 'in_progress' | 'complete';
+  created_at: string;
+}
+
+export interface JudgingResult {
+  id: string;
+  team_id: string;
+  event_id: string;
+  alignment_score: number;
+  execution_score: number;
+  innovation_score: number;
+  technical_score: number;
+  total_score: number;
+  ai_justification: string;
   created_at: string;
 }

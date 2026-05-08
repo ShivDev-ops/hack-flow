@@ -2,22 +2,29 @@
 
 import { useState, useEffect } from "react";
 import { getLabSession } from "@/app/actions/lab-auth";
-import { getTeamConfig, updateMissionSpecs } from "@/app/actions/lab-config";
-import { Loader2, Save, Upload, FileText, GitBranch, Link as LinkIcon, CheckCircle2, Circle } from "lucide-react";
+import { getTeamConfig, updateMissionSpecs, getTeamAuditResults, triggerTeamReAudit } from "@/app/actions/lab-config";
+import { Loader2, Save, Upload, FileText, GitBranch, Link as LinkIcon, CheckCircle2, Circle, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { AuditReportModal } from "@/components/dashboard/audit-report-modal";
+import { DNAMilestone, JudgingResult, Team } from "@/types/common";
 
 export default function MissionSpecsPage() {
   const [repoUrl, setRepoUrl] = useState("");
   const [deploymentUrl, setDeploymentUrl] = useState("");
   const [srsDocument, setSrsDocument] = useState<File | null>(null);
   const [existingSrsPath, setExistingSrsPath] = useState<string | null>(null);
-  const [milestones, setMilestones] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<DNAMilestone[]>([]);
   
   const [session, setSession] = useState<{ teamId?: string; role?: string } | null>(null);
+  const [teamData, setTeamData] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [auditing, setAuditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [auditResults, setAuditResults] = useState<JudgingResult | null>(null);
 
   const supabase = createClient();
 
@@ -34,6 +41,10 @@ export default function MissionSpecsPage() {
           setRepoUrl(res.config.repo_url || "");
           setDeploymentUrl(res.config.deployment_url || "");
           setExistingSrsPath(res.config.srs_document_path || null);
+          
+          // Get team name etc
+          const { data: team } = await supabase.from("hf_teams").select("*").eq("id", sessionData.teamId).single();
+          setTeamData(team);
         }
 
         // 2. Fetch DNA Milestones
@@ -44,6 +55,12 @@ export default function MissionSpecsPage() {
           .order("created_at", { ascending: true });
         
         setMilestones(dna || []);
+
+        // 3. Fetch Audit Results
+        const auditRes = await getTeamAuditResults(sessionData.teamId);
+        if (auditRes.success) {
+            setAuditResults(auditRes.audit);
+        }
       }
       setLoading(false);
     };
@@ -105,6 +122,40 @@ export default function MissionSpecsPage() {
     } finally {
         setSaving(false);
     }
+  };
+
+  const handleReAudit = async () => {
+      if (!session?.teamId) return;
+      setAuditing(true);
+      setError(null);
+      setSuccess(null);
+      try {
+          const res = await triggerTeamReAudit(session.teamId);
+          if (res.success) {
+              setSuccess("Re-audit complete! DNA updated and report generated.");
+              setAuditResults(res.audit);
+              // Refresh milestones
+              const { data: dna } = await supabase
+                .from("hf_project_dna")
+                .select("*")
+                .eq("team_id", session.teamId)
+                .order("created_at", { ascending: true });
+              setMilestones(dna || []);
+              
+              // Also update progress score in local teamData
+              const { data: team } = await supabase.from("hf_teams").select("*").eq("id", session.teamId).single();
+              setTeamData(team);
+              
+              // Open report
+              setIsReportOpen(true);
+          } else {
+              setError(res.error || "Audit failed.");
+          }
+      } catch (err: any) {
+          setError(err.message);
+      } finally {
+          setAuditing(false);
+      }
   };
   
   if (loading) {
@@ -197,13 +248,33 @@ export default function MissionSpecsPage() {
           {success && <div className="text-emerald-400 bg-emerald-500/10 p-3 rounded-md border border-emerald-500/20 text-xs font-mono">{success}</div>}
 
           {isLead && (
-              <button
-                onClick={handleSave}
-                disabled={saving || loading}
-                className="w-full flex items-center justify-center gap-2 bg-secondary text-black font-black py-4 rounded-xl hover:bg-emerald-400 transition-all active:scale-95 disabled:opacity-50 disabled:bg-gray-600 uppercase text-xs tracking-widest"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={handleSave}
+                    disabled={saving || loading || auditing}
+                    className="flex items-center justify-center gap-2 bg-white/5 border border-white/10 text-white font-bold py-4 rounded-xl hover:bg-white/10 transition-all active:scale-95 disabled:opacity-50 uppercase text-[10px] tracking-widest"
+                  >
+                    {saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
+                    {saving ? "Saving..." : "Save Config"}
+                  </button>
+
+                  <button
+                    onClick={handleReAudit}
+                    disabled={auditing || loading || saving || !repoUrl}
+                    className="flex items-center justify-center gap-2 bg-secondary text-black font-black py-4 rounded-xl hover:bg-emerald-400 transition-all active:scale-95 disabled:opacity-50 disabled:bg-gray-600 uppercase text-[10px] tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                  >
+                    {auditing ? <Loader2 className="animate-spin" /> : <Zap size={18} />}
+                    {auditing ? "Auditing Repo..." : "Sync & Audit Work"}
+                  </button>
+              </div>
+          )}
+
+          {auditResults && (
+              <button 
+                onClick={() => setIsReportOpen(true)}
+                className="w-full flex items-center justify-center gap-2 bg-white/5 border border-white/5 hover:border-white/10 text-white/60 hover:text-white py-3 rounded-xl transition-all text-[10px] uppercase font-bold tracking-[0.2em]"
               >
-                {saving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-                {saving ? "Synthesizing DNA..." : "Save & Map Project"}
+                  <FileText size={14} /> View Latest Audit Report
               </button>
           )}
         </div>
@@ -211,9 +282,17 @@ export default function MissionSpecsPage() {
 
       {/* RIGHT: AI DNA VIEW */}
       <div className="glass-panel rim-light p-8 rounded-[2rem] bg-white/[0.01] border-white/5">
-        <div className="flex items-center gap-3 mb-6">
-            <div className="w-2 h-2 bg-secondary rounded-full pulse-emerald" />
-            <h2 className="text-sm font-black text-white/40 uppercase tracking-[0.3em]">Project_DNA // Milestones</h2>
+        <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-secondary rounded-full pulse-emerald" />
+                <h2 className="text-sm font-black text-white/40 uppercase tracking-[0.3em]">Project_DNA // Milestones</h2>
+            </div>
+            {teamData?.ai_progress_score !== undefined && (
+                <div className="text-right">
+                    <p className="text-[10px] text-white/20 uppercase font-black tracking-widest">Progress</p>
+                    <p className="text-xl font-black text-secondary italic tracking-tighter">{teamData.ai_progress_score}%</p>
+                </div>
+            )}
         </div>
 
         {milestones.length === 0 ? (
@@ -230,6 +309,8 @@ export default function MissionSpecsPage() {
                 <div className="absolute left-[-5px] top-0">
                     {m.status === 'complete' ? (
                         <CheckCircle2 size={10} className="text-secondary bg-background" />
+                    ) : m.status === 'in_progress' ? (
+                        <Zap size={10} className="text-amber-500 bg-background animate-pulse" />
                     ) : (
                         <Circle size={10} className="text-white/20 bg-background" />
                     )}
@@ -255,6 +336,15 @@ export default function MissionSpecsPage() {
           </div>
         )}
       </div>
+
+      {/* Audit Report Modal */}
+      <AuditReportModal 
+        isOpen={isReportOpen} 
+        onClose={() => setIsReportOpen(false)} 
+        team={teamData} 
+        results={auditResults} 
+        milestones={milestones} 
+      />
 
     </div>
   );

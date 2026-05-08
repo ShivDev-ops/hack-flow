@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createRequire } from "module";
+import { JudgingResult, DNAMilestone } from "@/types/common";
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
@@ -47,7 +48,6 @@ function extractJSON(text: string) {
  */
 export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, textContent?: string) {
   try {
-    const supabase = await createClient();
     const supabaseAdmin = await createAdminClient();
 
     let extractedText = textContent || "";
@@ -155,7 +155,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
       .slice(0, 15000); // Limit to 15k chars for token efficiency
 
     // 3. AI Evaluation
-    const milestoneSummary = milestones.map((m, i) => `${i+1}. ${m.milestone_title}: ${m.milestone_description}`).join("\n");
+    const milestoneSummary = milestones.map((m: DNAMilestone, i: number) => `${i+1}. ${m.milestone_title}: ${m.milestone_description}`).join("\n");
 
     const prompt = `
       You are a Senior Technical Auditor. Your task is to evaluate a code change against a set of project milestones.
@@ -209,7 +209,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
         .select("weight, status")
         .eq("team_id", teamId);
 
-      const totalProgress = allMilestones?.reduce((acc, m) => {
+      const totalProgress = allMilestones?.reduce((acc: number, m: any) => {
         if (m.status === 'complete') return acc + m.weight;
         if (m.status === 'in_progress') return acc + (m.weight * 0.3);
         return acc;
@@ -238,7 +238,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
  * PHASE 3: Deep Audit & Judging
  * A comprehensive evaluation of the project using Gemini 1.5 Pro.
  */
-export async function performDeepAudit(teamId: string, eventId: string, problemStatement: string, rubric: any): Promise<{ success: boolean; evaluation?: any; error?: string }> {
+export async function performDeepAudit(teamId: string, eventId: string, problemStatement: string, rubric: Record<string, number>): Promise<{ success: boolean; evaluation?: JudgingResult; error?: string }> {
   try {
     const supabaseAdmin = await createAdminClient();
 
@@ -291,7 +291,7 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     }
 
     const evidence = {
-        milestones: milestones?.map(m => ({ title: m.milestone_title, status: m.status, criteria: m.verification_criteria })),
+        milestones: milestones?.map((m: DNAMilestone) => ({ title: m.milestone_title, status: m.status, criteria: m.verification_criteria })),
         claimed_progress: team?.ai_progress_score || 0,
         repository_file_structure: repoStructure
     };
@@ -332,38 +332,40 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     `;
 
     // Attempt with Pro model first, fallback to Flash if quota exceeded (429)
-    let evaluation;
+    let evaluationRaw: any;
     try {
         const result = await proModel.generateContent(prompt);
-        evaluation = extractJSON(result.response.text());
+        evaluationRaw = extractJSON(result.response.text());
         console.log(`[AI_AUDITOR] Deep audit successful using Pro model for team ${teamId}`);
     } catch (proErr: any) {
         if (proErr.message?.includes("429") || proErr.message?.includes("quota")) {
             console.warn(`[AI_AUDITOR] Pro model quota exceeded, falling back to Flash model for team ${teamId}`);
             const result = await flashModel.generateContent(prompt);
-            evaluation = extractJSON(result.response.text());
+            evaluationRaw = extractJSON(result.response.text());
         } else {
             throw proErr;
         }
     }
 
     // 2. Save result to DB (Upsert)
-    const { error: insertError } = await supabaseAdmin
+    const { data: savedResult, error: insertError } = await supabaseAdmin
         .from("hf_judging_results")
         .upsert({
             team_id: teamId,
             event_id: eventId,
-            alignment_score: evaluation.alignment_score,
-            execution_score: evaluation.execution_score,
-            innovation_score: evaluation.innovation_score,
-            technical_score: evaluation.technical_score,
-            total_score: evaluation.total_weighted_score,
-            ai_justification: evaluation.ai_justification
-        }, { onConflict: 'team_id' });
+            alignment_score: evaluationRaw.alignment_score,
+            execution_score: evaluationRaw.execution_score,
+            innovation_score: evaluationRaw.innovation_score,
+            technical_score: evaluationRaw.technical_score,
+            total_score: evaluationRaw.total_weighted_score,
+            ai_justification: evaluationRaw.ai_justification
+        }, { onConflict: 'team_id' })
+        .select()
+        .single();
 
     if (insertError) throw insertError;
 
-    return { success: true, evaluation };
+    return { success: true, evaluation: savedResult as JudgingResult };
 
   } catch (err: unknown) {
     console.error("DEEP_AUDIT_FAIL:", err);
@@ -372,4 +374,106 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
       error: err instanceof Error ? err.message : "An unexpected error occurred during deep audit." 
     };
   }
+}
+
+/**
+ * COMPREHENSIVE RE-AUDIT
+ * Forces a re-check of all milestones against the repo structure and then runs deep audit.
+ */
+export async function reAuditTeamWork(teamId: string) {
+    try {
+        const supabaseAdmin = await createAdminClient();
+
+        // 1. Fetch Team and Event info
+        const { data: team, error: teamError } = await supabaseAdmin
+            .from("hf_teams")
+            .select("*, hf_events(*)")
+            .eq("id", teamId)
+            .single();
+
+        if (teamError || !team) throw new Error("Team not found");
+        const event = team.hf_events;
+
+        // 2. Fetch repo structure
+        let repoStructure = "";
+        if (team.repo_url && team.repo_url.includes("github.com")) {
+            const parts = team.repo_url.replace(/\/$/, "").split("/");
+            const repo = parts.pop();
+            const owner = parts.pop();
+            if (owner && repo) {
+                const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`;
+                const response = await fetch(treeUrl, {
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    repoStructure = data.tree
+                        .filter((item: any) => item.type === 'blob')
+                        .slice(0, 300) // Slightly more for full re-audit
+                        .map((item: any) => item.path)
+                        .join("\n");
+                }
+            }
+        }
+
+        if (!repoStructure) {
+            return { success: false, error: "Could not fetch repository structure. Ensure the GitHub URL is correct and public." };
+        }
+
+        // 3. Re-evaluate Milestones
+        const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
+        if (milestones && milestones.length > 0) {
+            const milestoneSummary = milestones.map((m: DNAMilestone, i: number) => `${i+1}. ${m.milestone_title}: ${m.verification_criteria}`).join("\n");
+            
+            const prompt = `
+                Analyze the following repository file structure against these project milestones.
+                Identify which milestones are likely implemented based on the files present.
+                
+                Milestones:
+                ${milestoneSummary}
+
+                Repo Structure:
+                ${repoStructure}
+
+                Respond ONLY with a JSON array of status updates:
+                [{"index": number, "status": "complete" | "in_progress" | "pending"}]
+            `;
+
+            const result = await flashModel.generateContent(prompt);
+            const updates = extractJSON(result.response.text());
+
+            for (const update of updates) {
+                if (update.index > 0 && update.index <= milestones.length) {
+                    await supabaseAdmin
+                        .from("hf_project_dna")
+                        .update({ status: update.status })
+                        .eq("id", milestones[update.index - 1].id);
+                }
+            }
+        }
+
+        // 4. Update Progress Score
+        const { data: updatedMilestones } = await supabaseAdmin.from("hf_project_dna").select("weight, status").eq("team_id", teamId);
+        const totalProgress = updatedMilestones?.reduce((acc: number, m: any) => {
+            if (m.status === 'complete') return acc + m.weight;
+            if (m.status === 'in_progress') return acc + (m.weight * 0.3);
+            return acc;
+        }, 0) || 0;
+
+        await supabaseAdmin.from("hf_teams").update({ ai_progress_score: Math.min(Math.round(totalProgress), 100) }).eq("id", teamId);
+
+        // 5. Run Deep Audit
+        const auditRes = await performDeepAudit(
+            teamId, 
+            event.id, 
+            event.problem_statement || "Build a hackathon project", 
+            event.judging_rubric || { "Alignment": 25, "Execution": 25, "Innovation": 25, "Technical Depth": 25 }
+        );
+
+        return { success: true, progress: totalProgress, audit: auditRes.evaluation };
+
+    } catch (err: unknown) {
+        console.error("RE_AUDIT_FAIL:", err);
+        return { success: false, error: err instanceof Error ? err.message : "Re-audit failed" };
+    }
 }
