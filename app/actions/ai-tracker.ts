@@ -13,9 +13,9 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+const flashModel = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
+const proModel = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
+const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
 /**
  * Robust JSON extraction from AI responses that might contain markdown or conversational filler.
