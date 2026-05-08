@@ -694,3 +694,58 @@ export async function generateAIInsights(teamId: string) {
     }
 }
 
+/**
+ * PHASE 5: Neural Chat Agent (Interactive Coaching)
+ * Handles conversational queries from team members, personalized by their role.
+ */
+export async function neuralChatAction(teamId: string, role: string, history: { role: 'user' | 'model', parts: string }[], userMessage: string) {
+    try {
+        const supabaseAdmin = await createAdminClient();
+
+        // 1. Context Injection
+        const { data: team } = await supabaseAdmin.from("hf_teams").select("*").eq("id", teamId).single();
+        const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
+        
+        if (!team || !milestones) throw new Error("Neural link unstable: Context lost.");
+
+        const systemPrompt = `
+            You are the "Neural Link Agent", a high-tech technical mentor for a hackathon.
+            Current User Role: ${role}
+            Team Context: "${team.name}" | Progress: ${team.ai_progress_score}%
+            Milestones: ${milestones.map(m => `${m.milestone_title} (${m.status})`).join(", ")}
+
+            Role-Based Instructions:
+            - If role is LEAD: Focus on high-level architecture, roadmap optimization, and ensuring milestones are met.
+            - If role is MEMBER: Focus on specific technical implementations, bug-fixing, and individual task execution.
+            
+            Formatting Instructions:
+            - Use Markdown for organization.
+            - Use ## Headings for major sections.
+            - Use bold text for emphasis on key technical terms.
+            - Use bullet points for lists of tasks or insights.
+            - Keep responses structured and professional.
+
+            Personality: Futuristic, direct, slightly robotic but encouraging. Use tech-noir terminology like "uplink," "neural data," "logic gates," etc.
+            Goal: Keep the team on track and solve technical hurdles.
+        `;
+
+        // Start chat with context
+        const chat = flashModel.startChat({
+            history: [
+                { role: 'user', parts: [{ text: systemPrompt }] },
+                { role: 'model', parts: [{ text: "Neural uplink established. Listening for command..." }] },
+                ...history.map(h => ({ role: h.role, parts: [{ text: h.parts }] }))
+            ]
+        });
+
+        const result = await callWithRetry(() => chat.sendMessage(userMessage));
+        const response = result.response.text();
+
+        return { success: true, response };
+    } catch (err: any) {
+        console.error("NEURAL_CHAT_FAIL:", err);
+        return { success: false, error: "Communication link severed. Try again." };
+    }
+}
+
+

@@ -17,11 +17,12 @@ export function LabSidebarNav() {
 
   const navItems = [
     { name: "Terminal", path: "/lab/dashboard/terminal", icon: Terminal },
-    { name: "Config-Sys", path: "/lab/dashboard/config-sys", icon: ShieldAlert },
-    { name: "Sys_Setup", path: "/lab/config", icon: Network },
+    { name: "Objectives", path: "/lab/dashboard/kanban", icon: FileText },
     { name: "Leaderboard", path: "/lab/leaderboard", icon: Trophy },
     { name: "Mission_Specs", path: "/lab/specs", icon: FileText },
     { name: "Mission_Briefing", path: "/lab/dashboard/briefing", icon: BookOpen },
+    { name: "Config-Sys", path: "/lab/dashboard/config-sys", icon: ShieldAlert },
+    { name: "Sys_Setup", path: "/lab/config", icon: Network },
   ];
 
   return (

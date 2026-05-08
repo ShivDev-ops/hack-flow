@@ -82,3 +82,50 @@
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* Chat Markdown Styling */
+.chat-markdown .wmde-markdown {
+  background: transparent !important;
+  font-family: inherit !important;
+  font-size: 13px !important;
+  color: inherit !important;
+}
+
+.chat-markdown .wmde-markdown h1,
+.chat-markdown .wmde-markdown h2,
+.chat-markdown .wmde-markdown h3 {
+  margin-top: 1rem !important;
+  margin-bottom: 0.5rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #fff !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding-bottom: 0.25rem !important;
+}
+
+.chat-markdown .wmde-markdown h2 { font-size: 1.1rem !important; }
+.chat-markdown .wmde-markdown h3 { font-size: 0.9rem !important; }
+
+.chat-markdown .wmde-markdown p {
+  margin-bottom: 0.75rem !important;
+  line-height: 1.6 !important;
+}
+
+.chat-markdown .wmde-markdown ul,
+.chat-markdown .wmde-markdown ol {
+  margin-bottom: 1rem !important;
+  padding-left: 1.25rem !important;
+}
+
+.chat-markdown .wmde-markdown li {
+  margin-bottom: 0.4rem !important;
+  list-style-type: disc !important;
+}
+
+.chat-markdown .wmde-markdown code {
+  background: rgba(255, 255, 255, 0.1) !important;
+  padding: 0.2rem 0.4rem !important;
+  border-radius: 0.25rem !important;
+  font-size: 0.85rem !important;
+}

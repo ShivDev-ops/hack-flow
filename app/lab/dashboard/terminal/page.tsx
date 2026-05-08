@@ -13,6 +13,7 @@ import { GitFeed } from "@/components/lab/dashboard/git-feed";
 import { ObservabilityPanel } from "@/components/lab/dashboard/observability-panel";
 import { NeuralLinkOverlay } from "@/components/lab/dashboard/neural-link-overlay";
 import { AIInsightPanel } from "@/components/lab/dashboard/ai-insight-panel";
+import { AIChatAgent } from "@/components/lab/dashboard/ai-chat-agent";
 import { getSystemObservability } from "@/lib/lab-config/observability";
 
 interface TelemetryLog {
@@ -283,17 +284,7 @@ export default function TerminalPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-[1800px] mx-auto min-h-full selection:bg-secondary/30 relative overflow-x-hidden">
-      {!isMobile && (
-        <NeuralLinkOverlay 
-          tasks={tasks} 
-          activeTeamId={session?.teamId || ""} 
-          isWiring={isWiring} 
-          hoveredTaskId={hoveredTaskId}
-          hoveredCommitSha={hoveredCommitSha}
-          mousePos={mousePos} 
-        />
-      )}
+    <div className="p-4 md:p-8 space-y-8 max-w-[1400px] mx-auto min-h-full selection:bg-secondary/30 relative">
       
       <header className="flex flex-col gap-6 relative z-10 border-b border-white/5 pb-8">
         <div className="flex items-center justify-between">
@@ -302,62 +293,22 @@ export default function TerminalPage() {
         
         <div className="flex flex-col">
           <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none flex items-center gap-4">
-            Command <span className="text-white/20">Terminal</span>
+            Mission <span className="text-white/20">Terminal</span>
           </h1>
         </div>
       </header>
 
-      {/* MAIN WORKSPACE: Commits & Kanban side-by-side */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        <div className="lg:col-span-3 space-y-8">
-          <AIInsightPanel 
-            briefing={aiInsights?.briefing || teamData?.ai_status_summary || null}
-            insights={aiInsights?.insights || []}
-            nextMilestone={aiInsights?.next_milestone || null}
-            progress={teamData?.ai_progress_score || 0}
-          />
-          <GitFeed 
-            commits={commits} 
-            onHoverCommit={(sha) => setHoveredCommitSha(sha)}
-            onStartWiring={(sha) => {
-              setIsWiring(sha);
-              // Capture initial mouse position to prevent wire jump
-              const e = window.event as MouseEvent;
-              if (e) setMousePos({ x: e.clientX, y: e.clientY });
-            }}
-          />
-        </div>
-        <div className="lg:col-span-9">
-          <KanbanBoard 
-            tasks={tasks}
-            commits={commits}
-            updatingId={updatingId}
-            selectedCommit={selectedCommit}
-            teamId={session?.teamId || ""}
-            eventId={eventId || ""}
-            onMoveTask={handleMoveTask}
-            onSelectCommit={(tid, sha) => setSelectedCommit(prev => ({ ...prev, [tid]: sha }))}
-            onRefresh={() => session?.teamId && fetchData(session.teamId)}
-            onHoverTask={(tid) => setHoveredTaskId(tid)}
-            onRemoveLink={handleRemoveLink}
-            onDeleteTask={handleDeleteTask}
-          />
-        </div>
-      </div>
-
-      {/* FOOTER PANELS: DB Pulse at Left, Preview at Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8 border-t border-white/5">
-        <div className="lg:col-span-4">
-           <DatabaseTelemetry logs={dbLogs} />
-        </div>
+      {/* MISSION OBSERVABILITY: Preview & Pulse */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
         
-        <div className="lg:col-span-8">
-           {deploymentUrl && (
+        {/* LIVE PREVIEW (Main Center Stage) */}
+        <div className="lg:col-span-8 space-y-8">
+          {deploymentUrl ? (
             <div className="glass-panel rim-light rounded-[2rem] overflow-hidden border border-white/5 bg-black/20 shadow-2xl group transition-all hover:border-blue-500/30">
               <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_#3b82f6]" />
-                  <span className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] font-label-caps">Live_Preview_Uplink</span>
+                  <span className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] font-label-caps">Deployment_Live_Stream</span>
                 </div>
                 <a 
                   href={deploymentUrl} 
@@ -368,10 +319,10 @@ export default function TerminalPage() {
                   Launch_External <ExternalLink size={12} />
                 </a>
               </div>
-              <div className="relative h-[480px] bg-zinc-900 overflow-hidden">
+              <div className="relative h-[600px] bg-zinc-900 overflow-hidden">
                 <iframe 
                   src={deploymentUrl} 
-                  className="w-full h-[150%] origin-top-left border-none pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity duration-700"
+                  className="w-full h-[150%] origin-top-left border-none pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity duration-700"
                   title="Live Deployment Preview"
                 />
                 <div 
@@ -380,9 +331,36 @@ export default function TerminalPage() {
                 />
               </div>
             </div>
+          ) : (
+            <div className="glass-panel rim-light rounded-[2rem] h-[600px] flex flex-col items-center justify-center border border-white/5 bg-white/[0.01]">
+                <div className="p-6 bg-white/5 rounded-full mb-4">
+                    <ExternalLink size={40} className="text-white/10" />
+                </div>
+                <p className="text-sm font-black text-white/20 uppercase tracking-[0.3em]">Waiting_for_Deployment_Uplink...</p>
+                <p className="text-[10px] text-white/10 mt-2 font-mono italic">Configure deployment_url in Sys_Setup to activate stream</p>
+            </div>
           )}
         </div>
+
+        {/* AUDIT PULSE (Sidebar) */}
+        <div className="lg:col-span-4 space-y-8">
+           <AIInsightPanel 
+              briefing={aiInsights?.briefing || teamData?.ai_status_summary || null}
+              insights={aiInsights?.insights || []}
+              nextMilestone={aiInsights?.next_milestone || null}
+              progress={teamData?.ai_progress_score || 0}
+            />
+           <DatabaseTelemetry logs={dbLogs} />
+        </div>
       </div>
+
+      {/* PERSONALIZED AI CHAT AGENT */}
+      {session?.teamId && (
+        <AIChatAgent 
+          teamId={session.teamId} 
+          role={session.role} 
+        />
+      )}
     </div>
   );
 }
