@@ -149,8 +149,10 @@ export async function getTeamAuditResults(teamId: string) {
 }
 
 export async function triggerTeamReAudit(teamId: string) {
+    console.log(`[ACTION] triggerTeamReAudit called for team: ${teamId}`);
     const { reAuditTeamWork } = await import("./ai-tracker");
     const res = await reAuditTeamWork(teamId);
+    console.log(`[ACTION] reAuditTeamWork result:`, res.success ? "SUCCESS" : "FAILED", res.error || "");
     if (res.success) {
         revalidatePath("/lab/specs");
     }

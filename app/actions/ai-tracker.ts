@@ -7,10 +7,17 @@ import { createRequire } from "module";
 import { JudgingResult, DNAMilestone } from "@/types/common";
 
 // Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const flashModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-const proModel = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
-const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+if (!process.env.GEMINI_API_KEY) {
+    console.error("[GEMINI_CONFIG_ERROR]: GEMINI_API_KEY is missing from environment variables!");
+} else {
+    console.log("[GEMINI_CONFIG_OK]: GEMINI_API_KEY is present (length: " + process.env.GEMINI_API_KEY.length + ")");
+}
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+// Using stable 1.5 model names
+const flashModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const proModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
 /**
  * Robust JSON extraction from AI responses that might contain markdown or conversational filler.
@@ -239,6 +246,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
  * A comprehensive evaluation of the project using Gemini 1.5 Pro.
  */
 export async function performDeepAudit(teamId: string, eventId: string, problemStatement: string, rubric: Record<string, number>): Promise<{ success: boolean; evaluation?: JudgingResult; error?: string }> {
+  console.log(`[DEEP_AUDIT] Starting for Team: ${teamId}, Event: ${eventId}`);
   try {
     const supabaseAdmin = await createAdminClient();
 
@@ -246,6 +254,8 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
     const { data: team } = await supabaseAdmin.from("hf_teams").select("name, repo_url, ai_progress_score").eq("id", teamId).single();
     
+    console.log(`[DEEP_AUDIT] Found ${milestones?.length || 0} milestones and repo: ${team?.repo_url}`);
+
     // 2. FETCH GITHUB REPOSITORY STRUCTURE (Bulk Upload Support)
     let repoStructure = "No repository structure available.";
     if (team?.repo_url && team.repo_url.includes("github.com")) {
@@ -258,6 +268,7 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
             if (owner && repo) {
                 // Fetch the default branch's tree recursively
                 const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`;
+                console.log(`[DEEP_AUDIT] Fetching GitHub tree: ${treeUrl}`);
                 const response = await fetch(treeUrl, {
                     headers: { 'Accept': 'application/vnd.github.v3+json' }
                 });
@@ -270,8 +281,9 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
                         .slice(0, 200)
                         .map((item: any) => item.path)
                         .join("\n");
-                    console.log(`[AI_AUDITOR] Successfully fetched repo structure for ${owner}/${repo}`);
+                    console.log(`[DEEP_AUDIT] Successfully fetched ${data.tree.length} tree items`);
                 } else {
+                    console.warn(`[DEEP_AUDIT] GitHub fetch failed for main branch, trying master...`);
                     // Try 'master' if 'main' fails
                     const masterUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`;
                     const masterResponse = await fetch(masterUrl);
@@ -295,6 +307,8 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
         claimed_progress: team?.ai_progress_score || 0,
         repository_file_structure: repoStructure
     };
+
+    console.log(`[DEEP_AUDIT] Preparing prompt for Gemini...`);
 
     const prompt = `
       You are an elite Hackathon Judge and Senior Architect. 
@@ -334,14 +348,16 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     // Attempt with Pro model first, fallback to Flash if quota exceeded (429)
     let evaluationRaw: any;
     try {
+        console.log(`[DEEP_AUDIT] Calling gemini-1.5-pro...`);
         const result = await proModel.generateContent(prompt);
         evaluationRaw = extractJSON(result.response.text());
-        console.log(`[AI_AUDITOR] Deep audit successful using Pro model for team ${teamId}`);
+        console.log(`[DEEP_AUDIT] gemini-1.5-pro SUCCESS`);
     } catch (proErr: any) {
-        if (proErr.message?.includes("429") || proErr.message?.includes("quota")) {
-            console.warn(`[AI_AUDITOR] Pro model quota exceeded, falling back to Flash model for team ${teamId}`);
+        console.warn(`[DEEP_AUDIT] gemini-1.5-pro failed, trying flash fallback. Error: ${proErr.message}`);
+        if (proErr.message?.includes("429") || proErr.message?.includes("quota") || proErr.message?.includes("500")) {
             const result = await flashModel.generateContent(prompt);
             evaluationRaw = extractJSON(result.response.text());
+            console.log(`[DEEP_AUDIT] gemini-1.5-flash fallback SUCCESS`);
         } else {
             throw proErr;
         }
@@ -364,11 +380,12 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
         .single();
 
     if (insertError) throw insertError;
+    console.log(`[DEEP_AUDIT] Results saved to DB for team ${teamId}`);
 
     return { success: true, evaluation: savedResult as JudgingResult };
 
   } catch (err: unknown) {
-    console.error("DEEP_AUDIT_FAIL:", err);
+    console.error("[DEEP_AUDIT_CRITICAL_FAIL]:", err);
     return { 
       success: false, 
       error: err instanceof Error ? err.message : "An unexpected error occurred during deep audit." 
@@ -381,20 +398,37 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
  * Forces a re-check of all milestones against the repo structure and then runs deep audit.
  */
 export async function reAuditTeamWork(teamId: string) {
+    console.log(`[RE_AUDIT] Initiating comprehensive re-audit for team ${teamId}`);
     try {
         const supabaseAdmin = await createAdminClient();
 
-        // 1. Fetch Team and Event info
+        // 1. Fetch Team info
         const { data: team, error: teamError } = await supabaseAdmin
             .from("hf_teams")
-            .select("*, hf_events(*)")
+            .select("*")
             .eq("id", teamId)
             .single();
 
-        if (teamError || !team) throw new Error("Team not found");
-        const event = team.hf_events;
+        if (teamError || !team) {
+            console.error(`[RE_AUDIT] Team ${teamId} not found in DB`);
+            throw new Error("Team not found");
+        }
+        
+        // 2. Fetch Event info separately to be safe
+        const { data: event, error: eventError } = await supabaseAdmin
+            .from("hf_events")
+            .select("*")
+            .eq("id", team.event_id)
+            .single();
 
-        // 2. Fetch repo structure
+        if (eventError || !event) {
+            console.error(`[RE_AUDIT] Event ${team.event_id} not found for team ${teamId}`);
+            throw new Error("Associated event not found");
+        }
+
+        console.log(`[RE_AUDIT] Found team "${team.name}" and event "${event.name}"`);
+
+        // 3. Fetch repo structure
         let repoStructure = "";
         if (team.repo_url && team.repo_url.includes("github.com")) {
             const parts = team.repo_url.replace(/\/$/, "").split("/");
@@ -402,27 +436,48 @@ export async function reAuditTeamWork(teamId: string) {
             const owner = parts.pop();
             if (owner && repo) {
                 const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`;
-                const response = await fetch(treeUrl, {
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    repoStructure = data.tree
-                        .filter((item: any) => item.type === 'blob')
-                        .slice(0, 300) // Slightly more for full re-audit
-                        .map((item: any) => item.path)
-                        .join("\n");
+                console.log(`[RE_AUDIT] Fetching repo structure: ${treeUrl}`);
+                try {
+                    const response = await fetch(treeUrl, {
+                        headers: { 'Accept': 'application/vnd.github.v3+json' }
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        repoStructure = data.tree
+                            .filter((item: any) => item.type === 'blob')
+                            .slice(0, 300) // Slightly more for full re-audit
+                            .map((item: any) => item.path)
+                            .join("\n");
+                        console.log(`[RE_AUDIT] Repo structure fetched: ${data.tree.length} files`);
+                    } else {
+                        console.warn(`[RE_AUDIT] GitHub fetch failed for main branch (Status: ${response.status}), trying master...`);
+                        const masterUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`;
+                        const masterResponse = await fetch(masterUrl);
+                        if (masterResponse.ok) {
+                            const data = await masterResponse.json();
+                            repoStructure = data.tree
+                                .filter((item: any) => item.type === 'blob')
+                                .slice(0, 300)
+                                .map((item: any) => item.path)
+                                .join("\n");
+                            console.log(`[RE_AUDIT] Repo structure fetched from master: ${data.tree.length} files`);
+                        }
+                    }
+                } catch (fetchErr) {
+                    console.error(`[RE_AUDIT] Network error fetching repo structure:`, fetchErr);
                 }
             }
         }
 
         if (!repoStructure) {
-            return { success: false, error: "Could not fetch repository structure. Ensure the GitHub URL is correct and public." };
+            console.error(`[RE_AUDIT] Could not build repository structure for team ${teamId}`);
+            return { success: false, error: "Could not fetch repository structure. Ensure the GitHub URL is correct, public, and contains code." };
         }
 
-        // 3. Re-evaluate Milestones
+        // 4. Re-evaluate Milestones
         const { data: milestones } = await supabaseAdmin.from("hf_project_dna").select("*").eq("team_id", teamId);
         if (milestones && milestones.length > 0) {
+            console.log(`[RE_AUDIT] Re-evaluating ${milestones.length} milestones with Gemini Flash...`);
             const milestoneSummary = milestones.map((m: DNAMilestone, i: number) => `${i+1}. ${m.milestone_title}: ${m.verification_criteria}`).join("\n");
             
             const prompt = `
@@ -439,20 +494,28 @@ export async function reAuditTeamWork(teamId: string) {
                 [{"index": number, "status": "complete" | "in_progress" | "pending"}]
             `;
 
-            const result = await flashModel.generateContent(prompt);
-            const updates = extractJSON(result.response.text());
+            try {
+                const result = await flashModel.generateContent(prompt);
+                const updates = extractJSON(result.response.text());
+                console.log(`[RE_AUDIT] Gemini Flash returned ${updates?.length || 0} updates`);
 
-            for (const update of updates) {
-                if (update.index > 0 && update.index <= milestones.length) {
-                    await supabaseAdmin
-                        .from("hf_project_dna")
-                        .update({ status: update.status })
-                        .eq("id", milestones[update.index - 1].id);
+                for (const update of updates) {
+                    if (update.index > 0 && update.index <= milestones.length) {
+                        await supabaseAdmin
+                            .from("hf_project_dna")
+                            .update({ status: update.status })
+                            .eq("id", milestones[update.index - 1].id);
+                    }
                 }
+            } catch (aiErr) {
+                console.error(`[RE_AUDIT] AI Milestone evaluation failed:`, aiErr);
+                // Continue anyway to try deep audit
             }
+        } else {
+            console.warn(`[RE_AUDIT] No milestones found for team ${teamId}. Skipping milestone re-evaluation.`);
         }
 
-        // 4. Update Progress Score
+        // 5. Update Progress Score
         const { data: updatedMilestones } = await supabaseAdmin.from("hf_project_dna").select("weight, status").eq("team_id", teamId);
         const totalProgress = updatedMilestones?.reduce((acc: number, m: any) => {
             if (m.status === 'complete') return acc + m.weight;
@@ -461,8 +524,10 @@ export async function reAuditTeamWork(teamId: string) {
         }, 0) || 0;
 
         await supabaseAdmin.from("hf_teams").update({ ai_progress_score: Math.min(Math.round(totalProgress), 100) }).eq("id", teamId);
+        console.log(`[RE_AUDIT] Progress score updated: ${totalProgress}%`);
 
-        // 5. Run Deep Audit
+        // 6. Run Deep Audit
+        console.log(`[RE_AUDIT] Triggering final Deep Audit...`);
         const auditRes = await performDeepAudit(
             teamId, 
             event.id, 
@@ -470,10 +535,16 @@ export async function reAuditTeamWork(teamId: string) {
             event.judging_rubric || { "Alignment": 25, "Execution": 25, "Innovation": 25, "Technical Depth": 25 }
         );
 
+        if (!auditRes.success) {
+            console.error(`[RE_AUDIT] Deep Audit failed: ${auditRes.error}`);
+            return { success: false, error: `Milestones updated, but final audit failed: ${auditRes.error}` };
+        }
+
+        console.log(`[RE_AUDIT] SUCCESS for team ${teamId}`);
         return { success: true, progress: totalProgress, audit: auditRes.evaluation };
 
     } catch (err: unknown) {
-        console.error("RE_AUDIT_FAIL:", err);
+        console.error("[RE_AUDIT_CRITICAL_FAIL]:", err);
         return { success: false, error: err instanceof Error ? err.message : "Re-audit failed" };
     }
 }

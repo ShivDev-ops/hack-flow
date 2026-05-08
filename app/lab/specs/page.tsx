@@ -130,7 +130,10 @@ export default function MissionSpecsPage() {
       setError(null);
       setSuccess(null);
       try {
+          console.log("[RE_AUDIT] Triggering re-audit for team:", session.teamId);
           const res = await triggerTeamReAudit(session.teamId);
+          console.log("[RE_AUDIT] Response:", res);
+          
           if (res.success) {
               setSuccess("Re-audit complete! DNA updated and report generated.");
               setAuditResults(res.audit ?? null);
