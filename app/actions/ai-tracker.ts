@@ -18,6 +18,28 @@ const proModel = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
 const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
 /**
+ * Retries a Gemini API call if it fails due to high demand (503) or rate limits (429).
+ */
+async function callWithRetry<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+  try {
+    return await fn();
+  } catch (err: any) {
+    const isRetryable = 
+      err?.message?.includes("503") || 
+      err?.message?.includes("Service Unavailable") ||
+      err?.message?.includes("429") ||
+      err?.message?.includes("Too Many Requests");
+
+    if (isRetryable && retries > 0) {
+      console.warn(`[AI_RETRY] Gemini busy (Retries left: ${retries}). Waiting ${delay}ms...`);
+      await new Promise(res => setTimeout(res, delay));
+      return callWithRetry(fn, retries - 1, delay * 2); // Exponential backoff
+    }
+    throw err;
+  }
+}
+
+/**
  * Robust JSON extraction from AI responses that might contain markdown or conversational filler.
  */
 function extractJSON(text: string) {
@@ -102,7 +124,7 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
       [{"title": string, "description": string, "criteria": string, "weight": number}]
     `;
 
-    const result = await flashModel.generateContent(prompt);
+    const result = await callWithRetry(() => flashModel.generateContent(prompt));
     const milestones = extractJSON(result.response.text());
 
     // 3. Clear existing DNA for this team (Fresh Start)
@@ -113,7 +135,7 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
       // Create a synthetic context for better vector matching
       const context = `${milestone.title}: ${milestone.criteria}`;
       
-      const embeddingResult = await embeddingModel.embedContent(context);
+      const embeddingResult = await callWithRetry(() => embeddingModel.embedContent(context));
       const embedding = embeddingResult.embedding.values;
 
       const { error: insertError } = await supabaseAdmin
@@ -136,10 +158,10 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
 
     return { success: true, count: milestones.length };
 
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "An unexpected AI error occurred.";
+  } catch (err: any) {
+    const errorMessage = err?.message || (err?.error?.message) || (typeof err === 'string' ? err : JSON.stringify(err));
     console.error("DNA_SYNTHESIS_CRITICAL_FAIL:", err);
-    return { success: false, error: msg };
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -203,7 +225,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
       }
     `;
 
-    const result = await flashModel.generateContent(prompt);
+    const result = await callWithRetry(() => flashModel.generateContent(prompt));
     const evaluation = extractJSON(result.response.text());
     
     let lastReasoning = "No matches found.";
@@ -247,9 +269,10 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
 
     return { success: true, matched: null };
 
-  } catch (err: unknown) {
+  } catch (err: any) {
+    const errorMessage = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
     console.error("CODE_AUDIT_FAIL:", err);
-    return { success: false, error: "Evaluation failed." };
+    return { success: false, error: `Evaluation failed: ${errorMessage}` };
   }
 }
 
@@ -361,7 +384,7 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     let evaluationRaw: any;
     try {
         console.log(`[DEEP_AUDIT] Calling gemini-1.5-pro...`);
-        const result = await proModel.generateContent(prompt);
+        const result = await callWithRetry(() => proModel.generateContent(prompt));
         const responseText = result.response.text();
         console.log(`[DEEP_AUDIT] Raw response received, length: ${responseText.length}`);
         evaluationRaw = extractJSON(responseText);
@@ -369,7 +392,7 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     } catch (proErr: any) {
         console.warn(`[DEEP_AUDIT] gemini-1.5-pro failed, trying flash fallback. Error: ${proErr.message}`);
         try {
-            const result = await flashModel.generateContent(prompt);
+            const result = await callWithRetry(() => flashModel.generateContent(prompt));
             const responseText = result.response.text();
             evaluationRaw = extractJSON(responseText);
             console.log(`[DEEP_AUDIT] gemini-1.5-flash fallback SUCCESS`);
@@ -385,34 +408,54 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
 
     console.log(`[DEEP_AUDIT] Evaluation data ready. Saving to DB...`);
 
-    // 2. Save result to DB (Upsert)
-    const { data: savedResult, error: insertError } = await supabaseAdmin
+    // 2. Save result to DB (Manual Upsert to handle missing unique constraint)
+    const { data: existing } = await supabaseAdmin
         .from("hf_judging_results")
-        .upsert({
-            team_id: teamId,
-            event_id: eventId,
-            alignment_score: evaluationRaw.alignment_score || 0,
-            execution_score: evaluationRaw.execution_score || 0,
-            innovation_score: evaluationRaw.innovation_score || 0,
-            technical_score: evaluationRaw.technical_score || 0,
-            total_score: evaluationRaw.total_weighted_score || evaluationRaw.total_score || 0,
-            ai_justification: evaluationRaw.ai_justification || "No justification provided."
-        }, { onConflict: 'team_id' })
-        .select()
-        .single();
+        .select("id")
+        .eq("team_id", teamId)
+        .maybeSingle();
 
-    if (insertError) {
-        console.error(`[DEEP_AUDIT] DB Insert Error: ${insertError.message}`);
-        throw insertError;
+    const resultPayload = {
+        team_id: teamId,
+        event_id: eventId,
+        alignment_score: evaluationRaw.alignment_score || 0,
+        execution_score: evaluationRaw.execution_score || 0,
+        innovation_score: evaluationRaw.innovation_score || 0,
+        technical_score: evaluationRaw.technical_score || 0,
+        total_score: evaluationRaw.total_weighted_score || evaluationRaw.total_score || 0,
+        ai_justification: evaluationRaw.ai_justification || "No justification provided."
+    };
+
+    let dbRes;
+    if (existing) {
+        dbRes = await supabaseAdmin
+            .from("hf_judging_results")
+            .update(resultPayload)
+            .eq("id", existing.id)
+            .select()
+            .single();
+    } else {
+        dbRes = await supabaseAdmin
+            .from("hf_judging_results")
+            .insert(resultPayload)
+            .select()
+            .single();
+    }
+
+    const { data: savedResult, error: dbError } = dbRes;
+
+    if (dbError) {
+        console.error(`[DEEP_AUDIT] DB Error: ${dbError.message}`);
+        throw dbError;
     }
     
     console.log(`[DEEP_AUDIT] Results saved to DB for team ${teamId}`);
 
     return { success: true, evaluation: savedResult as JudgingResult };
 
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    console.error("[DEEP_AUDIT_CRITICAL_FAIL]:", errorMessage);
+  } catch (err: any) {
+    const errorMessage = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+    console.error("[DEEP_AUDIT_CRITICAL_FAIL]:", err);
     return { 
       success: false, 
       error: `Audit Error: ${errorMessage}` 
@@ -522,7 +565,7 @@ export async function reAuditTeamWork(teamId: string) {
             `;
 
             try {
-                const result = await flashModel.generateContent(prompt);
+                const result = await callWithRetry(() => flashModel.generateContent(prompt));
                 const updates = extractJSON(result.response.text());
                 console.log(`[RE_AUDIT] Gemini Flash returned ${updates?.length || 0} updates`);
 
@@ -570,8 +613,9 @@ export async function reAuditTeamWork(teamId: string) {
         console.log(`[RE_AUDIT] SUCCESS for team ${teamId}`);
         return { success: true, progress: totalProgress, audit: auditRes.evaluation };
 
-    } catch (err: unknown) {
+    } catch (err: any) {
+        const errorMessage = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
         console.error("[RE_AUDIT_CRITICAL_FAIL]:", err);
-        return { success: false, error: err instanceof Error ? err.message : "Re-audit failed" };
+        return { success: false, error: `Re-audit failed: ${errorMessage}` };
     }
 }
