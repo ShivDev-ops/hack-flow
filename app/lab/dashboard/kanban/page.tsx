@@ -79,61 +79,56 @@ export default function KanbanPage() {
     setTasks(tasksRes.data || []);
   }, [supabase]);
 
+  // 1. INITIALIZATION: Fetch Session and Team Data
   useEffect(() => {
-    let taskChannel: any = null;
-
     const init = async () => {
       try {
         const sessionData = await getLabSession();
         if (!sessionData || !sessionData.teamId) {
-          console.warn("No active lab session found.");
           setLoading(false);
           return;
         }
         setSession(sessionData);
 
         const activeTeamId = sessionData.teamId;
-
-        const { data: teamData, error: teamError } = await supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single();
-        if (teamError) {
-          console.error("Error fetching team data:", teamError);
-        }
+        const { data: teamData } = await supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single();
         if (teamData) setEventId(teamData.event_id);
 
         await fetchData(activeTeamId);
-
-        // REAL-TIME SUBSCRIPTION FOR TASKS
-        taskChannel = supabase
-            .channel(`kanban-sync-${activeTeamId}`)
-            .on(
-                'postgres_changes',
-                { 
-                    event: '*', 
-                    schema: 'public', 
-                    table: 'hf_tasks', 
-                    filter: `team_id=eq.${activeTeamId}` 
-                },
-                () => {
-                    fetchData(activeTeamId);
-                }
-            )
-            .subscribe();
-
       } catch (error) {
         console.error("Initialization failed:", error);
       } finally {
         setLoading(false);
       }
     };
-
     init();
+  }, [supabase, fetchData]);
+
+  // 2. REAL-TIME UPLINK: Managed in its own effect for stability
+  useEffect(() => {
+    if (!session?.teamId) return;
+
+    const activeTeamId = session.teamId;
+    const taskChannel = supabase
+        .channel(`kanban-sync-${activeTeamId}`)
+        .on(
+            'postgres_changes',
+            { 
+                event: '*', 
+                schema: 'public', 
+                table: 'hf_tasks', 
+                filter: `team_id=eq.${activeTeamId}` 
+            },
+            () => {
+                fetchData(activeTeamId);
+            }
+        )
+        .subscribe();
 
     return () => {
-        if (taskChannel) {
-            supabase.removeChannel(taskChannel);
-        }
+        supabase.removeChannel(taskChannel);
     };
-  }, [supabase, fetchData]);
+  }, [supabase, session?.teamId, fetchData]);
 
   const handleMoveTask = async (taskId: string, newStatus: string, reason?: string) => {
     setUpdatingId(taskId);

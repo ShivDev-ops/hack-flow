@@ -83,6 +83,8 @@ export interface TeamMember {
   id: string;
   team_id: string;
   user_id: string | null;
+  participant_id?: string | null;
+  name?: string | null;
   role: 'LEAD' | 'MEMBER';
   is_verified: boolean;
   created_at: string;

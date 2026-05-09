@@ -143,21 +143,18 @@ export default function TerminalPage() {
     }
   }, [supabase]);
 
+  // 1. INITIALIZATION: Fetch Session and Team Metadata
   useEffect(() => {
     const init = async () => {
       try {
         const sessionData = await getLabSession();
-        if (!sessionData) {
+        if (!sessionData || !sessionData.teamId) {
           setLoading(false);
           return;
         }
         setSession(sessionData);
 
         const activeTeamId = sessionData.teamId;
-        if (!activeTeamId) {
-          setLoading(false);
-          return;
-        }
 
         const [configRes, teamDataRes] = await Promise.all([
             getTeamConfig(activeTeamId),
@@ -191,18 +188,17 @@ export default function TerminalPage() {
         setLoading(false);
       }
     };
-
     init();
   }, [supabase, fetchData]);
 
+  // 2. REAL-TIME UPLINK: Managed in its own effect for stability
   useEffect(() => {
     if (!session?.teamId) return;
 
     const activeTeamId = session.teamId;
 
-    // REAL-TIME UPLINK: Listen for new commits, task updates, and telemetry
     const channel = supabase
-      .channel(`team-${activeTeamId}`)
+      .channel(`terminal-sync-${activeTeamId}`)
       .on(
         'postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'repository_commits', filter: `team_id=eq.${activeTeamId}` },

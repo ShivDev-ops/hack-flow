@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Search, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { NodeDetailsModal } from "@/components/dashboard/node-details-modal";
 import { Participant, Event } from "@/types/common";
 
-export default function RegistryPage() {
+function RegistryContent() {
   const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [eventData, setEventData] = useState<Event | null>(null);
@@ -73,7 +73,7 @@ export default function RegistryPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-[1400px] mx-auto min-h-screen bg-black">
+    <div className="p-4 md:p-8 space-y-8 max-w-[1440px] mx-auto min-h-screen bg-black">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="w-full md:w-auto">
           <Link href="/dashboard" className="text-[10px] text-slate-500 hover:text-emerald-500 flex items-center gap-1 uppercase font-black mb-4 transition-all w-fit">
@@ -165,4 +165,12 @@ export default function RegistryPage() {
       />
     </div>
   );
+}
+
+export default function RegistryPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-emerald-500" size={48} /></div>}>
+            <RegistryContent />
+        </Suspense>
+    );
 }

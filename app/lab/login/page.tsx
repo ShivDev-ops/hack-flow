@@ -9,7 +9,7 @@ export default function LabIdentityGate() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [readableId, setReadableId] = useState("");
-  const [members, setMembers] = useState<{ id: string; role: string; user_id: string | null }[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [selectedMember, setSelectedMember] = useState("");
   
   // 6-Digit PIN State
@@ -118,11 +118,15 @@ export default function LabIdentityGate() {
                   onChange={(e) => setSelectedMember(e.target.value)}
                 >
                   <option value="" disabled className="bg-zinc-900 text-white/40 font-data-mono">AWAITING_SELECTION...</option>
-                  {members.map(m => (
-                    <option key={m.id} value={m.id} className="bg-zinc-900 font-data-mono uppercase">
-                      {m.role === 'LEAD' ? '[LEAD]' : '[MEMBER]'} {m.id.substring(0,12)}
-                    </option>
-                  ))}
+                  {members.map(m => {
+                    const participantName = m.name || "Unknown Participant";
+                    const isLead = m.role === 'LEAD';
+                    return (
+                      <option key={m.id} value={m.id} className="bg-zinc-900 font-data-mono uppercase">
+                        {isLead ? '[LEAD] ' : ''}{participantName}
+                      </option>
+                    );
+                  })}
                 </select>
                 <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
                   <ArrowRight size={14} className="rotate-90" />

@@ -181,15 +181,33 @@ export async function ingestParticipants(
       }
     });
 
-    // 4. In-Memory Deduplication
-    const uniqueParticipants = participants.filter((p, index, self) =>
-      p.registration_no && index === self.findIndex((t) => t.registration_no === p.registration_no)
-    );
+    // 4. In-Memory Deduplication & Status Preservation
+    // Fetch existing participants to avoid overwriting their 'Claimed' or 'Verified' status
+    const { data: existingParticipants } = await supabase
+      .from('hf_participants')
+      .select('registration_no, is_claimed, payment_verified')
+      .eq('event_id', eventId);
 
-    // 5. The Upsert Logic (Prevents crashes on repeated syncs)
-    if (uniqueParticipants.length > 0) {
+    const statusMap = new Map(existingParticipants?.map(p => [p.registration_no, p]) || []);
+
+    const finalParticipants = participants.filter((p, index, self) =>
+      p.registration_no && index === self.findIndex((t) => t.registration_no === p.registration_no)
+    ).map(p => {
+      const existing = statusMap.get(p.registration_no);
+      if (existing) {
+        return {
+          ...p,
+          is_claimed: existing.is_claimed,
+          payment_verified: existing.payment_verified
+        };
+      }
+      return p;
+    });
+
+    // 5. The Upsert Logic (Now preserves existing status)
+    if (finalParticipants.length > 0) {
         const { error: insertError } = await supabase.from('hf_participants').upsert(
-            uniqueParticipants, 
+            finalParticipants, 
             { onConflict: 'registration_no' }
         );
         if (insertError) throw new Error(insertError.message);

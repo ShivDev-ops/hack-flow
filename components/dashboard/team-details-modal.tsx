@@ -50,8 +50,8 @@ export function TeamDetailsModal({
                         {member.role === 'LEAD' ? <Star size={18} className="text-emerald-500" /> : <User size={18} className="text-emerald-500" />}
                       </div>
                       <div>
-                        <p className="text-white font-bold text-sm uppercase tracking-tight">{member.role === 'LEAD' ? 'Team Lead' : 'Specialist'}</p>
-                        <p className="text-[10px] text-slate-500 font-mono uppercase">{member.user_id || 'ID_PENDING'}</p>
+                        <p className="text-white font-bold text-sm uppercase tracking-tight">{member.name || (member.role === 'LEAD' ? 'Team Lead' : 'Specialist')}</p>
+                        <p className="text-[10px] text-slate-500 font-mono uppercase">{member.user_id || 'UPLINK_PENDING'}</p>
                       </div>
                     </div>
                     {member.is_verified ? (

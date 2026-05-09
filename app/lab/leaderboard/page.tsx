@@ -54,9 +54,17 @@ export default function ParticipantLeaderboardPage() {
 
   const supabase = createClient();
 
-  const handleViewTeam = (team: any) => {
+  const handleViewTeam = async (team: any) => {
     setSelectedTeam(team);
     setIsTeamModalOpen(true);
+    
+    // Fetch members for the selected team
+    const { data: teamMembers } = await supabase
+      .from('hf_team_members')
+      .select('*')
+      .eq('team_id', team.id);
+    
+    setMembers(teamMembers || []);
   };
 
   const handleViewReport = async (team: any) => {

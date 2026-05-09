@@ -26,10 +26,10 @@ export async function getTeamByReadableId(readableId: string) {
 
   if (error || !team) return { success: false, error: "INVALID_TEAM_ID: Node not found in registry." };
 
-  // Fetch the roster for this team
+  // Fetch the roster for this team using the new name column
   const { data: members } = await supabase
     .from("hf_team_members")
-    .select("id, role, user_id")
+    .select("id, role, user_id, name")
     .eq("team_id", team.id);
 
   return { success: true, team, members: members || [] };

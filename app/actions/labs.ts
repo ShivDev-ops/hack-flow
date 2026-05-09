@@ -3,9 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
-
 import { Participant } from "@/types/common";
-
 import crypto from "crypto";
 
 export async function promoteTeamToLab(teamName: string, eventId: string, participants: Participant[]) {
@@ -34,6 +32,8 @@ export async function promoteTeamToLab(teamName: string, eventId: string, partic
 
       return {
         team_id: team.id,
+        participant_id: p.id,
+        name: p.full_name,
         user_id: null, 
         role: exactRole,
         hashed_pin: hashedPin
@@ -55,7 +55,6 @@ export async function promoteTeamToLab(teamName: string, eventId: string, partic
     if (updateError) throw new Error("Participant Update Failed: " + updateError.message);
 
     revalidatePath("/dashboard/triage");
-
     return { success: true, teamId: readableId, pin: rawPin };
     
   } catch (error) {

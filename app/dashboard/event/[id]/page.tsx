@@ -164,39 +164,42 @@ export default function JudgingPortalPage() {
   }
 
   return (
-    <div className="bg-[#131314] text-[#e5e2e3] font-sans selection:bg-primary/30 min-h-screen flex flex-col overflow-hidden">
-      {/* TopAppBar */}
-      <header className="fixed top-0 left-64 right-0 z-50 bg-[#0A0A0B]/80 backdrop-blur-xl border-b border-white/10 flex justify-between items-center px-6 h-16 shadow-2xl">
-        <div className="flex items-center gap-6">
-          <span className="text-xl font-black tracking-tighter text-white uppercase">{event?.name || "HACK-FLOW"}</span>
+    <div className="bg-[#131314] text-[#e5e2e3] font-sans selection:bg-primary/30 min-h-screen flex flex-col -m-4 md:-m-8">
+      {/* TopAppBar - Responsive positioning to avoid navbar overlap */}
+      <header className="sticky top-0 z-40 bg-[#0A0A0B]/80 backdrop-blur-xl border-b border-white/10 flex flex-col lg:flex-row justify-between items-center px-6 py-4 lg:h-20 shadow-2xl gap-4">
+        <div className="flex items-center gap-6 w-full lg:w-auto">
+          <span className="text-xl font-black tracking-tighter text-white uppercase truncate">{event?.name || "HACK-FLOW"}</span>
           <div className="h-6 w-px bg-white/10 hidden md:block"></div>
-          <span className="font-mono text-[10px] text-primary uppercase tracking-[0.2em] hidden md:block italic">Evaluation_Mode: Global_Sintra_2026</span>
+          <span className="font-mono text-[10px] text-primary uppercase tracking-[0.2em] hidden md:block italic">Evaluation_Mode</span>
         </div>
         
-        <div className="flex bg-[#0e0e0f] p-1 rounded-xl border border-white/5">
+        {/* VIEW TOGGLE - Pushed down for mobile accessibility */}
+        <div className="flex bg-[#0e0e0f] p-1.5 rounded-xl border border-white/5 w-full sm:w-auto justify-center shadow-inner">
           <button 
             onClick={() => setViewMode("SCORING")}
-            className={`px-6 py-1.5 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all ${viewMode === 'SCORING' ? 'bg-primary text-black' : 'text-white/40 hover:text-white'}`}
+            className={`flex-1 sm:flex-none px-8 py-2.5 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all ${viewMode === 'SCORING' ? 'bg-primary text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
           >
             SCORING
           </button>
           <button 
             onClick={() => setViewMode("LEADERBOARD")}
-            className={`px-6 py-1.5 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all ${viewMode === 'LEADERBOARD' ? 'bg-primary text-black' : 'text-white/40 hover:text-white'}`}
+            className={`flex-1 sm:flex-none px-8 py-2.5 font-bold text-[10px] uppercase tracking-widest rounded-lg transition-all ${viewMode === 'LEADERBOARD' ? 'bg-primary text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
           >
             LEADERBOARD
           </button>
         </div>
 
-        <div className="flex items-center gap-6">
-          <button className="text-white/40 hover:text-primary transition-colors cursor-pointer"><Terminal size={18}/></button>
-          <button className="text-white/40 hover:text-primary transition-colors cursor-pointer relative">
-            <Bell size={18}/>
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0A0A0B]" />
-          </button>
-          <div className="flex items-center gap-4 border-l border-white/10 pl-6">
-            <div className="h-8 w-8 rounded-full border border-primary/50 overflow-hidden bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">SA</div>
-            <button className="bg-primary text-black px-6 py-2.5 font-bold text-[10px] uppercase tracking-widest rounded-xl shadow-lg hover:shadow-primary/20 active:opacity-80 transition-all">
+        <div className="flex items-center gap-4 lg:gap-6 w-full lg:w-auto justify-between lg:justify-end">
+          <div className="flex items-center gap-4">
+            <button className="text-white/40 hover:text-primary transition-colors cursor-pointer"><Terminal size={18}/></button>
+            <button className="text-white/40 hover:text-primary transition-colors cursor-pointer relative">
+              <Bell size={18}/>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-[#0A0A0B]" />
+            </button>
+          </div>
+          <div className="flex items-center gap-4 border-l border-white/10 pl-4 lg:pl-6">
+            <div className="h-8 w-8 rounded-full border border-primary/50 overflow-hidden bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">SA</div>
+            <button className="bg-primary text-black px-4 lg:px-6 py-3 font-bold text-[9px] lg:text-[10px] uppercase tracking-widest rounded-xl shadow-lg hover:shadow-primary/20 active:opacity-80 transition-all whitespace-nowrap">
                 Submit Final Scores
             </button>
           </div>
@@ -204,7 +207,7 @@ export default function JudgingPortalPage() {
       </header>
 
       {/* Main Canvas */}
-      <main className="flex-1 mt-16 flex overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {viewMode === "SCORING" ? (
           <>
             {/* Left Pane: Team List */}
