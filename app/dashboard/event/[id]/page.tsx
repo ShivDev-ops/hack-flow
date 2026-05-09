@@ -53,7 +53,8 @@ export default function JudgingPortalPage() {
   const [scores, setScores] = useState({
     innovation: 0,
     technicality: 0,
-    pitch: 0
+    pitch: 0,
+    execution: 0
   });
   const [notes, setNotes] = useState("");
   const [judgingResults, setJudgingResults] = useState<Record<string, JudgingResult>>({});
@@ -107,13 +108,14 @@ export default function JudgingPortalPage() {
     if (selectedTeamId && judgingResults[selectedTeamId]) {
       const r = judgingResults[selectedTeamId];
       setScores({
-        innovation: r.innovation_score,
-        technicality: r.technical_score,
-        pitch: r.alignment_score
+        innovation: r.innovation_score || 0,
+        technicality: r.technical_score || 0,
+        pitch: r.alignment_score || 0,
+        execution: r.execution_score || 0
       });
       setNotes(r.ai_justification || "");
     } else {
-      setScores({ innovation: 0, technicality: 0, pitch: 0 });
+      setScores({ innovation: 0, technicality: 0, pitch: 0, execution: 0 });
       setNotes("");
     }
   }, [selectedTeamId, judgingResults]);
@@ -121,7 +123,7 @@ export default function JudgingPortalPage() {
   const handleSaveScore = async () => {
     if (!selectedTeamId) return;
     setSaving(true);
-    const total = scores.innovation + scores.technicality + scores.pitch;
+    const total = scores.innovation + scores.technicality + scores.pitch + scores.execution;
     
     const payload = {
         team_id: selectedTeamId,
@@ -129,15 +131,17 @@ export default function JudgingPortalPage() {
         innovation_score: scores.innovation,
         technical_score: scores.technicality,
         alignment_score: scores.pitch,
-        execution_score: scores.technicality, // Mapping for now
+        execution_score: scores.execution,
         total_score: total,
         ai_justification: notes
     };
 
+    // Attempting upsert with explicit team_id conflict handling
     const { error } = await supabase.from('hf_judging_results').upsert(payload, { onConflict: 'team_id' });
     
     if (error) {
-        alert("SAVE_ERROR: " + error.message);
+        console.error("SAVE_ERROR_DETAILS:", error);
+        alert("SAVE_ERROR: " + error.message + " (Check RLS Policies or DB Constraints)");
     } else {
         await fetchData();
         alert("SCORE_COMMITTED: Registry updated.");
@@ -328,6 +332,7 @@ export default function JudgingPortalPage() {
                         <div className="space-y-10">
                           <Slider label="INNOVATION" value={scores.innovation} onChange={(v) => setScores({...scores, innovation: v})} />
                           <Slider label="TECHNICALITY" value={scores.technicality} onChange={(v) => setScores({...scores, technicality: v})} />
+                          <Slider label="EXECUTION" value={scores.execution} onChange={(v) => setScores({...scores, execution: v})} />
                           <Slider label="PITCH & PRESENTATION" value={scores.pitch} onChange={(v) => setScores({...scores, pitch: v})} />
                         </div>
                       </div>
@@ -344,26 +349,47 @@ export default function JudgingPortalPage() {
                     </div>
 
                     {/* Total Score Display */}
-                    <div className="col-span-4 flex flex-col gap-8">
-                      <div className="bg-white/[0.02] border border-white/10 p-12 rounded-[3rem] flex flex-col items-center justify-center text-center aspect-square shadow-2xl relative overflow-hidden group">
+                    <div className="col-span-4 flex flex-col gap-6">
+                      <div className="bg-white/[0.03] border border-white/10 p-12 rounded-[3.5rem] flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden group min-h-[400px]">
                         <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                        <span className="font-mono text-[10px] font-black text-white/20 mb-6 uppercase tracking-[0.3em]">AGGREGATED_SCORE</span>
-                        <div className="relative">
-                          <span className="text-8xl font-black leading-none text-transparent bg-clip-text bg-gradient-to-br from-primary via-white to-secondary italic tracking-tighter">
-                            {(scores.innovation + scores.technicality + scores.pitch).toFixed(1)}
-                          </span>
-                          <span className="absolute -top-4 -right-10 text-primary/30 font-mono font-black text-xl">/30</span>
+                        
+                        <div className="space-y-2 mb-10 relative z-10">
+                          <span className="font-bold text-[12px] text-white/30 uppercase tracking-[0.4em]">Final Score</span>
+                          <div className="h-1 w-12 bg-primary/40 mx-auto rounded-full"></div>
                         </div>
-                        <div className="mt-12 flex flex-col gap-4 w-full relative z-10">
+
+                        <div className="relative">
+                          <span className="text-9xl font-black leading-none text-transparent bg-clip-text bg-gradient-to-br from-primary via-white to-secondary italic tracking-tighter">
+                            {(scores.innovation + scores.technicality + scores.pitch + scores.execution).toFixed(1)}
+                          </span>
+                          <span className="absolute -top-6 -right-12 text-primary/40 font-black text-2xl italic">/40</span>
+                        </div>
+
+                        <div className="mt-12 flex flex-col gap-6 w-full relative z-10">
                           <button 
                             onClick={handleSaveScore}
                             disabled={saving}
-                            className="w-full py-5 bg-primary text-black font-black text-[11px] uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_50px_rgba(173,198,255,0.2)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-6 bg-primary text-black font-black text-xs uppercase tracking-[0.3em] rounded-[1.5rem] shadow-[0_0_50px_rgba(16,185,129,0.2)] hover:bg-[#5affb4] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
                           >
-                            {saving ? <Loader2 className="animate-spin" size={18}/> : <><Save size={18}/> Commit_Score_to_Node</>}
+                            {saving ? <Loader2 className="animate-spin" size={20}/> : <><Save size={20}/> Commit Score</>}
                           </button>
-                          <p className="text-[9px] font-mono text-white/20 uppercase font-bold tracking-widest">Uplink: ACTIVE // LOCK_STATUS: AUTO</p>
+                          
+                          <div className="flex flex-col gap-1">
+                             <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Uplink: Registry Online</p>
+                             <p className="text-[10px] font-bold text-secondary/60 uppercase tracking-widest italic">Verification: Auto_Pass</p>
+                          </div>
                         </div>
+                      </div>
+
+                      {/* Quick Actions */}
+                      <div className="bg-white/[0.02] border border-white/5 p-8 rounded-[2rem] flex flex-col gap-4">
+                         <h4 className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Evaluator Tools</h4>
+                         <button className="w-full py-4 bg-white/5 hover:bg-white/10 text-white/60 font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5 flex items-center justify-center gap-2">
+                            <Zap size={14}/> Auto-Pulse Audit
+                         </button>
+                         <button className="w-full py-4 bg-white/5 hover:bg-white/10 text-white/60 font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-white/5 flex items-center justify-center gap-2">
+                            <ExternalLink size={14}/> Review DNA Evidence
+                         </button>
                       </div>
                     </div>
                   </div>
