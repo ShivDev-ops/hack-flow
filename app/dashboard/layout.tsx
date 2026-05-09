@@ -3,6 +3,7 @@
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Navbar } from "@/components/dashboard/navbar";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -15,7 +16,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar - Fixed width, border-right for that tech-separation */}
       {!isRootDashboard && (
         <aside className="w-64 border-r border-white/5 bg-zinc-950/50 hidden md:block sticky top-0 h-screen">
-          <Sidebar />
+          <Suspense fallback={<div className="w-full h-full bg-zinc-950/50 animate-pulse" />}>
+            <Sidebar />
+          </Suspense>
         </aside>
       )}
 

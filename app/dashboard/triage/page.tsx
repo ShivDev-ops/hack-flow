@@ -10,7 +10,9 @@ import { syncEventAction } from "@/app/actions/ingest";
 import { useSearchParams } from "next/navigation";
 import { Participant, Event } from "@/types/common";
 
-export default function TriagePage() {
+import { Suspense } from "react";
+
+function TriageContent() {
   const searchParams = useSearchParams();
   const queryEventId = searchParams.get("event_id");
 
@@ -235,4 +237,12 @@ export default function TriagePage() {
       />
     </div>
   );
+}
+
+export default function TriagePage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="animate-spin text-secondary" size={48} /></div>}>
+            <TriageContent />
+        </Suspense>
+    );
 }
