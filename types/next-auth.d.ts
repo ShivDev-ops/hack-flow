@@ -7,12 +7,14 @@ declare module "next-auth" {
     eventId?: string;
     user: {
       id: string;
+      azure_ad_id?: string | null;
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: 'ORGANIZER' | 'SUPER_ADMIN' | 'AUTHENTICATED';
     eventId?: string;
+    azure_ad_id?: string | null;
   }
 }
 
@@ -21,5 +23,6 @@ declare module "next-auth/jwt" {
     role?: 'ORGANIZER' | 'SUPER_ADMIN' | 'AUTHENTICATED';
     eventId?: string;
     sub?: string;
+    azureAdId?: string | null;
   }
 }

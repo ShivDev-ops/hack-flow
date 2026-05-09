@@ -69,7 +69,7 @@ graph TD
         I[GitHub Webhooks]
     end
 
-    A -- "Login via OAuth" --> D
+    A -- "Login via Credentials/OAuth" --> D
     A -- "Create/Manage Event" --> E
     B -- "Enter PIN" --> E
     B -- "Submit Work" --> E
@@ -92,7 +92,7 @@ graph TD
 ## Core Modules & User Flows
 
 ### A. The Organizer Pipeline
-Organizers log in via OAuth to create events, map data from Google Sheets, generate an integration script, and manage registrations through a triage dashboard.
+Organizers log in via secure credentials (Access ID + Password) provided by the Super Admin. Once inside, they can link their Microsoft accounts for streamlined secondary access. They can then create events, map data from Google Sheets, and manage registrations through a triage dashboard.
 
 ### B. The Participant Lab
 Students enter via a PIN to access a "Mission Control" dashboard. They manage tasks on a Kanban board where "Done" requires a commit URL. The UI locks automatically at the event deadline.

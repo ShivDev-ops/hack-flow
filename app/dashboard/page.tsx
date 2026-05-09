@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Users, Loader2, LayoutGrid, Archive, Sparkles } from "lucide-react";
+import { Plus, Users, Loader2, LayoutGrid, Archive, Sparkles, ShieldCheck } from "lucide-react";
 import { EventCard } from "@/components/dashboard/event-card";
 import { InitEventModal } from "@/components/dashboard/init-event-modal";
 import { createClient } from "@/lib/supabase/client";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { prepareMicrosoftLink } from "@/app/actions/auth-link";
 
 import { Event, Participant } from "@/types/common";
 
@@ -20,9 +21,9 @@ export default function DashboardPage() {
   
   const supabase = useMemo(() => createClient(), []);
 
-  const fetchFleetStatus = useCallback(async () => {
+  const fetchFleetStatus = useCallback(async (shouldLoad = true) => {
     if (!session) return;
-    setLoading(true);
+    if (shouldLoad) setLoading(true);
     try {
       let eventQuery = supabase.from('hf_events').select('*').order('created_at', { ascending: false });
       let participantQuery = supabase.from('hf_participants').select('id, event_id, team_name');
@@ -35,7 +36,7 @@ export default function DashboardPage() {
           } else {
               setEvents([]);
               setParticipantData([]);
-              setLoading(false);
+              if (shouldLoad) setLoading(false);
               setIsModalOpen(true); // Auto-open if no event linked
               return;
           }
@@ -53,20 +54,32 @@ export default function DashboardPage() {
     } catch (error: unknown) {
       console.error("TELEMETRY_SYNC_ERROR:", error instanceof Error ? error.message : "Unknown error");
     } finally {
-      setLoading(false);
+      if (shouldLoad) setLoading(false);
     }
   }, [supabase, session]);
 
   useEffect(() => {
+    if (status === "loading") return;
     if (status === "unauthenticated") {
         router.push("/login");
     } else if (status === "authenticated") {
-        fetchFleetStatus();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        fetchFleetStatus(false);
     }
   }, [status, fetchFleetStatus, router]);
 
   const totalParticipants = participantData.length;
   const isAdmin = session?.role === 'SUPER_ADMIN';
+  const isLinked = !!session?.user?.azure_ad_id;
+
+  const handleLinkMicrosoft = async () => {
+    try {
+      await prepareMicrosoftLink();
+      signIn("azure-ad", { callbackUrl: "/dashboard" });
+    } catch (err) {
+      alert("LINK_INIT_FAILED: " + (err instanceof Error ? err.message : "Unknown error"));
+    }
+  };
 
   return (
     <div className="space-y-12 max-w-[1440px] mx-auto p-6 md:p-10 bg-background min-h-screen selection:bg-secondary/30">
@@ -76,9 +89,26 @@ export default function DashboardPage() {
           <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic leading-none">
             Welcome back, <span className="text-secondary font-black">{isAdmin ? "Super_Admin" : "Organizer"}</span>
           </h1>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.4em] mt-3 ml-1 font-label-caps">
-            System_Status: <span className="text-secondary">Stable</span> {" // "} Node_Handshake: <span className="text-secondary">Verified</span>
-          </p>
+          <div className="flex items-center gap-4 mt-3 ml-1">
+            <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.4em] font-label-caps">
+              System_Status: <span className="text-secondary">Stable</span> {" // "} Node_Handshake: <span className="text-secondary">Verified</span>
+            </p>
+            {!isAdmin && !isLinked && (
+              <button 
+                onClick={handleLinkMicrosoft}
+                className="text-[9px] bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full font-black uppercase tracking-widest transition-all flex items-center gap-2"
+              >
+                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                Link Microsoft Account
+              </button>
+            )}
+            {!isAdmin && isLinked && (
+              <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full font-black uppercase tracking-widest flex items-center gap-2">
+                <ShieldCheck size={10} />
+                Microsoft Linked
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-4 bg-white/[0.02] border border-white/5 px-6 py-3 rounded-2xl rim-light">
           <div className="w-2 h-2 bg-secondary rounded-full pulse-emerald" />
@@ -196,7 +226,7 @@ export default function DashboardPage() {
         isOpen={isModalOpen} 
         onClose={() => {
           setIsModalOpen(false);
-          fetchFleetStatus();
+          fetchFleetStatus(true);
         }} 
       />
     </div>

@@ -15,28 +15,38 @@ import {
   Loader2,
   RefreshCw,
   ShieldCheck,
-  Key,
-  Database,
-  Trash2,
   AlertCircle,
   Eye,
-  Settings2,
   Users
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { OrganizerCredentials, Event as HfEvent, APIUsage } from "@/types/common";
+import { OrganizerCredentials, Event as HfEvent, APIUsage, Team, TeamMember } from "@/types/common";
+import { getFleetTelemetry } from "@/app/actions/fleet-cmd";
 import bcrypt from "bcryptjs";
+
+interface TenantWithEvent extends OrganizerCredentials {
+  event?: HfEvent;
+}
+
+interface TeamWithMembers extends Team {
+  members: TeamMember[];
+}
 
 export default function GlobalOverridePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [tenants, setTenants] = useState<(OrganizerCredentials & { event?: HfEvent })[]>([]);
+  
+  // State from Telemetry Action
+  const [tenants, setTenants] = useState<TenantWithEvent[]>([]);
   const [events, setEvents] = useState<HfEvent[]>([]);
-  const [apiUsage, setApiUsage] = useState<APIUsage[]>([]);
+  const [usageByEvent, setUsageByEvent] = useState<Record<string, number>>({});
+  const [totalTokens, setTotalTokens] = useState(0);
   const [totalParticipantsCount, setTotalParticipantsCount] = useState(0);
+  const [latestLogs, setLatestLogs] = useState<APIUsage[]>([]);
+  
   const [searchTerm, setSearchTerm] = useState("");
   
   // Modal State
@@ -46,39 +56,42 @@ export default function GlobalOverridePage() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Detail Modal State
-  const [selectedTenant, setSelectedTenant] = useState<(OrganizerCredentials & { event?: HfEvent }) | null>(null);
-  const [eventTeams, setEventTeams] = useState<any[]>([]);
+  const [selectedTenant, setSelectedTenant] = useState<TenantWithEvent | null>(null);
+  const [eventTeams, setEventTeams] = useState<TeamWithMembers[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (shouldLoad = true) => {
+    if (shouldLoad) setLoading(true);
     try {
-      const [credsRes, eventsRes, usageRes, partRes] = await Promise.all([
-        supabase.from("hf_organizer_credentials").select("*, event:hf_events(*)").order("created_at", { ascending: false }),
-        supabase.from("hf_events").select("*"),
-        supabase.from("hf_api_telemetry").select("*"),
-        supabase.from("hf_participants").select("id", { count: 'exact', head: true })
-      ]);
-
-      setTenants(credsRes.data || []);
-      setEvents(eventsRes.data || []);
-      setApiUsage(usageRes.data || []);
-      setTotalParticipantsCount(partRes.count || 0);
+      const res = await getFleetTelemetry();
+      
+      if (res.success && res.data) {
+        setTenants(res.data.tenants as any);
+        setEvents(res.data.events as any);
+        setUsageByEvent(res.data.usageMap);
+        setTotalTokens(res.data.totalTokens);
+        setTotalParticipantsCount(res.data.participantCount);
+        setLatestLogs(res.data.logs as any);
+      } else {
+          console.error("TELEMETRY_ACTION_FAIL:", res.error);
+      }
     } catch (error) {
       console.error("OVERRIDE_SYNC_ERROR:", error);
     } finally {
-      setLoading(false);
+      if (shouldLoad) setLoading(false);
     }
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    if (status === "unauthenticated" || (status === "authenticated" && session?.role !== "SUPER_ADMIN")) {
+    if (status === "loading") return;
+    if (status === "unauthenticated" || (session?.role !== "SUPER_ADMIN")) {
       router.push("/dashboard");
       return;
     }
-    fetchData();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData(false);
   }, [status, session, router, fetchData]);
 
   const generateCredentials = async () => {
@@ -100,7 +113,7 @@ export default function GlobalOverridePage() {
       setNewAccessId(accessId);
       setNewPassword(rawPass);
       setIsGenModalOpen(true);
-      fetchData();
+      fetchData(true);
     }
     setIsGenerating(false);
   };
@@ -123,7 +136,7 @@ export default function GlobalOverridePage() {
     }
   };
 
-  const fetchEventDetails = async (tenant: any) => {
+  const fetchEventDetails = async (tenant: TenantWithEvent) => {
     setSelectedTenant(tenant);
     if (!tenant.event_id) {
         setEventTeams([]);
@@ -143,23 +156,15 @@ export default function GlobalOverridePage() {
       .from("hf_organizer_credentials")
       .update({ is_active: !currentStatus })
       .eq("id", id);
-    if (!error) fetchData();
+    if (!error) fetchData(true);
   };
 
   const filteredTenants = tenants.filter(t => 
     t.access_id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.event?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (t.event?.name && t.event.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const usageByEvent = useMemo(() => {
-    const map: Record<string, number> = {};
-    apiUsage.forEach(u => {
-      map[u.event_id] = (map[u.event_id] || 0) + u.tokens_consumed;
-    });
-    return map;
-  }, [apiUsage]);
-
-  if (status === "loading" || loading) {
+  if (status === "loading" || (loading && status === "authenticated")) {
     return (
       <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center">
         <Loader2 className="animate-spin text-[#a855f7]" size={48} />
@@ -174,7 +179,7 @@ export default function GlobalOverridePage() {
           <div className="text-[#a855f7]">
             <Terminal size={24} />
           </div>
-          <h1 className="text-lg font-bold tracking-tighter uppercase">Hack-Flow // Global Override</h1>
+          <h1 className="text-lg font-bold tracking-tighter uppercase">Hack-Flow | Global Override</h1>
         </div>
         <div className="flex items-center gap-4 bg-[#131314] px-4 py-1.5 rounded-full border border-[#424754]">
           <span className="relative flex h-2 w-2">
@@ -202,7 +207,7 @@ export default function GlobalOverridePage() {
           <KpiCard title="Active Tenants" value={tenants.length} icon={<Network size={20}/>} trend="▲ 2.4%" />
           <KpiCard title="Live Events" value={events.filter(e => e.is_active).length} icon={<Activity size={20}/>} trend="STABLE" />
           <KpiCard title="Global Participants" value={totalParticipantsCount.toLocaleString()} icon={<Users size={20}/>} trend="▲ 12%" />
-          <KpiCard title="Global API Tokens" value={Object.values(usageByEvent).reduce((a, b) => a + b, 0).toLocaleString()} icon={<Gauge size={20}/>} trend="Gemini Pro 1.5" trendColor="text-[#a855f7]" />
+          <KpiCard title="Global API Tokens" value={totalTokens.toLocaleString()} icon={<Gauge size={20}/>} trend="Gemini Pro 1.5" trendColor="text-[#a855f7]" />
         </section>
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
@@ -237,6 +242,7 @@ export default function GlobalOverridePage() {
                   <tr className="bg-[#1c1b1c] border-b border-white/10 text-white/40 font-mono text-[9px] uppercase tracking-widest">
                     <th className="px-6 py-4">Access ID</th>
                     <th className="px-6 py-4">Linked Event</th>
+                    <th className="px-6 py-4">Auth Status</th>
                     <th className="px-6 py-4">API Usage</th>
                     <th className="px-6 py-4 text-center">Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
@@ -248,6 +254,13 @@ export default function GlobalOverridePage() {
                       <td className="px-6 py-4 font-bold text-white uppercase">{t.access_id}</td>
                       <td className="px-6 py-4 text-white/40 uppercase">
                         {t.event?.name || <span className="text-red-500/50 italic">Unassigned_Node</span>}
+                      </td>
+                      <td className="px-6 py-4 uppercase">
+                        {t.azure_ad_id ? (
+                          <span className="text-blue-400 flex items-center gap-1"><ShieldCheck size={12}/> Microsoft</span>
+                        ) : (
+                          <span className="text-white/20">Password Only</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-[#a855f7] font-bold">{(usageByEvent[t.event_id || ''] || 0).toLocaleString()}</span> <span className="text-[8px] opacity-30">tokens</span>
@@ -323,7 +336,7 @@ export default function GlobalOverridePage() {
                 <LogLine time="14:24:55" tag="WARN" msg="Peak tokens used by NYCU-NODE" color="text-yellow-500" />
                 <LogLine time="14:25:01" tag="INFO" msg="Spawning new audit instance..." color="text-white/40" />
                 <LogLine time="14:26:44" tag="BEAT" msg="Heartbeat stable" color="text-[#a855f7]" />
-                {apiUsage.slice(0, 5).map((u, i) => (
+                {latestLogs.map((u, i) => (
                     <LogLine key={i} time={new Date(u.created_at).toLocaleTimeString([], { hour12: false })} tag="API" msg={`${u.operation_type}: ${u.tokens_consumed} tokens`} color="text-[#a855f7]" />
                 ))}
                 <p className="text-[#a855f7] opacity-50 animate-pulse mt-2">_</p>
@@ -414,7 +427,7 @@ export default function GlobalOverridePage() {
                             <span className="px-2 py-0.5 bg-[#a855f7]/20 text-[#a855f7] text-[9px] font-bold border border-[#a855f7]/30 rounded">NODE_EXPLORER</span>
                             <h2 className="text-3xl font-black text-white italic">{selectedTenant.event?.name || "UNASSIGNED_NODE"}</h2>
                         </div>
-                        <p className="text-[10px] text-white/40 font-bold tracking-widest">ACCESS_ID: {selectedTenant.access_id} // CREATED: {new Date(selectedTenant.created_at).toLocaleDateString()}</p>
+                        <p className="text-[10px] text-white/40 font-bold tracking-widest">ACCESS_ID: {selectedTenant.access_id} | CREATED: {new Date(selectedTenant.created_at).toLocaleDateString()}</p>
                     </div>
                     <button onClick={() => setSelectedTenant(null)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><Plus className="rotate-45" size={24}/></button>
                 </div>
@@ -454,8 +467,8 @@ export default function GlobalOverridePage() {
                                             <div>
                                                 <h5 className="font-black text-white mb-1 group-hover:text-[#a855f7] transition-colors italic">{team.name}</h5>
                                                 <p className="text-[9px] text-white/40 font-bold tracking-widest flex items-center gap-2 italic">
-                                                    ID: <span className="text-white/60">{team.members?.[0]?.readable_id || "N/A"}</span> 
-                                                    // PIN: <span className="text-white/60">**** [HASHED]</span>
+                                                    ID: <span className="text-white/60">{team.readable_id || "N/A"}</span> 
+                                                    | PIN: <span className="text-white/60">**** [HASHED]</span>
                                                 </p>
                                             </div>
                                         </div>
@@ -499,7 +512,7 @@ export default function GlobalOverridePage() {
   );
 }
 
-function KpiCard({ title, value, icon, trend, trendColor = "text-[#4edea3]" }: any) {
+function KpiCard({ title, value, icon, trend, trendColor = "text-[#4edea3]" }: { title: string; value: string | number; icon: React.ReactNode; trend: string; trendColor?: string }) {
   return (
     <div className="bg-white/[0.03] border border-white/10 p-6 rounded-xl hover:border-[#a855f7] transition-all group rim-light shadow-xl">
       <div className="flex justify-between items-start mb-4">
@@ -515,7 +528,7 @@ function KpiCard({ title, value, icon, trend, trendColor = "text-[#4edea3]" }: a
   );
 }
 
-function LogLine({ time, tag, msg, color }: any) {
+function LogLine({ time, tag, msg, color }: { time: string; tag: string; msg: string; color: string }) {
   return (
     <p className="mb-1 leading-relaxed">
       <span className="text-[#a855f7] mr-2">[{time}]</span>
@@ -525,7 +538,7 @@ function LogLine({ time, tag, msg, color }: any) {
   );
 }
 
-function NodeStatus({ label, color }: any) {
+function NodeStatus({ label, color }: { label: string; color: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className={`size-2 rounded-full ${color} pulse-glow`}></span>

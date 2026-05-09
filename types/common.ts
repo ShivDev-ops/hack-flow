@@ -16,6 +16,7 @@ export interface OrganizerCredentials {
   password_hash: string;
   event_id: string | null;
   role: 'ORGANIZER' | 'SUPER_ADMIN';
+  azure_ad_id: string | null;
   is_active: boolean;
   created_at: string;
 }
