@@ -72,6 +72,7 @@ export interface Team {
   repo_url?: string;
   deployment_url?: string;
   ai_progress_score?: number;
+  total_commits?: number;
   ai_status_summary?: string;
   showcase_audit?: boolean;
   created_at: string;

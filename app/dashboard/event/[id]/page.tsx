@@ -409,8 +409,8 @@ export default function JudgingPortalPage() {
                         </td>
                         <td className="px-10 py-6 text-[10px] text-white/40 uppercase font-bold italic tracking-tight">{team.ai_status_summary || "Standard Protocol"}</td>
                         <td className="px-10 py-6">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${team.ai_progress_score > 70 ? 'bg-secondary/10 text-secondary border-secondary/20 shadow-[0_0_10px_#4edea333]' : 'bg-white/5 text-white/40 border-white/10'}`}>
-                            {team.ai_progress_score > 70 ? 'OPTIMIZED' : 'NOMINAL'}
+                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all ${(team.ai_progress_score || 0) > 70 ? 'bg-secondary/10 text-secondary border-secondary/20 shadow-[0_0_10px_#4edea333]' : 'bg-white/5 text-white/40 border-white/10'}`}>
+                            { (team.ai_progress_score || 0) > 70 ? 'OPTIMIZED' : 'NOMINAL'}
                           </span>
                         </td>
                         <td className="px-10 py-6 text-right font-black text-white italic text-xl tracking-tighter">
