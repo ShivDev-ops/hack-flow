@@ -4,10 +4,20 @@ import { createClient } from "@/lib/supabase/server";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 
+import jwt from "jsonwebtoken";
+
+const LAB_SESSION_SECRET = process.env.SUPABASE_JWT_SECRET || "fallback-secret-for-lab";
+
+export interface LabSession {
+  memberId: string;
+  teamId: string;
+  role: string;
+}
+
 export async function getTeamByReadableId(readableId: string) {
   const supabase = await createClient();
   
-  // Find the team by its human-readable ID (e.g., TEAM-XXXX)
+  // Find the team by its human-readable ID (6-digit numeric)
   const { data: team, error } = await supabase
     .from("hf_teams")
     .select("id, name, readable_id")
@@ -67,15 +77,20 @@ export async function verifyMemberAccess(memberId: string, pin: string) {
       }
     }
 
-    // Set an HTTP-only cookie for the lab session
-    const cookieStore = await cookies();
-    cookieStore.set("lab_session", JSON.stringify({
+    // Set a SECURE JWT cookie for the lab session
+    const payload: LabSession = {
       memberId,
       teamId: member.team_id,
       role: member.role
-    }), { 
+    };
+
+    const token = jwt.sign(payload, LAB_SESSION_SECRET, { expiresIn: "24h" });
+
+    const cookieStore = await cookies();
+    cookieStore.set("lab_session", token, { 
       httpOnly: true, 
       secure: process.env.NODE_ENV === "production", 
+      sameSite: "lax",
       maxAge: 60 * 60 * 24 
     }); 
 
@@ -110,15 +125,17 @@ export async function getEventDetailsForSession() {
   return event;
 }
 
-export async function getLabSession() {
+export async function getLabSession(): Promise<LabSession | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("lab_session");
   
   if (!sessionCookie) return null;
   
   try {
-    return JSON.parse(sessionCookie.value);
-  } catch {
+    const decoded = jwt.verify(sessionCookie.value, LAB_SESSION_SECRET) as LabSession;
+    return decoded;
+  } catch (err) {
+    console.error("[AUTH] Lab session verification failed:", err instanceof Error ? err.message : "Unknown error");
     return null;
   }
 }

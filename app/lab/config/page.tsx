@@ -329,7 +329,7 @@ export default function LabConfigPage() {
                   <div className="space-y-2">
                     <p className="text-[9px] text-blue-400 font-black uppercase tracking-widest font-label-caps">2. HTTP Header</p>
                     <div className="bg-black/60 border border-white/10 p-4 rounded-xl font-data-mono text-[10px] text-white/80">
-                      x-team-id: <span className="text-blue-400">{readableId || "TEAM-XXXX"}</span>
+                      x-team-id: <span className="text-blue-400">{readableId || "XXXXXX"}</span>
                     </div>
                   </div>
 

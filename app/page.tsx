@@ -14,11 +14,13 @@ export default function LandingPage() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   
   // Handling PIN Input
-  const [pin, setPin] = useState(["", "", "", ""]);
+  const [pin, setPin] = useState(["", "", "", "", "", ""]);
   const inputRefs = [
     useRef<HTMLInputElement>(null), 
     useRef<HTMLInputElement>(null), 
     useRef<HTMLInputElement>(null), 
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null)
   ];
 
@@ -34,7 +36,7 @@ export default function LandingPage() {
     const newPin = [...pin];
     newPin[index] = value;
     setPin(newPin);
-    if (value && index < 3) inputRefs[index + 1].current?.focus();
+    if (value && index < 5) inputRefs[index + 1].current?.focus();
   };
 
   const handlePinKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -210,9 +212,9 @@ export default function LandingPage() {
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="glass p-8 sm:p-10 rounded-2xl max-w-md w-full relative space-y-8 text-center z-10">
             <div>
               <h3 className="text-xl sm:text-2xl font-bold font-h1">Access Active Lab</h3>
-              <p className="text-white/40 text-xs sm:text-sm mt-2">Enter the 4-digit mission code provided by your event lead.</p>
+              <p className="text-white/40 text-xs sm:text-sm mt-2">Enter the 6-digit mission code provided by your event lead.</p>
             </div>
-            <div className="flex justify-center gap-3 sm:gap-4">
+            <div className="flex justify-center gap-2 sm:gap-3">
               {pin.map((digit, index) => (
                 <input
                   key={index}
@@ -220,13 +222,24 @@ export default function LandingPage() {
                   value={digit}
                   onChange={(e) => handlePinChange(index, e.target.value)}
                   onKeyDown={(e) => handlePinKeyDown(index, e)}
-                  className="w-14 h-16 sm:w-16 sm:h-20 bg-white/5 border border-white/10 rounded-xl text-3xl sm:text-4xl font-bold text-center focus:border-secondary focus:ring-0 focus:outline-none"
+                  className="w-10 h-14 sm:w-12 sm:h-16 bg-white/5 border border-white/10 rounded-xl text-2xl sm:text-3xl font-bold text-center focus:border-secondary focus:ring-0 focus:outline-none"
                   maxLength={1}
                   type="text"
                 />
               ))}
             </div>
-            <button className="w-full py-4 bg-secondary text-black font-bold uppercase tracking-widest rounded-lg text-xs sm:text-sm">Initialize Link</button>
+            <button 
+              disabled={pin.join("").length < 6}
+              onClick={() => {
+                // If they enter 6 digits, we assume it's the PIN, but wait, 
+                // the login flow requires Team ID first. 
+                // Let's redirect them to the dedicated login page.
+                window.location.href = "/lab/login";
+              }}
+              className="w-full py-4 bg-secondary text-black font-bold uppercase tracking-widest rounded-lg text-xs sm:text-sm disabled:opacity-50"
+            >
+              Establish Connection
+            </button>
           </motion.div>
         </div>
       )}

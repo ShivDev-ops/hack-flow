@@ -6,16 +6,16 @@ import { revalidatePath } from "next/cache";
 
 
 
-// Add this import at the top if you don't have it
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 export async function launchTeamAction(eventId: string, teamName: string, participantIds: string[]) {
   const supabase = await createClient();
 
   try {
-    // 1. Generate the Team ID and the 4-digit PIN
-    const readableId = `TEAM-${Math.floor(1000 + Math.random() * 9000)}`;
-    const rawPin = Math.floor(1000 + Math.random() * 9000).toString();
+    // 1. Generate 6-digit numeric ID and 6-digit PIN securely
+    const readableId = crypto.randomInt(100000, 999999).toString();
+    const rawPin = crypto.randomInt(100000, 999999).toString();
     const hashedPin = await bcrypt.hash(rawPin, 10);
 
     // 2. CRITICAL FIX: Insert the Team WITH the event_id

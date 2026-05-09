@@ -6,12 +6,14 @@ import { revalidatePath } from "next/cache";
 
 import { Participant } from "@/types/common";
 
+import crypto from "crypto";
+
 export async function promoteTeamToLab(teamName: string, eventId: string, participants: Participant[]) {
   const supabase = await createClient();
 
   try {
-    const readableId = `TEAM-${Math.floor(1000 + Math.random() * 9000)}`;
-    const rawPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const readableId = crypto.randomInt(100000, 999999).toString();
+    const rawPin = crypto.randomInt(100000, 999999).toString();
     const hashedPin = await bcrypt.hash(rawPin, 10);
 
     const { data: team, error: teamError } = await supabase

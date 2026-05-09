@@ -12,12 +12,14 @@ export default function LabIdentityGate() {
   const [members, setMembers] = useState<{ id: string; role: string; user_id: string | null }[]>([]);
   const [selectedMember, setSelectedMember] = useState("");
   
-  // 4-Digit PIN State
-  const [pin, setPin] = useState(["", "", "", ""]);
+  // 6-Digit PIN State
+  const [pin, setPin] = useState(["", "", "", "", "", ""]);
   const inputRefs = [
     useRef<HTMLInputElement>(null), 
     useRef<HTMLInputElement>(null), 
     useRef<HTMLInputElement>(null), 
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null)
   ];
   
@@ -29,7 +31,7 @@ export default function LabIdentityGate() {
     const newPin = [...pin];
     newPin[index] = value;
     setPin(newPin);
-    if (value && index < 3) inputRefs[index + 1].current?.focus();
+    if (value && index < 5) inputRefs[index + 1].current?.focus();
   };
 
   const handlePinKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -56,7 +58,7 @@ export default function LabIdentityGate() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalPin = pin.join(""); 
-    if (finalPin.length < 4) return;
+    if (finalPin.length < 6) return;
 
     setLoading(true);
     const res = await verifyMemberAccess(selectedMember, finalPin);
@@ -65,7 +67,7 @@ export default function LabIdentityGate() {
       router.push(res.route); 
     } else {
       alert(res.error || "Authentication failed");
-      setPin(["", "", "", ""]); 
+      setPin(["", "", "", "", "", ""]); 
       inputRefs[0].current?.focus();
     }
     setLoading(false);
@@ -94,7 +96,7 @@ export default function LabIdentityGate() {
                   autoFocus
                   style={{ colorScheme: 'dark' }}
                   className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-5 text-white focus:border-secondary/50 outline-none transition-all font-data-mono tracking-widest placeholder:text-white/10 group-hover:border-white/20 text-sm uppercase"
-                  placeholder="TEAM-XXXX"
+                  placeholder="XXXXXX"
                   value={readableId}
                   onChange={(e) => setReadableId(e.target.value.toUpperCase())}
                 />
@@ -130,7 +132,7 @@ export default function LabIdentityGate() {
 
             <div className="space-y-4">
               <label className="text-[10px] font-black font-label-caps text-secondary uppercase tracking-[0.3em] ml-1 text-center block">Authorization_PIN</label>
-              <div className="flex justify-center gap-4">
+              <div className="flex justify-center gap-2 sm:gap-3">
                 {pin.map((digit, index) => (
                   <input
                     key={index}
@@ -138,7 +140,7 @@ export default function LabIdentityGate() {
                     value={digit}
                     onChange={(e) => handlePinChange(index, e.target.value)}
                     onKeyDown={(e) => handlePinKeyDown(index, e)}
-                    className="w-16 h-20 bg-black/40 border border-white/10 rounded-2xl text-3xl font-black font-data-mono text-center focus:border-secondary/50 outline-none transition-all hover:border-white/20 text-secondary"
+                    className="w-10 h-14 sm:w-12 sm:h-16 bg-black/40 border border-white/10 rounded-xl text-2xl font-black font-data-mono text-center focus:border-secondary/50 outline-none transition-all hover:border-white/20 text-secondary"
                     maxLength={1}
                     type="password"
                   />
@@ -147,10 +149,10 @@ export default function LabIdentityGate() {
             </div>
 
             <div className="space-y-4">
-              <button disabled={loading || !selectedMember || pin.join("").length < 4} className="w-full py-5 bg-secondary text-black font-black uppercase tracking-[0.3em] text-xs rounded-2xl hover:bg-[#5affb4] hover:scale-[1.02] transition-all flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(78,222,163,0.3)] disabled:opacity-50 disabled:bg-white/5 disabled:text-white/20 font-label-caps active:scale-95">
+              <button disabled={loading || !selectedMember || pin.join("").length < 6} className="w-full py-5 bg-secondary text-black font-black uppercase tracking-[0.3em] text-xs rounded-2xl hover:bg-[#5affb4] hover:scale-[1.02] transition-all flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(78,222,163,0.3)] disabled:opacity-50 disabled:bg-white/5 disabled:text-white/20 font-label-caps active:scale-95">
                 {loading ? <Loader2 className="animate-spin" size={18} /> : "Establish_Connection"}
               </button>
-              <button type="button" onClick={() => { setStep(1); setPin(["","","",""]); }} className="w-full py-2 text-[9px] font-data-mono text-white/20 uppercase tracking-[0.4em] hover:text-white transition-all font-bold">
+              <button type="button" onClick={() => { setStep(1); setPin(["","","","","",""]); }} className="w-full py-2 text-[9px] font-data-mono text-white/20 uppercase tracking-[0.4em] hover:text-white transition-all font-bold">
                 Abort_&_Re_Target
               </button>
             </div>
