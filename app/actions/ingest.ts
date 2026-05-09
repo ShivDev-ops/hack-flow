@@ -23,6 +23,7 @@ export async function purgeEventAction(eventId: string) {
             supabase.from('hf_telemetry_logs').delete().in('team_id', teamIds),
             supabase.from('hf_judging_results').delete().in('team_id', teamIds),
             supabase.from('hf_chat_messages').delete().in('team_id', teamIds),
+            supabase.from('repository_commits').delete().in('team_id', teamIds),
         ]);
 
         // 3. Delete the teams themselves

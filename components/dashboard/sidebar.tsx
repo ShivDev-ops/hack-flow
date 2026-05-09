@@ -7,7 +7,8 @@ import {
   ArrowLeft,
   LifeBuoy, 
   History,
-  Rocket
+  Rocket,
+  LayoutGrid
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
@@ -44,6 +45,12 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         label: "Triage", 
         href: eventId ? `/dashboard/triage?event_id=${eventId}` : "/dashboard/triage",
         active: pathname === "/dashboard/triage"
+    },
+    { 
+        icon: LayoutGrid, 
+        label: "War Room", 
+        href: eventId ? `/war-room/${eventId}` : "#",
+        active: eventId ? pathname === `/war-room/${eventId}` : false
     },
     { 
       icon: Settings, 

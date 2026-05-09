@@ -118,7 +118,7 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <LabSidebarNav />
+        <LabSidebarNav eventId={activeEvent?.id} />
 
         <div className="mt-auto pt-8 border-t border-white/5 pb-10 bg-white/[0.01] shrink-0">
           <div className="px-8 mb-6">

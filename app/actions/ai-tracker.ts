@@ -892,4 +892,108 @@ export async function getChatHistory(teamId: string) {
     }
 }
 
+/**
+ * EVALUATES THE 'VIBE' OF A COMMIT FOR THE WAR ROOM MEME SYSTEM
+ */
+export async function evaluateCommitVibe(teamName: string, commitMessage: string) {
+    try {
+        const prompt = `
+            You are a snarky, high-octane Hackathon Meme Architect. 
+            Analyze this commit and determine its "Vibe".
+            
+            Team: ${teamName}
+            Message: "${commitMessage}"
+
+            CATEGORIES:
+            1. BULK: A massive amount of code, likely un-tested or a huge feature dump.
+            2. FRANTIC: Quick, short messages like "fix", "please work", "test", or rapid succession.
+            3. START: The very first steps or project initialization.
+            4. HYPE: High quality logic, major milestones, or clean progress.
+            5. END: Committing right before the deadline.
+
+            Respond ONLY with a JSON object:
+            {
+                "searchTerm": "A precise phrase to search on Giphy for a relevant meme (e.g., 'dumping trash', 'hacking fast', 'nervous sweat')",
+                "commentary": "A 1-sentence snarky or hype comment to the team.",
+                "vibe": "BULK" | "FRANTIC" | "START" | "HYPE" | "END"
+            }
+        `;
+
+        const result = await flashModel.generateContent(prompt);
+        return extractJSON(result.response.text());
+    } catch (err) {
+        console.error("VIBE_CHECK_FAIL:", err);
+        return { searchTerm: "hacker", commentary: "System anomaly detected.", vibe: "HYPE" };
+    }
+}
+export async function generateArchitectBroadcast(teamId: string, eventId: string) {
+    try {
+        const supabaseAdmin = await createAdminClient();
+
+        // 1. Check if we already sent a broadcast recently (e.g., last 20 mins) to avoid spam
+        const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+        const { data: recentLogs } = await supabaseAdmin
+            .from("hf_telemetry_logs")
+            .select("id")
+            .eq("team_id", teamId)
+            .eq("action_type", "ARCHITECT_BROADCAST")
+            .gt("created_at", twentyMinsAgo)
+            .limit(1);
+
+        if (recentLogs && recentLogs.length > 0) {
+            return { success: true, skipped: true, message: "Last broadcast was recent. Maintaining radio silence." };
+        }
+
+        // 2. Gather context for Gemini
+        const [commitsRes, tasksRes, teamRes] = await Promise.all([
+            supabaseAdmin.from("repository_commits").select("message, created_at").eq("team_id", teamId).order("created_at", { ascending: false }).limit(5),
+            supabaseAdmin.from("hf_tasks").select("title, status").eq("team_id", teamId),
+            supabaseAdmin.from("hf_teams").select("name, ai_status_summary").eq("id", teamId).single()
+        ]);
+
+        const recentCommits = commitsRes.data?.map(c => c.message).join(", ") || "None";
+        const taskSummary = tasksRes.data?.map(t => `${t.title} (${t.status})`).join(", ") || "No tasks initialized.";
+        const teamName = teamRes.data?.name || "Unknown Team";
+
+        // 3. Generate Prompt
+        const prompt = `
+            You are the "Architect" - the elite, pro-active AI technical lead for the Hack-Flow platform.
+            Your goal is to monitor teams and give them high-impact, tactical, and slightly aggressive technical advice to push them forward.
+            
+            Team: ${teamName}
+            Current AI Status: ${teamRes.data?.ai_status_summary || "Unknown"}
+            Recent GitHub Commits: ${recentCommits}
+            Kanban Tasks: ${taskSummary}
+
+            INSTRUCTIONS:
+            - Analyze if they are "Hot" (pushed recently), "Warm" (active but slow), or "Stuck" (no commits or tasks in review).
+            - Give one sentence of blunt, cyber-punk technical advice.
+            - Focus on a specific technical gap (e.g., lack of auth, slow deployment, missing tests).
+            - Use a commanding but professional tone.
+            - Keep it under 25 words.
+
+            OUTPUT FORMAT: Raw text only. No intro, no "Architect says". Just the transmission.
+        `;
+
+        const result = await flashModel.generateContent(prompt);
+        const broadcast = result.response.text().trim();
+
+        // 4. Log the broadcast
+        await supabaseAdmin.from("hf_telemetry_logs").insert({
+            team_id: teamId,
+            action_type: "ARCHITECT_BROADCAST",
+            table_name: "hf_architect",
+            details: broadcast
+        });
+
+        // 5. Log API Usage
+        await logAPIUsage(eventId, result.response, "ARCHITECT_BROADCAST");
+
+        return { success: true, broadcast };
+    } catch (err) {
+        console.error("ARCHITECT_BROADCAST_FAIL:", err);
+        return { success: false, error: "Radio link interference." };
+    }
+}
+
 

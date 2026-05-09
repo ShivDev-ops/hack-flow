@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Radio, Trash2, Box, Loader2, Clock, ShieldAlert, RefreshCw, BarChart3, ExternalLink } from "lucide-react";
+import { Users, Radio, Trash2, Box, Loader2, Clock, ShieldAlert, RefreshCw, BarChart3, ExternalLink, LayoutGrid } from "lucide-react";
 import { purgeEventAction, syncEventAction } from "@/app/actions/ingest";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -125,12 +125,18 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
                     <BarChart3 size={14}/> Stats
                 </button>
                 <button 
-                    onClick={(e) => { e.stopPropagation(); setIsPurging(true); }} 
-                    className="flex items-center justify-center gap-2 bg-red-500/5 py-4 rounded-2xl text-[10px] font-black text-red-500/60 uppercase hover:bg-red-500/10 border border-red-500/10 transition-all"
+                    onClick={(e) => { e.stopPropagation(); router.push(`/war-room/${event.id}`); }}
+                    className="flex items-center justify-center gap-2 bg-blue-500/10 py-4 rounded-2xl text-[10px] font-black text-blue-400 uppercase hover:bg-blue-500/20 border border-blue-500/10 transition-all"
                 >
-                    <Trash2 size={14}/> Purge
+                    <LayoutGrid size={14}/> War Room
                 </button>
              </div>
+             <button 
+                onClick={(e) => { e.stopPropagation(); setIsPurging(true); }} 
+                className="w-full mt-1 flex items-center justify-center gap-2 bg-red-500/5 py-3 rounded-xl text-[9px] font-black text-red-500/40 uppercase hover:bg-red-500/10 border border-red-500/10 transition-all"
+            >
+                <Trash2 size={12}/> Emergency Purge
+            </button>
           </div>
         </div>
       </div>

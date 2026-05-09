@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import { getLabSession } from "@/app/actions/lab-auth";
 import { updateTaskStatus, deleteTaskAction } from "@/app/actions/kanban"; 
 import { getTeamConfig } from "@/app/actions/lab-config";
-import { Loader2, ExternalLink, Database } from "lucide-react";
+import { generateArchitectBroadcast } from "@/app/actions/ai-tracker";
+import { Loader2, ExternalLink, Database, Activity as ActivityIcon } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { Commit, Task } from "@/types/common";
 import { KanbanBoard } from "@/components/lab/dashboard/kanban-board";
@@ -13,6 +15,7 @@ import { GitFeed } from "@/components/lab/dashboard/git-feed";
 import { ObservabilityPanel } from "@/components/lab/dashboard/observability-panel";
 import { NeuralLinkOverlay } from "@/components/lab/dashboard/neural-link-overlay";
 import { AIInsightPanel } from "@/components/lab/dashboard/ai-insight-panel";
+import { ArchitectBroadcast } from "@/components/lab/dashboard/architect-broadcast";
 import { getSystemObservability } from "@/lib/lab-config/observability";
 
 interface TelemetryLog {
@@ -24,6 +27,8 @@ interface TelemetryLog {
 }
 
 function DatabaseTelemetry({ logs }: { logs: TelemetryLog[] }) {
+  // Filter out Architect Broadcasts from regular list to keep it clean
+  const filteredLogs = logs.filter(log => log.action_type !== 'ARCHITECT_BROADCAST');
   return (
     <div className="glass-panel rim-light rounded-[2.5rem] p-8 shadow-2xl bg-white/[0.01] border border-white/5">
       <header className="flex items-center gap-4 border-b border-white/5 pb-5 mb-6">
@@ -223,6 +228,23 @@ export default function TerminalPage() {
     };
   }, [supabase, session?.teamId, fetchData]);
 
+  // 3. ARCHITECT TRIGGER: Automated coaching generation
+  useEffect(() => {
+    if (session?.teamId && eventId) {
+        const trigger = async () => {
+            const res = await generateArchitectBroadcast(session.teamId, eventId);
+            if (res.success && !res.skipped) {
+                fetchData(session.teamId);
+            }
+        };
+        trigger();
+        const interval = setInterval(trigger, 15 * 60 * 1000); // Check every 15m
+        return () => clearInterval(interval);
+    }
+  }, [session?.teamId, eventId, fetchData]);
+
+  const latestBroadcast = dbLogs.find(log => log.action_type === 'ARCHITECT_BROADCAST')?.details || null;
+
   const handleMoveTask = async (taskId: string, newStatus: string) => {
     setUpdatingId(taskId);
     
@@ -282,6 +304,13 @@ export default function TerminalPage() {
   return (
     <div className="p-6 md:p-12 space-y-12 max-w-[1500px] mx-auto min-h-full selection:bg-secondary/30 relative">
       
+      {/* PROACTIVE AGENT BROADCAST */}
+      <AnimatePresence>
+        {latestBroadcast && (
+          <ArchitectBroadcast message={latestBroadcast} />
+        )}
+      </AnimatePresence>
+
       <header className="flex flex-col gap-8 relative z-10 border-b border-white/5 pb-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
            <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
