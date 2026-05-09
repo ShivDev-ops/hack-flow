@@ -122,7 +122,7 @@ export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
                <CheckCircle2 size={60} className="text-white mx-auto" />
                <h2 className="text-3xl font-black text-white tracking-tighter">Node Synchronized</h2>
                <p className="text-[10px] text-[#a1a1aa] font-mono">Registry Ingestion Complete</p>
-               <button onClick={() => { onClose(); window.location.reload(); }} className="w-full bg-white text-black font-black py-[16px] rounded-xl uppercase mt-[16px] hover:bg-zinc-200 transition-colors">Enter Fleet CMD</button>
+               <button onClick={onClose} className="w-full bg-white text-black font-black py-[16px] rounded-xl uppercase mt-[16px] hover:bg-zinc-200 transition-colors">Enter Fleet CMD</button>
              </div>
           )}
         </div>

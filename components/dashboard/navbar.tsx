@@ -1,29 +1,38 @@
 "use client";
 
-import { Search, Bell, Monitor, ShieldAlert, LogOut } from "lucide-react";
+import { Search, Bell, Monitor, ShieldAlert, LogOut, Menu } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-export function Navbar() {
+export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { data: session } = useSession();
   const router = useRouter();
   const isAdmin = session?.role === 'SUPER_ADMIN';
 
   return (
-    <nav className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-[#050505]/40 backdrop-blur-md sticky top-0 z-[100]">
-      {/* Global Search */}
-      <div className="relative w-96 group">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-secondary transition-colors" size={16} />
-        <input 
-          type="text" 
-          placeholder="Search global hack-fleet..."
-          className="w-full bg-white/[0.03] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-[11px] text-white focus:outline-none focus:border-secondary/50 transition-all font-mono uppercase"
-        />
+    <nav className="h-20 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-[#050505]/40 backdrop-blur-md sticky top-0 z-[100]">
+      {/* Mobile Menu Button & Global Search */}
+      <div className="flex items-center gap-4 flex-1">
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden p-2 text-slate-500 hover:text-white transition-colors"
+        >
+          <Menu size={20} />
+        </button>
+        
+        <div className="relative w-full max-w-96 group hidden sm:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-secondary transition-colors" size={16} />
+          <input 
+            type="text" 
+            placeholder="Search global hack-fleet..."
+            className="w-full bg-white/[0.03] border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-[11px] text-white focus:outline-none focus:border-secondary/50 transition-all font-mono uppercase"
+          />
+        </div>
       </div>
 
       {/* Action Tray */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 md:gap-6">
         {isAdmin && (
             <button 
                 onClick={() => router.push("/admin/fleet-cmd")}

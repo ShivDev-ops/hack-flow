@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Plus, Users, Loader2, LayoutGrid, Archive, Sparkles, ShieldCheck } from "lucide-react";
 import { EventCard } from "@/components/dashboard/event-card";
 import { InitEventModal } from "@/components/dashboard/init-event-modal";
-import { createClient } from "@/lib/supabase/client";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { prepareMicrosoftLink } from "@/app/actions/auth-link";
+import { getOrganizerDashboardData } from "@/app/actions/dashboard";
 
 import { Event, Participant } from "@/types/common";
 
@@ -18,58 +18,46 @@ export default function DashboardPage() {
   const [participantData, setParticipantData] = useState<Pick<Participant, 'id' | 'event_id' | 'team_name'>[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  
-  const supabase = useMemo(() => createClient(), []);
+  const [activeRole, setActiveRole] = useState<string | null>(null);
 
   const fetchFleetStatus = useCallback(async (shouldLoad = true) => {
     if (!session) return;
     if (shouldLoad) setLoading(true);
+    
     try {
-      let eventQuery = supabase.from('hf_events').select('*').order('created_at', { ascending: false });
-      let participantQuery = supabase.from('hf_participants').select('id, event_id, team_name');
-
-      // TENANT SCOPING
-      if (session.role === 'ORGANIZER') {
-          if (session.eventId) {
-              eventQuery = eventQuery.eq('id', session.eventId);
-              participantQuery = participantQuery.eq('event_id', session.eventId);
-          } else {
-              setEvents([]);
-              setParticipantData([]);
-              if (shouldLoad) setLoading(false);
-              setIsModalOpen(true); // Auto-open if no event linked
-              return;
-          }
-      }
-
-      const [eventsRes, participantsRes] = await Promise.all([
-        eventQuery,
-        participantQuery
-      ]);
-
-      if (eventsRes.error) throw eventsRes.error;
+      const res = await getOrganizerDashboardData();
       
-      setEvents(eventsRes.data || []);
-      setParticipantData(participantsRes.data || []);
+      if (res.success) {
+        setEvents((res.events as Event[]) || []);
+        setParticipantData(res.participants || []);
+        setActiveRole(res.role || null);
+        
+        if (res.needsInitialization) {
+            setIsModalOpen(true);
+        } else {
+            setIsModalOpen(false);
+        }
+      } else {
+          console.error("DASHBOARD_DATA_FAIL:", res.error);
+      }
     } catch (error: unknown) {
       console.error("TELEMETRY_SYNC_ERROR:", error instanceof Error ? error.message : "Unknown error");
     } finally {
-      setLoading(false); // Always set to false when done
+      setLoading(false);
     }
-  }, [supabase, session]);
+  }, [session]);
 
   useEffect(() => {
     if (status === "loading") return;
     if (status === "unauthenticated") {
         router.push("/login");
     } else if (status === "authenticated") {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchFleetStatus(false);
     }
   }, [status, fetchFleetStatus, router]);
 
   const totalParticipants = participantData.length;
-  const isAdmin = session?.role === 'SUPER_ADMIN';
+  const isAdmin = activeRole === 'SUPER_ADMIN' || session?.role === 'SUPER_ADMIN';
   const isLinked = !!session?.user?.azure_ad_id;
 
   const handleLinkMicrosoft = async () => {
@@ -80,6 +68,15 @@ export default function DashboardPage() {
       alert("LINK_INIT_FAILED: " + (err instanceof Error ? err.message : "Unknown error"));
     }
   };
+
+  if (loading && status === "authenticated") {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+            <Loader2 className="animate-spin text-secondary" size={48} />
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/40">Syncing_Fleet_Data</span>
+        </div>
+      );
+  }
 
   return (
     <div className="space-y-12 max-w-[1440px] mx-auto p-6 md:p-10 bg-background min-h-screen selection:bg-secondary/30">
@@ -123,7 +120,7 @@ export default function DashboardPage() {
             <Users size={12} className="text-secondary" /> {isAdmin ? "Total Fleet Registry" : "Event Registry"}
           </p>
           <h2 className="text-5xl font-black text-white mt-4 tracking-tighter font-data-mono">
-            {loading ? <Loader2 className="animate-spin text-white/10" size={32} /> : totalParticipants.toLocaleString()}
+            {totalParticipants.toLocaleString()}
           </h2>
         </div>
         
@@ -173,53 +170,39 @@ export default function DashboardPage() {
       </div>
 
       {/* Node Grid */}
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-32 gap-4 opacity-20">
-          <Loader2 className="animate-spin text-white" size={48} />
-          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white font-label-caps">Syncing_Fleet_Data</span>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {events.length > 0 ? (
-            events.map((event) => {
-              const eventParticipants = participantData.filter(p => p.event_id === event.id);
-              const teamCount = new Set(eventParticipants.map(p => p.team_name)).size;
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {events.length > 0 ? (
+          events.map((event) => {
+            const eventParticipants = participantData.filter(p => p.event_id === event.id);
+            const teamCount = new Set(eventParticipants.map(p => p.team_name)).size;
 
-              return (
-                <EventCard 
-                  key={event.id} 
-                  event={event} 
-                  participantCount={eventParticipants.length}
-                  teamCount={teamCount}
-                />
-              );
-            })
-          ) : (
-            <div className="col-span-full py-32 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/[0.01]">
-              <p className="text-white/20 font-data-mono text-sm uppercase tracking-[0.3em]">
-                  {session?.role === 'ORGANIZER' 
-                    ? "Initialize your first node to begin mission." 
-                    : "No active nodes detected in current sector. Access Global Override to generate tenants."}
-              </p>
-              {session?.role === 'ORGANIZER' ? (
-                  <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="mt-8 px-8 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all"
-                  >
-                    Start Initialization
-                  </button>
-              ) : (
+            return (
+              <EventCard 
+                key={event.id} 
+                event={event} 
+                participantCount={eventParticipants.length}
+                teamCount={teamCount}
+              />
+            );
+          })
+        ) : (
+          <div className="col-span-full py-32 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/[0.01]">
+            <p className="text-white/20 font-data-mono text-sm uppercase tracking-[0.3em]">
+                {isAdmin 
+                  ? "No active nodes detected in current sector. Access Global Override to generate tenants."
+                  : "Initialize your first node to begin mission."}
+            </p>
+            {!isAdmin && (
                 <button 
-                    onClick={() => router.push("/admin/fleet-cmd")}
-                    className="mt-8 px-8 py-3 bg-[#a855f7]/10 hover:bg-[#a855f7]/20 text-[#a855f7] rounded-xl border border-[#a855f7]/30 text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(168,85,247,0.1)]"
-                  >
-                    Go to Global Override
-                  </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                  onClick={() => setIsModalOpen(true)}
+                  className="mt-8 px-8 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  Start Initialization
+                </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Modals */}
       <InitEventModal 

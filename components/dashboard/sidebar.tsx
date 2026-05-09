@@ -12,8 +12,9 @@ import {
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { X } from "lucide-react";
 
-export function Sidebar() {
+export function Sidebar({ onClose }: { onClose?: () => void }) {
   const params = useParams();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -53,7 +54,15 @@ export function Sidebar() {
   ];
 
   return (
-    <div className="flex flex-col h-full p-4 bg-[#050505]">
+    <div className="flex flex-col h-full p-4 bg-[#050505] overflow-y-auto custom-scrollbar relative">
+      {/* Mobile Close Button */}
+      <button 
+        onClick={onClose}
+        className="md:hidden absolute top-4 right-4 text-white/40 hover:text-white p-2"
+      >
+        <X size={20} />
+      </button>
+
       {/* HaaS Controller Status */}
       <div className="mb-10 p-4 bg-white/5 rounded-xl border border-white/5">
         <div className="flex items-center gap-2 mb-1">

@@ -17,14 +17,28 @@ import {
   ShieldCheck,
   AlertCircle,
   Eye,
-  Users
+  Users,
+  Trash2,
+  CheckCircle2,
+  Copy,
+  Zap,
+  ShieldAlert,
+  ChevronRight,
+  Mail
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { OrganizerCredentials, Event as HfEvent, APIUsage, Team, TeamMember } from "@/types/common";
-import { getFleetTelemetry } from "@/app/actions/fleet-cmd";
-import bcrypt from "bcryptjs";
+import { 
+  getFleetTelemetry, 
+  generateOrganizerCredentialsAction, 
+  resetOrganizerPasswordAction, 
+  toggleTenantStatusAction,
+  deleteTenantAction
+} from "@/app/actions/fleet-cmd";
+import { TenantDeleteModal } from "@/components/dashboard/tenant-delete-modal";
 
 interface TenantWithEvent extends OrganizerCredentials {
   event?: HfEvent;
@@ -48,17 +62,23 @@ export default function GlobalOverridePage() {
   const [latestLogs, setLatestLogs] = useState<APIUsage[]>([]);
   
   const [searchTerm, setSearchTerm] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   
   // Modal State
   const [isGenModalOpen, setIsGenModalOpen] = useState(false);
   const [newAccessId, setNewAccessId] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<"none" | "sent" | "failed">("none");
 
   // Detail Modal State
   const [selectedTenant, setSelectedTenant] = useState<TenantWithEvent | null>(null);
   const [eventTeams, setEventTeams] = useState<TeamWithMembers[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+
+  // Deletion Modal State
+  const [tenantToDelete, setTenantToDelete] = useState<TenantWithEvent | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -96,43 +116,46 @@ export default function GlobalOverridePage() {
 
   const generateCredentials = async () => {
     setIsGenerating(true);
-    const accessId = `HACK-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-    const rawPass = Math.random().toString(36).substring(2, 10);
-    const hashedPass = await bcrypt.hash(rawPass, 10);
+    const res = await generateOrganizerCredentialsAction(recipientEmail || undefined);
 
-    const { error } = await supabase.from("hf_organizer_credentials").insert({
-      access_id: accessId,
-      password_hash: hashedPass,
-      role: 'ORGANIZER',
-      is_active: true
-    });
-
-    if (error) {
-      alert("GEN_ERROR: " + error.message);
-    } else {
-      setNewAccessId(accessId);
-      setNewPassword(rawPass);
+    if (res.success && res.accessId && res.rawPass) {
+      setNewAccessId(res.accessId);
+      setNewPassword(res.rawPass);
+      setEmailStatus(res.emailSent ? "sent" : (recipientEmail ? "failed" : "none"));
       setIsGenModalOpen(true);
+      setRecipientEmail(""); // Reset after use
       fetchData(true);
+    } else {
+      alert("GEN_ERROR: " + res.error);
     }
     setIsGenerating(false);
   };
 
   const resetOrganizerPassword = async (id: string, accessId: string) => {
-    const rawPass = Math.random().toString(36).substring(2, 10);
-    const hashedPass = await bcrypt.hash(rawPass, 10);
+    if (!confirm(`Are you sure you want to reset the password for ${accessId}?`)) return;
     
-    const { error } = await supabase
-        .from("hf_organizer_credentials")
-        .update({ password_hash: hashedPass })
-        .eq("id", id);
+    const res = await resetOrganizerPasswordAction(id, accessId, recipientEmail || undefined);
     
-    if (error) {
-        alert("RESET_FAIL: " + error.message);
-    } else {
+    if (res.success && res.rawPass) {
         setNewAccessId(accessId);
-        setNewPassword(rawPass);
+        setNewPassword(res.rawPass);
+        setEmailStatus(res.emailSent ? "sent" : (recipientEmail ? "failed" : "none"));
         setIsGenModalOpen(true);
+        setRecipientEmail(""); // Reset after use
+    } else {
+        alert("RESET_FAIL: " + res.error);
+    }
+  };
+
+  const confirmDeleteTenant = async () => {
+    if (!tenantToDelete) return;
+    
+    const res = await deleteTenantAction(tenantToDelete.id);
+    if (res.success) {
+      setTenantToDelete(null);
+      fetchData(true);
+    } else {
+      alert("DELETE_ERROR: " + res.error);
     }
   };
 
@@ -152,11 +175,18 @@ export default function GlobalOverridePage() {
   };
 
   const toggleTenantStatus = async (id: string, currentStatus: boolean) => {
-    const { error } = await supabase
-      .from("hf_organizer_credentials")
-      .update({ is_active: !currentStatus })
-      .eq("id", id);
-    if (!error) fetchData(true);
+    const res = await toggleTenantStatusAction(id, currentStatus);
+    if (res.success) {
+      fetchData(true);
+    } else {
+      alert("TOGGLE_ERROR: " + res.error);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   const filteredTenants = tenants.filter(t => 
@@ -213,27 +243,40 @@ export default function GlobalOverridePage() {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
           {/* Tenant Management Table */}
           <section className="xl:col-span-3 bg-white/[0.03] border border-white/10 rounded-xl overflow-hidden shadow-2xl">
-            <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+            <div className="px-6 py-4 border-b border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center bg-white/5 gap-4">
               <h3 className="font-bold text-sm uppercase tracking-wider">Tenant Registry</h3>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
                   <input 
-                    className="bg-[#0a0a0b] text-[11px] border border-white/10 focus:border-[#a855f7] outline-none rounded py-2 pl-9 pr-3 w-48 font-mono uppercase" 
+                    className="bg-[#0a0a0b] text-[11px] border border-white/10 focus:border-[#a855f7] outline-none rounded py-2 pl-9 pr-3 w-40 sm:w-48 font-mono uppercase" 
                     placeholder="Filter nodes..." 
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <button 
-                  onClick={generateCredentials}
-                  disabled={isGenerating}
-                  className="bg-[#a855f7] text-white px-6 py-2 text-[10px] font-bold uppercase rounded hover:shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all flex items-center gap-2"
-                >
-                  {isGenerating ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />}
-                  New Tenant
-                </button>
+
+                <div className="flex items-center bg-black/40 border border-white/10 rounded-lg overflow-hidden group focus-within:border-[#a855f7]/50 transition-all">
+                  <div className="pl-3 text-white/20 group-focus-within:text-[#a855f7] transition-colors">
+                    <Mail size={14} />
+                  </div>
+                  <input 
+                    type="email"
+                    placeholder="DISPATCH_TARGET_EMAIL"
+                    className="bg-transparent text-[10px] font-mono py-2 px-3 outline-none w-48 text-white placeholder:text-white/10 uppercase"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                  />
+                  <button 
+                    onClick={generateCredentials}
+                    disabled={isGenerating}
+                    className="bg-[#a855f7] text-white px-6 py-2 text-[10px] font-bold uppercase hover:bg-[#b866ff] transition-all flex items-center gap-2 border-l border-white/10 disabled:opacity-50"
+                  >
+                    {isGenerating ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />}
+                    New Tenant
+                  </button>
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -276,12 +319,18 @@ export default function GlobalOverridePage() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-4 text-white/40 text-[9px] uppercase font-bold">
                           <button onClick={() => fetchEventDetails(t)} className="hover:text-[#a855f7] transition-colors flex items-center gap-1"><Eye size={12}/> View</button>
-                          <button onClick={() => resetOrganizerPassword(t.id, t.access_id)} className="hover:text-yellow-500 transition-colors flex items-center gap-1"><RefreshCw size={12}/> Reset</button>
+                          <button onClick={() => resetOrganizerPassword(t.id, t.access_id)} title="RESET_KEY_AND_DISPATCH" className="hover:text-yellow-500 transition-colors flex items-center gap-1"><RefreshCw size={12}/> Reset</button>
                           <button 
                             onClick={() => toggleTenantStatus(t.id, t.is_active)}
                             className={`${t.is_active ? 'hover:text-red-500' : 'hover:text-[#4edea3]'} transition-colors`}
                           >
                             {t.is_active ? 'Suspend' : 'Restore'}
+                          </button>
+                          <button 
+                            onClick={() => setTenantToDelete(t)}
+                            className="hover:text-red-600 transition-colors flex items-center gap-1"
+                          >
+                            <Trash2 size={12}/> Delete
                           </button>
                         </div>
                       </td>
@@ -367,58 +416,98 @@ export default function GlobalOverridePage() {
         </section>
       </main>
 
-      {/* CREDENTIALS GENERATED MODAL */}
-      {isGenModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsGenModalOpen(false)}></div>
-          <div className="relative bg-[#131314] border border-[#a855f7]/30 p-8 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-[#a855f7]/10 rounded-xl text-[#a855f7]">
-                <ShieldCheck size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold uppercase tracking-tight italic">Uplink Created</h3>
-                <p className="text-[10px] text-white/40 uppercase font-mono tracking-widest">Organizer Mission Credentials</p>
-              </div>
-            </div>
+      {/* REBUILT CREDENTIALS MODAL - SYS_SETUP AESTHETIC */}
+      <AnimatePresence>
+        {isGenModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm p-6">
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="bg-zinc-950 border border-white/10 w-full max-w-[480px] rounded-[2.5rem] p-8 md:p-12 shadow-2xl relative flex flex-col gap-10"
+            >
+              <header className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 bg-secondary rounded-full pulse-emerald shadow-[0_0_15px_rgba(78,222,163,0.5)]" />
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] font-mono">Registry_Uplink_Complete</span>
+                </div>
+                <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">Sys_Creds</h2>
+              </header>
 
-            <div className="space-y-4">
-              <div className="p-4 bg-black/40 rounded-xl border border-white/5 group transition-all hover:border-[#a855f7]/20">
-                <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest mb-1 block">Access Identifier</label>
-                <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold font-mono text-[#a855f7] tracking-tighter">{newAccessId}</span>
-                  <button onClick={() => navigator.clipboard.writeText(newAccessId)} className="text-white/20 hover:text-white transition-colors"><RefreshCw size={14}/></button>
+              <div className="space-y-4">
+                <div className="space-y-6">
+                  {/* Access ID Display */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-secondary tracking-[0.3em] flex items-center gap-2 ml-1">
+                      <Network size={12} /> Access_Identifier
+                    </label>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex justify-between items-center group hover:border-secondary/30 transition-all">
+                      <span className="text-2xl font-black font-mono text-white tracking-tighter uppercase">{newAccessId}</span>
+                      <button 
+                        onClick={() => copyToClipboard(newAccessId)}
+                        className="text-white/20 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5"
+                      >
+                        <Copy size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Password Display */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black uppercase text-secondary tracking-[0.3em] flex items-center gap-2 ml-1">
+                      <Lock size={12} /> Authorization_Key
+                    </label>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex justify-between items-center group hover:border-secondary/30 transition-all">
+                      <span className="text-2xl font-black font-mono text-white tracking-tighter">{newPassword}</span>
+                      <button 
+                        onClick={() => copyToClipboard(newPassword)}
+                        className="text-white/20 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/5"
+                      >
+                        <Copy size={18} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Dispatch Status */}
+                {emailStatus !== "none" && (
+                  <div className={`p-4 rounded-xl border flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-500 ${emailStatus === 'sent' ? 'bg-secondary/5 border-secondary/20 text-secondary' : 'bg-red-500/5 border-red-500/20 text-red-500'}`}>
+                    {emailStatus === 'sent' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                    <p className="text-[10px] font-black uppercase tracking-widest font-mono">
+                      {emailStatus === 'sent' ? "Credential_Dispatch_Successful" : "Dispatch_Fail: Check_SMTP_Protocol"}
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-red-500/5 border border-red-500/10 p-6 rounded-2xl flex gap-4 mt-2">
+                  <ShieldAlert size={20} className="text-red-500 shrink-0 mt-1" />
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-black text-red-500 uppercase tracking-widest">Security_Critical</p>
+                    <p className="text-[11px] text-white/40 leading-relaxed uppercase font-bold">
+                      Credentials will not be displayed again. Handover these details to the tenant immediately.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-black/40 rounded-xl border border-white/5 group transition-all hover:border-[#a855f7]/20">
-                <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest mb-1 block">Authorization Key</label>
-                <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold font-mono text-[#a855f7] tracking-tighter">{newPassword}</span>
-                  <button onClick={() => navigator.clipboard.writeText(newPassword)} className="text-white/20 hover:text-white transition-colors"><RefreshCw size={14}/></button>
-                </div>
+              <div className="flex flex-col gap-3 pt-4">
+                <button 
+                  onClick={() => setIsGenModalOpen(false)}
+                  className="w-full bg-secondary text-black font-black py-5 rounded-[1.5rem] uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-[#5affb4] transition-all shadow-[0_0_40px_rgba(78,222,163,0.2)] active:scale-95 group"
+                >
+                  {isCopied ? <CheckCircle2 size={18} /> : <Zap size={18} fill="currentColor" />}
+                  {isCopied ? "COPIED_TO_TERMINAL" : "ACKNOWLEDGE_&_CLOSE"}
+                  <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </button>
               </div>
-            </div>
-
-            <div className="mt-8 flex flex-col gap-3">
-              <div className="flex items-center gap-3 text-red-500/60 bg-red-500/5 p-4 rounded-xl border border-red-500/10 mb-2">
-                <AlertCircle size={14} className="shrink-0" />
-                <p className="text-[9px] font-bold uppercase leading-tight font-mono">CRITICAL: Credentials will not be shown again. Secure them immediately.</p>
-              </div>
-              <button 
-                onClick={() => setIsGenModalOpen(false)}
-                className="w-full py-4 bg-[#a855f7] text-white font-bold uppercase tracking-widest text-[10px] rounded-xl hover:brightness-110 transition-all shadow-xl active:scale-95"
-              >
-                CLOSE_HANDSHAKE
-              </button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* EVENT DETAIL MODAL */}
       {selectedTenant && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 font-mono uppercase tracking-tighter">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 font-mono uppercase tracking-tighter text-left">
             <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setSelectedTenant(null)}></div>
             <div className="relative bg-[#0a0a0b] border border-white/10 w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col rounded-3xl shadow-[0_0_100px_rgba(168,85,247,0.1)]">
                 <div className="p-8 border-b border-white/5 flex justify-between items-start bg-white/[0.02]">
@@ -432,8 +521,8 @@ export default function GlobalOverridePage() {
                     <button onClick={() => setSelectedTenant(null)} className="p-2 hover:bg-white/5 rounded-full transition-colors"><Plus className="rotate-45" size={24}/></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8">
-                    <div className="grid grid-cols-3 gap-6">
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-8 text-left">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl">
                             <p className="text-[9px] text-white/40 mb-1 font-bold tracking-widest">API_CONSUMPTION</p>
                             <h3 className="text-2xl font-black text-[#a855f7] italic">{(usageByEvent[selectedTenant.event_id || ''] || 0).toLocaleString()} <span className="text-[10px] not-italic text-white/20">TOKENS</span></h3>
@@ -448,9 +537,50 @@ export default function GlobalOverridePage() {
                         </div>
                     </div>
 
+                    {/* SECURITY & ACCESS SECTION */}
+                    <div className="p-8 bg-[#a855f7]/5 border border-[#a855f7]/10 rounded-[2rem] space-y-6">
+                        <div className="flex items-center gap-3">
+                            <Lock size={18} className="text-[#a855f7]" />
+                            <h4 className="text-xs font-black text-white uppercase tracking-widest">Security_&_Access_Protocol</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Current_Access_ID</label>
+                                <div className="bg-black/40 border border-white/5 rounded-xl p-4 font-mono text-sm text-white">
+                                    {selectedTenant.access_id}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1">Authorization_Key_Status</label>
+                                <div className="bg-black/40 border border-white/5 rounded-xl p-4 flex justify-between items-center">
+                                    <span className="font-mono text-[11px] text-white/40 italic">•••••••• [ENCRYPTED]</span>
+                                    <button 
+                                        onClick={() => {
+                                            setSelectedTenant(null);
+                                            resetOrganizerPassword(selectedTenant.id, selectedTenant.access_id);
+                                        }}
+                                        className="text-[9px] font-black text-[#a855f7] uppercase hover:underline"
+                                    >
+                                        Reissue_Key
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-white/5 flex items-center gap-4">
+                            <div className={`size-2 rounded-full ${selectedTenant.azure_ad_id ? 'bg-blue-400' : 'bg-white/10'}`} />
+                            <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                                Microsoft_Link: <span className={selectedTenant.azure_ad_id ? "text-blue-400" : "text-white/20"}>
+                                    {selectedTenant.azure_ad_id ? `Linked_Authenticated [${selectedTenant.azure_ad_id.substring(0,8)}...]` : "No_Secondary_Auth_Linked"}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+
                     <div className="space-y-4">
                         <div className="flex items-center justify-between px-2">
-                            <h4 className="text-xs font-black text-white flex items-center gap-2 tracking-widest"><Users size={14}/> Active_Team_Registry</h4>
+                            <h4 className="text-xs font-black text-white flex items-center gap-2 tracking-widest text-left"><Users size={14}/> Active_Team_Registry</h4>
                             <span className="text-[9px] text-white/20">Total: {eventTeams.length} Nodes</span>
                         </div>
                         <div className="grid grid-cols-1 gap-4">
@@ -461,12 +591,12 @@ export default function GlobalOverridePage() {
                                     <div key={team.id} className="p-5 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between group hover:border-[#a855f7]/20 transition-all">
                                         <div className="flex items-center gap-6">
                                             <div className="text-center px-4 border-r border-white/5">
-                                                <p className="text-[8px] text-white/20 mb-1 font-bold">PROGRESS</p>
+                                                <p className="text-[8px] text-white/20 mb-1 font-bold text-left">PROGRESS</p>
                                                 <p className="text-xl font-black text-secondary italic leading-none">{team.ai_progress_score}%</p>
                                             </div>
                                             <div>
-                                                <h5 className="font-black text-white mb-1 group-hover:text-[#a855f7] transition-colors italic">{team.name}</h5>
-                                                <p className="text-[9px] text-white/40 font-bold tracking-widest flex items-center gap-2 italic">
+                                                <h5 className="font-black text-white mb-1 group-hover:text-[#a855f7] transition-colors italic text-left">{team.name}</h5>
+                                                <p className="text-[9px] text-white/40 font-bold tracking-widest flex items-center gap-2 italic text-left uppercase">
                                                     ID: <span className="text-white/60">{team.readable_id || "N/A"}</span> 
                                                     | PIN: <span className="text-white/60">**** [HASHED]</span>
                                                 </p>
@@ -496,6 +626,17 @@ export default function GlobalOverridePage() {
             </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {tenantToDelete && (
+          <TenantDeleteModal 
+            tenantId={tenantToDelete.id}
+            accessId={tenantToDelete.access_id}
+            onConfirm={confirmDeleteTenant}
+            onClose={() => setTenantToDelete(null)}
+          />
+        )}
+      </AnimatePresence>
 
       <footer className="border-t border-[#424754] px-8 py-4 flex justify-between items-center bg-[#131314]">
         <div className="flex items-center gap-8">

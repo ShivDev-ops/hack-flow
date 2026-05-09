@@ -1,15 +1,12 @@
 'use server'
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { getLabSession } from "@/app/actions/lab-auth";
 
-/**
- * PHASE 1: Create the Event Node
- * Updated to remove pin and include optional startTime and endTime.
- */
 export async function createEventAction(
   name: string, 
   maxSize: number = 4,
@@ -17,24 +14,40 @@ export async function createEventAction(
   endTime?: string,
   sheetUrl?: string
 ) {
+  console.log(`[LINKAGE_DEBUG] createEventAction initiated for: ${name}`);
   const session = await getServerSession(authOptions);
   
-  if (!session?.user?.id) {
-    return { success: false, error: "UNAUTHORIZED: Please log in to initialize a node." };
+  if (!session?.user?.name) {
+    console.error("[LINKAGE_DEBUG] UNAUTHORIZED: No session user name found.");
+    return { success: false, error: "UNAUTHORIZED: Session expired." };
   }
 
   const supabase = await createClient();
+  const adminSupabase = await createAdminClient();
 
-  // 1. ENFORCE ONE-EVENT RULE FOR ORGANIZERS
-  if (session.role === 'ORGANIZER' && session.eventId) {
+  // 1. RESOLVE ORGANIZER PROFILE (Using Access ID which is guaranteed unique and in session.user.name)
+  console.log(`[LINKAGE_DEBUG] Resolving profile for AccessID: ${session.user.name}`);
+  const { data: currentProfile, error: profileError } = await adminSupabase
+    .from('hf_organizer_credentials')
+    .select('id, event_id, role, access_id')
+    .ilike('access_id', session.user.name)
+    .maybeSingle();
+
+  if (profileError || !currentProfile) {
+      console.error("[LINKAGE_DEBUG] Profile resolution failed:", profileError?.message || "User not found in DB");
+      return { success: false, error: "PROFILE_NOT_FOUND: Could not identify your organizer account." };
+  }
+
+  if (currentProfile.role === 'ORGANIZER' && currentProfile.event_id) {
+    console.warn(`[LINKAGE_DEBUG] Blocked: Organizer ${currentProfile.access_id} already has event ${currentProfile.event_id}`);
     return { success: false, error: "RESTRICTION_ERROR: This ID is already linked to an active node." };
   }
 
-  // Defaults
+  // 2. INSERT EVENT
   const finalStartTime = startTime || new Date().toISOString();
   const finalEndTime = endTime || new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
-  const { data, error } = await supabase
+  const { data: eventData, error: eventError } = await supabase
     .from('hf_events')
     .insert({
       name: name,
@@ -46,28 +59,31 @@ export async function createEventAction(
     .select()
     .single();
 
-  if (error) return { success: false, error: error.message };
-
-  // 2. LINK TO ORGANIZER CREDENTIALS
-  if (session.role === 'ORGANIZER') {
-    const { error: linkError } = await supabase
-        .from('hf_organizer_credentials')
-        .update({ event_id: data.id })
-        .eq('id', session.user.id);
-    
-    if (linkError) {
-        console.error("LINK_ERROR:", linkError);
-        // We might want to handle this more gracefully, but for now, log it.
-    }
+  if (eventError) {
+      console.error("[LINKAGE_DEBUG] Event insertion failed:", eventError.message);
+      return { success: false, error: eventError.message };
   }
+
+  console.log(`[LINKAGE_DEBUG] Event created successfully with ID: ${eventData.id}`);
+
+  // 3. LINK EVENT TO ORGANIZER
+  console.log(`[LINKAGE_DEBUG] Linking Event ${eventData.id} to Organizer ID ${currentProfile.id} (${currentProfile.access_id})`);
+  const { error: linkError } = await adminSupabase
+      .from('hf_organizer_credentials')
+      .update({ event_id: eventData.id })
+      .eq('id', currentProfile.id);
+  
+  if (linkError) {
+      console.error("[LINKAGE_DEBUG] CRITICAL LINK FAILURE:", linkError.message);
+      return { success: false, error: "LINK_FAILURE: Event created but failed to bind to your profile. Contact support." };
+  }
+
+  console.log("[LINKAGE_DEBUG] Handshake complete. Link verified.");
   
   revalidatePath("/dashboard"); 
-  return { success: true, event: data };
+  return { success: true, event: eventData };
 }
 
-/**
- * PHASE 2: Update Settings
- */
 export async function updateEventSettingsAction(
   eventId: string, 
   settings: {
@@ -78,7 +94,6 @@ export async function updateEventSettingsAction(
   }
 ) {
   const supabase = await createClient();
-  
   const { error } = await supabase
     .from("hf_events")
     .update({
@@ -96,12 +111,8 @@ export async function updateEventSettingsAction(
 
 export async function updateEventMapping(eventId: string, mapping: Record<string, string>, sheetUrl?: string) {
   const supabase = await createClient();
-  
-  // Store the sheet URL inside the mapping object with a reserved key for zero-step background sync
   const finalMapping = { ...mapping };
-  if (sheetUrl) {
-    finalMapping['__sheet_url'] = sheetUrl;
-  }
+  if (sheetUrl) finalMapping['__sheet_url'] = sheetUrl;
 
   const { error } = await supabase
     .from('hf_events')
@@ -145,19 +156,12 @@ export async function updateEventResources(formData: FormData) {
     const problemStatement = formData.get('problemStatement') as string;
     const srsDocument = formData.get('srsDocument') as File | null;
 
-    console.log("ACTION: updateEventResources called for eventId:", eventId);
-
-    if (!eventId) {
-      console.error("VALIDATION_ERROR: Event ID is missing from form data.");
-      return { success: false, error: "Event ID is missing." };
-    }
+    if (!eventId) return { success: false, error: "Event ID is missing." };
     
     const supabase = await createClient();
     let srsPath: string | undefined = undefined;
 
-    // 1. Handle File Upload to Supabase Storage if a file is present
     if (srsDocument && srsDocument.size > 0) {
-      console.log(`ACTION: File detected: ${srsDocument.name}, Size: ${srsDocument.size}`);
       const fileExt = srsDocument.name.split('.').pop();
       const fileName = `${eventId}-${Date.now()}.${fileExt}`;
       const filePath = `public/${fileName}`;
@@ -166,79 +170,53 @@ export async function updateEventResources(formData: FormData) {
         .from('event_resources')
         .upload(filePath, srsDocument);
 
-      if (uploadError) {
-        console.error("SUPABASE_STORAGE_ERROR:", uploadError);
-        return { success: false, error: `Storage Error: ${uploadError.message}` };
-      }
+      if (uploadError) return { success: false, error: `Storage Error: ${uploadError.message}` };
       srsPath = filePath;
-      console.log(`ACTION: File successfully uploaded to path: ${srsPath}`);
     }
 
-    // 2. Update the Database
     const updateData: { problem_statement: string; srs_document_path?: string } = {
       problem_statement: problemStatement
     };
-    // Only include the path in the update if a new file was actually uploaded
-    if (srsPath) {
-      updateData.srs_document_path = srsPath;
-    }
+    if (srsPath) updateData.srs_document_path = srsPath;
 
-    console.log("ACTION: Updating hf_events table with data:", updateData);
     const { error: dbError } = await supabase
       .from('hf_events')
       .update(updateData)
       .eq('id', eventId);
 
     if (dbError) {
-      console.error("SUPABASE_DB_ERROR:", dbError);
-      // If DB update fails, attempt to roll back the file upload to prevent orphaned files
-      if (srsPath) {
-        console.log(`ACTION: Rolling back file upload from ${srsPath}`);
-        await supabase.storage.from('event_resources').remove([srsPath]);
-      }
+      if (srsPath) await supabase.storage.from('event_resources').remove([srsPath]);
       return { success: false, error: `Database Error: ${dbError.message}` };
     }
 
-    console.log("ACTION: Successfully updated event resources.");
     revalidatePath(`/dashboard/event/${eventId}/resources`);
     return { success: true, path: srsPath };
+  } catch (err: any) {
+    return { success: false, error: `A critical error occurred: ${err.message}` };
+  }
+}
 
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "An unexpected server error occurred.";
-    console.error("CRITICAL_ACTION_ERROR in updateEventResources:", err);
-    return { success: false, error: `A critical server error occurred: ${errorMessage}` };
-    }
-    }
+export async function getEventForParticipant() {
+  const supabase = await createClient();
+  const session = await getLabSession();
 
-    export async function getEventForParticipant() {
-    const supabase = await createClient();
-    const session = await getLabSession();
+  if (!session?.teamId) return { success: false, error: "Participant session not found." };
 
-    if (!session?.teamId) {
-    return { success: false, error: "Participant session not found." };
-    }
-
-    // 1. Get the team's event_id
-    const { data: teamData, error: teamError } = await supabase
+  const { data: teamData, error: teamError } = await supabase
     .from("hf_teams")
     .select("event_id")
     .eq("id", session.teamId)
     .single();
 
-    if (teamError || !teamData) {
-    return { success: false, error: "Could not find the participant's team." };
-    }
+  if (teamError || !teamData) return { success: false, error: "Could not find team." };
 
-    // 2. Use the event_id to get the event resources
-    const { data: eventData, error: eventError } = await supabase
+  const { data: eventData, error: eventError } = await supabase
     .from("hf_events")
     .select("name, problem_statement, srs_document_path")
     .eq("id", teamData.event_id)
     .single();
 
-    if (eventError || !eventData) {
-    return { success: false, error: "Could not retrieve event resources." };
-    }
+  if (eventError || !eventData) return { success: false, error: "Could not retrieve event." };
 
-    return { success: true, data: eventData };
-    }
+  return { success: true, data: eventData };
+}
