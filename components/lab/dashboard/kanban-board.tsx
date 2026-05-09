@@ -45,11 +45,11 @@ export function KanbanBoard({
   const isLead = userRole === 'LEAD';
   
   const columns = [
-    { id: 'Todo', title: 'To-Do', color: 'bg-white/20', icon: <Plus size={12}/> },
-    { id: 'Progress', title: 'Active_Work', color: 'bg-secondary', icon: <Zap size={12}/> },
-    { id: 'Review', title: 'In_Review', color: 'bg-amber-400', icon: <Eye size={12}/> },
-    { id: 'Verified', title: 'Completed', color: 'bg-blue-400', icon: <CheckCircle2 size={12}/> },
-    { id: 'Bugs', title: 'Bugs', color: 'bg-red-500', icon: <Bug size={12}/> }
+    { id: 'Todo', title: 'To Do', color: 'bg-white/20', icon: <Plus size={14}/> },
+    { id: 'Progress', title: 'In Progress', color: 'bg-secondary', icon: <Zap size={14}/> },
+    { id: 'Review', title: 'Review', color: 'bg-amber-400', icon: <Eye size={14}/> },
+    { id: 'Verified', title: 'Completed', color: 'bg-blue-400', icon: <CheckCircle2 size={14}/> },
+    { id: 'Bugs', title: 'Issues', color: 'bg-red-500', icon: <Bug size={14}/> }
   ];
 
   const handleDragEnd = (event: any, info: any, task: Task) => {
@@ -101,27 +101,27 @@ export function KanbanBoard({
             <div 
               key={col.id} 
               ref={el => { columnRefs.current[col.id] = el; }}
-              className={`glass-panel rim-light rounded-[2rem] p-5 flex flex-col min-h-[600px] bg-white/[0.01] border border-white/5 transition-all group ${activeDragId ? 'border-white/10' : ''} ${hasPriority ? 'z-50' : 'z-10'}`}
+              className={`glass-panel rim-light rounded-[2.5rem] p-6 flex flex-col min-h-[600px] bg-white/[0.01] border border-white/5 transition-all group ${activeDragId ? 'border-white/10' : ''} ${hasPriority ? 'z-50' : 'z-10'}`}
             >
-              <header className="text-[11px] font-black uppercase text-white/40 mb-6 flex items-center justify-between tracking-[0.3em] font-label-caps border-b border-white/5 pb-5">
+              <header className="text-sm font-black uppercase text-white/40 mb-8 flex items-center justify-between tracking-widest border-b border-white/5 pb-6">
                 <span className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${col.color} ${isActive ? 'animate-pulse shadow-[0_0_10px_#4edea3]' : ''}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full ${col.color} ${isActive ? 'animate-pulse shadow-[0_0_10px_#4edea3]' : ''}`} />
                     {col.title}
                 </span>
-                <div className="flex items-center gap-3 min-w-[24px] justify-end">
-                  <span className="bg-white/5 px-2.5 py-1 rounded-full text-white/60 font-data-mono text-[10px] group-hover:opacity-0 transition-all">{columnTasks.length}</span>
+                <div className="flex items-center gap-4 min-w-[24px] justify-end">
+                  <span className="bg-white/5 px-3 py-1 rounded-full text-white/60 font-bold text-xs group-hover:opacity-0 transition-all">{columnTasks.length}</span>
                   {isTodo && (
                     <button 
                       onClick={() => setIsModalOpen(true)}
-                      className="absolute p-2 bg-white text-black rounded-lg hover:bg-zinc-200 transition-all active:scale-90 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 shadow-xl z-20"
+                      className="absolute p-2.5 bg-white text-black rounded-xl hover:bg-zinc-200 transition-all active:scale-90 opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 shadow-2xl z-20"
                     >
-                      <Plus size={16} />
+                      <Plus size={18} />
                     </button>
                   )}
                 </div>
               </header>
               
-              <div className="space-y-4 flex-1">
+              <div className="space-y-5 flex-1">
                 <AnimatePresence mode="popLayout">
                   {columnTasks.map((task) => (
                       <motion.div 
@@ -143,9 +143,9 @@ export function KanbanBoard({
                         }}
                         key={task.id} 
                         id={`task-card-${task.id}`}
-                        className={`p-5 bg-zinc-950 border border-white/10 rounded-2xl space-y-4 shadow-2xl relative group/card cursor-grab active:cursor-grabbing transition-shadow hover:shadow-white/5 ${activeDragId === task.id ? 'opacity-50 border-secondary' : 'z-20'}`}
+                        className={`p-6 bg-zinc-950 border border-white/10 rounded-3xl space-y-6 shadow-2xl relative group/card cursor-grab active:cursor-grabbing transition-shadow hover:shadow-white/5 ${activeDragId === task.id ? 'opacity-50 border-secondary' : 'z-20'}`}
                       >
-                        <div className={`absolute top-0 left-0 w-1.5 h-full opacity-40 ${col.color}`} />
+                        <div className={`absolute top-0 left-0 w-2 h-full opacity-40 ${col.color}`} />
                         
                         {/* NEURAL PORT - Target point for Wires */}
                         <div 
@@ -155,12 +155,12 @@ export function KanbanBoard({
                            <div className="w-1.5 h-1.5 rounded-full bg-white/40 group-hover/card:bg-secondary" />
                         </div>
                       
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="space-y-1.5 pointer-events-none flex-1">
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="space-y-2 pointer-events-none flex-1">
                           {task.title?.includes("[PHASE") ? (
-                            <div className="flex flex-col gap-1.5">
+                            <div className="flex flex-col gap-2">
                                <div className="flex items-center gap-2">
-                                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest border ${
+                                  <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest border ${
                                     task.title?.includes("PHASE 1") ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
                                     task.title?.includes("PHASE 2") ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
                                     "bg-purple-500/10 text-purple-400 border-purple-500/20"
@@ -168,36 +168,36 @@ export function KanbanBoard({
                                     {task.title?.match(/\[PHASE \d\]/)?.[0].replace(/[\[\]]/g, "")}
                                   </span>
                                </div>
-                               <h4 className="text-[15px] font-black text-white leading-tight uppercase tracking-tight font-body italic">
+                               <h4 className="text-lg font-black text-white leading-tight uppercase tracking-tight italic">
                                  {task.title?.replace(/\[PHASE \d\]\s*/, "")}
                                </h4>
                             </div>
                           ) : (
-                            <h4 className="text-[15px] font-black text-white leading-tight uppercase tracking-tight font-body italic">{task.title}</h4>
+                            <h4 className="text-lg font-black text-white leading-tight uppercase tracking-tight italic">{task.title}</h4>
                           )}
-                          <p className="text-[12px] text-white/30 font-medium leading-relaxed line-clamp-3 uppercase tracking-tight">{task.description}</p>
+                          <p className="text-sm text-white/40 font-medium leading-relaxed line-clamp-3 italic">{task.description}</p>
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-3">
                           {task.commit_sha && (
                             <button 
                               onClick={(e) => { e.stopPropagation(); onRemoveLink?.(task.id); }}
-                              className="p-1.5 text-white/10 hover:text-red-500 transition-colors z-30 bg-black/40 rounded-lg border border-white/5"
-                              title="Disconnect Neural Link"
+                              className="p-2 text-white/10 hover:text-red-500 transition-colors z-30 bg-black/40 rounded-xl border border-white/5"
+                              title="Remove commit link"
                             >
-                              <XCircle size={16} />
+                              <XCircle size={18} />
                             </button>
                           )}
                           <button 
                             onClick={(e) => { e.stopPropagation(); onDeleteTask?.(task.id); }}
-                            className="p-1.5 text-white/10 hover:text-red-500 transition-colors z-30 bg-black/40 rounded-lg border border-white/5"
-                            title="Delete Objective"
+                            className="p-2 text-white/10 hover:text-red-500 transition-colors z-30 bg-black/40 rounded-xl border border-white/5"
+                            title="Delete Task"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={18} />
                           </button>
                         </div>
                       </div>
                       
-                      <div className="pt-2 space-y-3">
+                      <div className="pt-2 space-y-4">
                         {isReview && isLead && (
                              <button 
                                 onClick={(e) => {
@@ -205,25 +205,25 @@ export function KanbanBoard({
                                     const reason = prompt("Enter rejection reason:");
                                     if (reason !== null) onMoveTask(task.id, 'Todo', reason);
                                 }}
-                                className="w-full py-2 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 font-black text-[10px] rounded-lg border border-red-500/20 transition-all uppercase tracking-widest mb-2"
+                                className="w-full py-3 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 font-black text-[11px] rounded-xl border border-red-500/20 transition-all uppercase tracking-widest mb-2"
                              >
-                                Reject_Objective
+                                Needs Changes
                              </button>
                         )}
 
                         {task.status === 'Progress' && (
-                          <div className="space-y-3 bg-white/[0.03] p-3 rounded-xl border border-white/5">
+                          <div className="space-y-3 bg-white/[0.03] p-4 rounded-2xl border border-white/5">
                             <select 
                               style={{ colorScheme: 'dark' }}
-                              className="w-full bg-black/60 border border-white/5 rounded-lg p-3 text-[11px] text-white/60 outline-none focus:border-secondary/50 cursor-pointer font-data-mono appearance-none"
+                              className="w-full bg-black/60 border border-white/5 rounded-xl p-3.5 text-xs text-white/60 outline-none focus:border-secondary/50 cursor-pointer font-bold appearance-none"
                               onChange={(e) => onSelectCommit(task.id, e.target.value)}
                               value={selectedCommit[task.id] || ""}
                               onPointerDown={e => e.stopPropagation()}
                             >
-                              <option value="" disabled>Link telemetry...</option>
+                              <option value="" disabled>Attach GitHub commit...</option>
                               {commits.map(c => (
                                 <option key={c.commit_sha} value={c.commit_sha}>
-                                  {c.commit_sha.substring(0,7)}: {c.message.substring(0,18)}...
+                                  {c.commit_sha.substring(0,7)}: {c.message.substring(0,24)}...
                                 </option>
                               ))}
                             </select>
@@ -232,8 +232,8 @@ export function KanbanBoard({
 
                         <div className="flex items-center justify-between pointer-events-none">
                            {task.commit_sha ? (
-                             <div className="flex items-center gap-1.5 text-[10px] font-data-mono text-secondary/60 uppercase">
-                                <GitBranch size={12}/> {task.commit_sha.substring(0,7)}
+                             <div className="flex items-center gap-2 text-xs font-bold text-secondary/60 uppercase">
+                                <GitBranch size={14}/> {task.commit_sha.substring(0,7)}
                              </div>
                            ) : <div/>}
                         </div>
@@ -243,9 +243,9 @@ export function KanbanBoard({
                 </AnimatePresence>
                 
                 {columnTasks.length === 0 && (
-                  <div className="h-24 flex flex-col items-center justify-center opacity-[0.03] group-hover:opacity-20 transition-opacity border-2 border-dashed border-white/20 rounded-3xl pointer-events-none">
-                    <Plus size={32} className="mb-2" />
-                    <span className="text-[11px] font-black uppercase tracking-widest font-mono">Drop_Objective</span>
+                  <div className="h-32 flex flex-col items-center justify-center opacity-[0.03] group-hover:opacity-20 transition-opacity border-2 border-dashed border-white/20 rounded-[2.5rem] pointer-events-none">
+                    <Plus size={40} className="mb-3" />
+                    <span className="text-xs font-black uppercase tracking-widest">Add Task</span>
                   </div>
                 )}
               </div>

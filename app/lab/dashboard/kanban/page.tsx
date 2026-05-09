@@ -172,14 +172,15 @@ export default function KanbanPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin text-emerald-500" size={40} />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-secondary" size={48} />
+        <p className="text-xs font-black uppercase tracking-widest text-white/40">Syncing System</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-[1800px] mx-auto min-h-full selection:bg-secondary/30 relative overflow-x-hidden">
+    <div className="p-6 md:p-12 space-y-12 max-w-[1800px] mx-auto min-h-full selection:bg-secondary/30 relative overflow-x-hidden">
       {!isMobile && (
         <NeuralLinkOverlay 
           tasks={tasks} 
@@ -191,11 +192,13 @@ export default function KanbanPage() {
         />
       )}
       
-      <header className="flex flex-col gap-6 relative z-10 border-b border-white/5 pb-8">
-        <ObservabilityPanel obs={obsData} deploymentUrl={null} />
-        <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
-          Mission <span className="text-white/20">Objectives</span>
-        </h1>
+      <header className="flex flex-col gap-8 relative z-10 border-b border-white/5 pb-10">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+           <ObservabilityPanel obs={obsData} deploymentUrl={null} />
+           <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter leading-none order-first md:order-last">
+            Project <span className="text-white/20">Tasks</span>
+          </h1>
+        </div>
       </header>
 
       <div className="space-y-12 relative z-10">

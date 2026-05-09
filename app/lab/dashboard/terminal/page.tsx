@@ -25,29 +25,29 @@ interface TelemetryLog {
 
 function DatabaseTelemetry({ logs }: { logs: TelemetryLog[] }) {
   return (
-    <div className="glass-panel rim-light rounded-[2rem] p-6 shadow-2xl bg-white/[0.01] border border-white/5">
-      <header className="flex items-center gap-3 border-b border-white/5 pb-4 mb-4">
-        <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
-          <Database size={18} />
+    <div className="glass-panel rim-light rounded-[2.5rem] p-8 shadow-2xl bg-white/[0.01] border border-white/5">
+      <header className="flex items-center gap-4 border-b border-white/5 pb-5 mb-6">
+        <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-400">
+          <Database size={20} />
         </div>
-        <span className="text-[12px] font-black uppercase tracking-[0.3em] text-white font-label-caps">Audit_Pulse</span>
+        <span className="text-sm font-black uppercase tracking-widest text-white">Recent Activity</span>
       </header>
       
-      <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+      <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-3">
         {logs.length === 0 ? (
-          <div className="py-10 text-center space-y-2">
-            <p className="text-[11px] text-white/20 font-black uppercase tracking-widest font-mono italic">Waiting_for_Uplink...</p>
+          <div className="py-12 text-center space-y-2">
+            <p className="text-xs text-white/20 font-bold uppercase tracking-widest italic">Awaiting connection...</p>
           </div>
         ) : (
           logs.map((log) => (
-            <div key={log.id} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl flex items-center gap-4 group hover:bg-white/[0.04] transition-all">
-              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0 ${
+            <div key={log.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center gap-4 group hover:bg-white/[0.04] transition-all">
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest shrink-0 ${
                 log.action_type === 'INSERT' ? 'bg-emerald-500/20 text-emerald-400' : 
                 log.action_type === 'UPDATE' ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'
               }`}>
                 {log.action_type}
               </span>
-              <span className="text-[11px] text-white/50 truncate font-mono italic flex-1">
+              <span className="text-sm text-white/60 truncate font-medium flex-1 italic">
                 {log.details}
               </span>
             </div>
@@ -272,49 +272,47 @@ export default function TerminalPage() {
 
   if (loading && !session) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
-        <Loader2 className="animate-spin text-emerald-500" size={40} />
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin text-secondary" size={48} />
+        <p className="text-xs font-black uppercase tracking-widest text-white/40">Syncing System</p>
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-[1400px] mx-auto min-h-full selection:bg-secondary/30 relative">
+    <div className="p-6 md:p-12 space-y-12 max-w-[1500px] mx-auto min-h-full selection:bg-secondary/30 relative">
       
-      <header className="flex flex-col gap-6 relative z-10 border-b border-white/5 pb-8">
-        <div className="flex items-center justify-between">
+      <header className="flex flex-col gap-8 relative z-10 border-b border-white/5 pb-10">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
            <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
-        </div>
-        
-        <div className="flex flex-col">
-          <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none flex items-center gap-4">
-            Mission <span className="text-white/20">Terminal</span>
+           <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter leading-none order-first md:order-last">
+            Mission <span className="text-white/20">Hub</span>
           </h1>
         </div>
       </header>
 
       {/* MISSION OBSERVABILITY: Preview & Pulse */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-start relative z-10">
         
         {/* LIVE PREVIEW (Main Center Stage) */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="xl:col-span-8 space-y-10">
           {deploymentUrl ? (
-            <div className="glass-panel rim-light rounded-[2rem] overflow-hidden border border-white/5 bg-black/20 shadow-2xl group transition-all hover:border-blue-500/30">
-              <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_#3b82f6]" />
-                  <span className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] font-label-caps">Deployment_Live_Stream</span>
+            <div className="glass-panel rim-light rounded-[3rem] overflow-hidden border border-white/5 bg-black/40 shadow-2xl group transition-all hover:border-blue-500/30">
+              <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_10px_#3b82f6]" />
+                  <span className="text-xs font-black text-white/60 uppercase tracking-widest">Live Application Preview</span>
                 </div>
                 <a 
                   href={deploymentUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-[11px] font-black text-secondary uppercase hover:text-white transition-colors flex items-center gap-1 font-label-caps"
+                  className="text-xs font-black text-secondary uppercase hover:text-white transition-colors flex items-center gap-2 tracking-widest"
                 >
-                  Launch_External <ExternalLink size={12} />
+                  Open in New Tab <ExternalLink size={14} />
                 </a>
               </div>
-              <div className="relative h-[600px] bg-zinc-900 overflow-hidden">
+              <div className="relative h-[650px] bg-zinc-900/50 overflow-hidden">
                 <iframe 
                   src={deploymentUrl} 
                   className="w-full h-[150%] origin-top-left border-none pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity duration-700"
@@ -327,18 +325,18 @@ export default function TerminalPage() {
               </div>
             </div>
           ) : (
-            <div className="glass-panel rim-light rounded-[2rem] h-[600px] flex flex-col items-center justify-center border border-white/5 bg-white/[0.01]">
-                <div className="p-6 bg-white/5 rounded-full mb-4">
-                    <ExternalLink size={40} className="text-white/10" />
+            <div className="glass-panel rim-light rounded-[3rem] h-[650px] flex flex-col items-center justify-center border border-white/5 bg-white/[0.01]">
+                <div className="p-8 bg-white/5 rounded-3xl mb-6">
+                    <ExternalLink size={48} className="text-white/10" />
                 </div>
-                <p className="text-sm font-black text-white/20 uppercase tracking-[0.3em]">Waiting_for_Deployment_Uplink...</p>
-                <p className="text-[10px] text-white/10 mt-2 font-mono italic">Configure deployment_url in Sys_Setup to activate stream</p>
+                <p className="text-lg font-black text-white/20 uppercase tracking-widest">Waiting for link...</p>
+                <p className="text-xs text-white/10 mt-3 font-medium uppercase italic">Configure your deployment URL in Settings to activate stream</p>
             </div>
           )}
         </div>
 
         {/* AUDIT PULSE (Sidebar) */}
-        <div className="lg:col-span-4 space-y-8">
+        <div className="xl:col-span-4 space-y-10">
            <AIInsightPanel 
               briefing={aiInsights?.briefing || teamData?.ai_status_summary || null}
               insights={aiInsights?.insights || []}
