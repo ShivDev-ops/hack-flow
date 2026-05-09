@@ -7,9 +7,13 @@ import Link from "next/link";
 import { NodeDetailsModal } from "@/components/dashboard/node-details-modal";
 import { promoteTeamToLab } from "@/app/actions/labs";
 import { syncEventAction } from "@/app/actions/ingest";
+import { useSearchParams } from "next/navigation";
 import { Participant, Event } from "@/types/common";
 
 export default function TriagePage() {
+  const searchParams = useSearchParams();
+  const queryEventId = searchParams.get("event_id");
+
   const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [eventData, setEventData] = useState<Event | null>(null);
@@ -24,23 +28,40 @@ export default function TriagePage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data: pData } = await supabase.from("hf_participants").select("*").order("created_at", { ascending: false });
-    const { data: eData } = await supabase.from("hf_events").select("*").order('created_at', { ascending: false }).limit(1).single();
     
-    setAllParticipants((pData as Participant[]) || []);
-    setEventData(eData as Event);
+    // Fetch Event Data first to ensure we have the ID
+    let currentEventId = queryEventId;
+    if (!currentEventId) {
+        const { data: latestEvent } = await supabase.from("hf_events").select("*").order('created_at', { ascending: false }).limit(1).single();
+        currentEventId = latestEvent?.id || null;
+        setEventData(latestEvent as Event);
+    } else {
+        const { data: specificEvent } = await supabase.from("hf_events").select("*").eq("id", currentEventId).single();
+        setEventData(specificEvent as Event);
+    }
 
-    // Only show teams where participants are NOT claimed yet
-    const unclaimedParticipants = (pData as Participant[])?.filter(p => !p.is_claimed) || [];
+    if (currentEventId) {
+        const { data: pData } = await supabase
+            .from("hf_participants")
+            .select("*")
+            .eq("event_id", currentEventId)
+            .order("created_at", { ascending: false });
+        
+        setAllParticipants((pData as Participant[]) || []);
 
-    const uniqueTeams = unclaimedParticipants.reduce((acc: Participant[], current: Participant) => {
-      if (!acc.find(item => item.team_name === current.team_name)) acc.push(current);
-      return acc;
-    }, []);
+        // Only show teams where participants are NOT claimed yet
+        const unclaimedParticipants = (pData as Participant[])?.filter(p => !p.is_claimed) || [];
 
-    setParticipants(uniqueTeams || []);
+        const uniqueTeams = unclaimedParticipants.reduce((acc: Participant[], current: Participant) => {
+            if (!acc.find(item => item.team_name === current.team_name)) acc.push(current);
+            return acc;
+        }, []);
+
+        setParticipants(uniqueTeams || []);
+    }
+    
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, queryEventId]);
 
   useEffect(() => { 
     const init = async () => {

@@ -8,25 +8,45 @@ import { Participant } from "@/types/common";
 export async function purgeEventAction(eventId: string) {
   const supabase = await createAdminClient();
   
-  // 1. Delete Team Members (Linked to teams which are linked to event)
-  const { data: teams } = await supabase.from('hf_teams').select('id').eq('event_id', eventId);
-  if (teams && teams.length > 0) {
-    const teamIds = teams.map(t => t.id);
-    await supabase.from('hf_team_members').delete().in('team_id', teamIds);
-    await supabase.from('hf_teams').delete().in('id', teamIds);
-  }
+  try {
+      // 1. Get all teams linked to this event
+      const { data: teams } = await supabase.from('hf_teams').select('id').eq('event_id', eventId);
+      
+      if (teams && teams.length > 0) {
+        const teamIds = teams.map(t => t.id);
 
-  // 2. Delete Staging Participants
-  await supabase.from('hf_participants').delete().eq('event_id', eventId);
-  
-  // 3. Delete the Event record itself
-  const { error } = await supabase.from('hf_events').delete().eq('id', eventId);
-  
-  if (error) return { success: false, error: error.message };
-  
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/triage");
-  return { success: true };
+        // 2. Cascade delete all team-dependent data
+        await Promise.all([
+            supabase.from('hf_team_members').delete().in('team_id', teamIds),
+            supabase.from('hf_tasks').delete().in('team_id', teamIds),
+            supabase.from('hf_project_dna').delete().in('team_id', teamIds),
+            supabase.from('hf_telemetry_logs').delete().in('team_id', teamIds),
+            supabase.from('hf_judging_results').delete().in('team_id', teamIds),
+            supabase.from('hf_chat_messages').delete().in('team_id', teamIds),
+        ]);
+
+        // 3. Delete the teams themselves
+        await supabase.from('hf_teams').delete().in('id', teamIds);
+      }
+
+      // 4. Delete API telemetry for this event
+      await supabase.from('hf_api_telemetry').delete().eq('event_id', eventId);
+
+      // 5. Delete staging participants
+      await supabase.from('hf_participants').delete().eq('event_id', eventId);
+      
+      // 6. Delete the Event record itself
+      const { error: eventDeleteError } = await supabase.from('hf_events').delete().eq('id', eventId);
+      
+      if (eventDeleteError) throw eventDeleteError;
+      
+      revalidatePath("/dashboard");
+      revalidatePath("/dashboard/triage");
+      return { success: true };
+  } catch (err: any) {
+      console.error("[DEEP_PURGE_FAILURE]:", err);
+      return { success: false, error: err.message };
+  }
 }
 
 export async function testSheetConnection(url: string) {

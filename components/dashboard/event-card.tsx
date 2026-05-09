@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Users, Radio, Trash2, Settings, AlertTriangle, LayoutDashboard, Eye, Box, Loader2, Clock, RefreshCw, BookOpen } from "lucide-react";
-import { purgeEventAction, syncEventAction } from "@/app/actions/ingest";
-import { EventSettingsModal } from "./event-settings-modal";
+import { Users, Radio, Trash2, AlertTriangle, Box, Loader2, Clock, ShieldAlert } from "lucide-react";
+import { purgeEventAction } from "@/app/actions/ingest";
+import { useRouter } from "next/navigation";
 
 import { Event } from "@/types/common";
 
@@ -12,8 +12,7 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
   const [isPurging, setIsPurging] = useState(false);
   const [isPurgingActive, setIsPurgingActive] = useState(false);
   const [purgeInput, setPurgeInput] = useState("");
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const router = useRouter();
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/A";
@@ -25,20 +24,9 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
     });
   };
 
-  const handleSync = async (e: React.MouseEvent) => {
+  const handlePurge = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsSyncing(true);
-    const res = await syncEventAction(event.id);
-    if (res.success) {
-      window.location.reload();
-    } else {
-      alert("Sync failed: " + res.error);
-    }
-    setIsSyncing(false);
-  };
-
-  const handlePurge = async () => {
     if (purgeInput.trim() === event.name.trim()) {
       setIsPurgingActive(true);
       const res = await purgeEventAction(event.id);
@@ -54,9 +42,18 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
     }
   };
 
+  const handleOpenPurge = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsPurging(true);
+  };
+
   return (
     <>
-      <div className="bg-[#050505] border border-white/10 rounded-3xl flex flex-col hover:border-white/30 transition-all shadow-2xl group overflow-hidden">
+      <div 
+        onClick={() => router.push(`/dashboard/event/${event.id}/resources`)}
+        className="bg-[#050505] border border-white/10 rounded-3xl flex flex-col hover:border-white/30 transition-all shadow-2xl group overflow-hidden cursor-pointer"
+      >
         <div className="h-[96px] bg-black relative flex items-center justify-center border-b border-white/10">
            <div className={`absolute top-[12px] right-[12px] flex items-center text-[9px] font-black px-[8px] py-[4px] rounded uppercase tracking-widest ${event.is_active ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]' : 'bg-white/[0.05] text-[#a1a1aa] border border-white/10'}`}>
             {event.is_active ? 'Live' : 'Offline'}
@@ -92,50 +89,55 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
             </div>
           </div>
 
-          <div className="flex flex-col gap-[8px] mt-auto">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-[8px]">
-              <Link href="/dashboard/triage" className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><LayoutDashboard size={14}/> Triage</Link>
-              <Link href={`/dashboard/event/${event.id}`} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Eye size={14}/> View</Link>
-              <Link href={`/dashboard/event/${event.id}/resources`} className="flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><BookOpen size={14}/> Resources</Link>
-              <button onClick={() => setIsSettingsOpen(true)} className="col-span-2 md:col-span-1 flex items-center justify-center gap-[8px] bg-white/[0.03] border border-white/10 py-[12px] rounded-xl text-[10px] font-black text-white uppercase hover:bg-white/[0.08] transition-all"><Settings size={14}/> Config</button>
-              <button onClick={() => setIsPurging(true)} className="col-span-1 flex items-center justify-center gap-[8px] bg-red-500/10 py-[12px] rounded-xl text-[10px] font-black text-red-500 uppercase hover:bg-red-500/20 border border-red-500/20 transition-all"><Trash2 size={14}/> Purge</button>
-            </div>
-            <button 
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="flex items-center justify-center gap-[8px] bg-white text-black py-[14px] rounded-xl text-[10px] font-black uppercase hover:bg-zinc-200 transition-all disabled:opacity-50"
-            >
-              {isSyncing ? <Loader2 className="animate-spin" size={14}/> : <RefreshCw size={14}/>}
-              {isSyncing ? "Syncing..." : "Sync Registry"}
-            </button>
+          <div className="flex flex-col gap-[8px] mt-auto pt-4">
+             <button 
+                onClick={handleOpenPurge} 
+                className="w-full flex items-center justify-center gap-[8px] bg-red-500/10 py-[14px] rounded-xl text-[10px] font-black text-red-500 uppercase hover:bg-red-500/20 border border-red-500/20 transition-all"
+             >
+                <Trash2 size={14}/> Purge Node
+             </button>
           </div>
         </div>
       </div>
 
       {isPurging && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md p-[16px]">
-          {/* THE NUCLEAR FIX: Raw React inline styles guarantee the width cannot collapse */}
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md p-[16px]" onClick={(e) => e.stopPropagation()}>
           <div 
             className="bg-[#050505] border border-red-500/20 rounded-3xl p-[24px] md:p-[32px] text-center space-y-[24px] shadow-2xl"
-            style={{ width: '100%', maxWidth: '400px', minWidth: '320px' }}
+            style={{ width: '100%', maxWidth: '440px', minWidth: '320px' }}
+            onClick={(e) => e.stopPropagation()}
           >
-             <div className="p-[16px] bg-red-500/10 inline-block rounded-full"><AlertTriangle className="text-red-500" size={32} /></div>
+             <div className="p-[16px] bg-red-500/10 inline-block rounded-full"><ShieldAlert className="text-red-500" size={32} /></div>
              <div>
-               <h2 className="text-xl font-black text-white uppercase tracking-tighter">Registry Purge Protocol</h2>
-               <p className="text-[10px] text-[#a1a1aa] mt-[8px]">Permanently wipe all nodes for <strong className="text-white">{event.name}</strong>.</p>
+               <h2 className="text-xl font-black text-white uppercase tracking-tighter">Deep Purge Protocol</h2>
+               <div className="bg-red-500/5 border border-red-500/10 p-4 rounded-2xl mt-4 space-y-2">
+                    <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest">Critical Warning:</p>
+                    <p className="text-[10px] text-white/60 leading-relaxed uppercase tracking-widest font-mono">
+                        Purging this node will permanently delete all associated data:
+                        <span className="block text-white mt-2 font-black">• {participantCount} REGISTERED PARTICIPANTS</span>
+                        <span className="block text-white font-black">• {teamCount} ACTIVE LAB TEAMS</span>
+                        <span className="block text-white font-black">• ALL TASKS, DNA & JUDGING RESULTS</span>
+                    </p>
+               </div>
              </div>
-             <input className="w-full bg-white/[0.03] border border-white/10 focus:border-red-500/50 outline-none rounded-xl p-[16px] text-center text-white font-mono text-sm transition-colors" placeholder="TYPE EVENT NAME" value={purgeInput} onChange={e => setPurgeInput(e.target.value)} />
+             <div className="space-y-4">
+                <p className="text-[9px] text-white/20 font-bold uppercase">To confirm, type the node name: <span className="text-white">{event.name}</span></p>
+                <input 
+                    className="w-full bg-white/[0.03] border border-white/10 focus:border-red-500/50 outline-none rounded-xl p-[16px] text-center text-white font-mono text-sm transition-colors uppercase" 
+                    placeholder="CONFIRM NODE NAME" 
+                    value={purgeInput} 
+                    onChange={e => setPurgeInput(e.target.value)} 
+                />
+             </div>
              <div className="flex gap-[8px]">
-               <button onClick={() => {setIsPurging(false); setPurgeInput("");}} className="flex-1 py-[16px] text-[10px] font-black text-[#a1a1aa] uppercase hover:text-white rounded-xl transition-all">Abort</button>
-               <button onClick={handlePurge} disabled={purgeInput.trim() !== (event.name || "").trim() || isPurgingActive} className="flex-1 flex justify-center items-center bg-red-600 hover:bg-red-500 py-[16px] rounded-xl text-white font-black uppercase text-[10px] disabled:opacity-50 disabled:bg-white/5 disabled:text-[#a1a1aa] transition-all">
-                  {isPurgingActive ? <Loader2 className="animate-spin" size={14}/> : "Execute"}
+               <button onClick={(e) => { e.stopPropagation(); setIsPurging(false); setPurgeInput(""); }} className="flex-1 py-[16px] text-[10px] font-black text-[#a1a1aa] uppercase hover:text-white rounded-xl transition-all">Abort_Operation</button>
+               <button onClick={handlePurge} disabled={purgeInput.trim() !== (event.name || "").trim() || isPurgingActive} className="flex-1 flex justify-center items-center bg-red-600 hover:bg-red-500 py-[16px] rounded-xl text-white font-black uppercase text-[10px] disabled:opacity-50 disabled:bg-white/5 disabled:text-[#a1a1aa] transition-all shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+                  {isPurgingActive ? <Loader2 className="animate-spin" size={14}/> : "Execute_Deep_Purge"}
                </button>
              </div>
           </div>
         </div>
       )}
-      
-      <EventSettingsModal event={event} isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </>
   );
 }

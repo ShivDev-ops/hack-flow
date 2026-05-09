@@ -40,6 +40,26 @@ async function callWithRetry<T>(fn: () => Promise<T>, retries = 3, delay = 2000)
 }
 
 /**
+ * Logs API usage (tokens) to the hf_api_telemetry table.
+ */
+async function logAPIUsage(eventId: string, response: any, operationType: string) {
+  try {
+    const supabaseAdmin = await createAdminClient();
+    const tokens = response?.usageMetadata?.totalTokenCount || 0;
+    
+    if (tokens > 0 && eventId) {
+      await supabaseAdmin.from("hf_api_telemetry").insert({
+        event_id: eventId,
+        tokens_consumed: tokens,
+        operation_type: operationType
+      });
+    }
+  } catch (err) {
+    console.error("[API_USAGE_LOG_FAIL]:", err);
+  }
+}
+
+/**
  * Robust JSON extraction from AI responses that might contain markdown or conversational filler.
  */
 function extractJSON(text: string) {
@@ -106,6 +126,9 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
       return { success: false, error: "The document is too short or empty. Please provide more detail about your project." };
     }
 
+    const { data: teamInfo } = await supabaseAdmin.from("hf_teams").select("event_id").eq("id", teamId).single();
+    const eventId = teamInfo?.event_id;
+
     // 2. AI Synthesis: Extract Technical Pillars
     const prompt = `
       You are a Project DNA Architect. Your task is to analyze the following project document and extract the core technical milestones required to build this project.
@@ -125,6 +148,7 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
     `;
 
     const result = await callWithRetry(() => flashModel.generateContent(prompt));
+    await logAPIUsage(eventId, result, "DNA_SYNTHESIS");
     const milestones = extractJSON(result.response.text());
 
     // 3. Clear existing DNA for this team (Fresh Start)
@@ -175,6 +199,7 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
 
     try {
         const taskResult = await callWithRetry(() => flashModel.generateContent(taskPrompt));
+        await logAPIUsage(eventId, taskResult, "KANBAN_GENERATION");
         const tasks = extractJSON(taskResult.response.text());
 
         // Clear existing tasks to avoid duplicates if re-synthesizing
@@ -240,6 +265,9 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
       .join("\n")
       .slice(0, 15000); // Limit to 15k chars for token efficiency
 
+    const { data: teamInfo } = await supabaseAdmin.from("hf_teams").select("event_id").eq("id", teamId).single();
+    const eventId = teamInfo?.event_id;
+
     // 3. AI Evaluation
     const milestoneSummary = milestones.map((m: DNAMilestone, i: number) => `${i+1}. ${m.milestone_title}: ${m.milestone_description}`).join("\n");
 
@@ -271,6 +299,7 @@ export async function auditCodeChange(teamId: string, diffText: string, contextM
     `;
 
     const result = await callWithRetry(() => flashModel.generateContent(prompt));
+    await logAPIUsage(eventId, result, "CODE_AUDIT");
     const evaluation = extractJSON(result.response.text());
     
     let lastReasoning = "No matches found.";
@@ -430,6 +459,7 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
     try {
         console.log(`[DEEP_AUDIT] Calling gemini-1.5-pro...`);
         const result = await callWithRetry(() => proModel.generateContent(prompt));
+        await logAPIUsage(eventId, result, "DEEP_AUDIT");
         const responseText = result.response.text();
         console.log(`[DEEP_AUDIT] Raw response received, length: ${responseText.length}`);
         evaluationRaw = extractJSON(responseText);
@@ -438,6 +468,7 @@ export async function performDeepAudit(teamId: string, eventId: string, problemS
         console.warn(`[DEEP_AUDIT] gemini-1.5-pro failed, trying flash fallback. Error: ${proErr.message}`);
         try {
             const result = await callWithRetry(() => flashModel.generateContent(prompt));
+            await logAPIUsage(eventId, result, "DEEP_AUDIT_FALLBACK");
             const responseText = result.response.text();
             evaluationRaw = extractJSON(responseText);
             console.log(`[DEEP_AUDIT] gemini-1.5-flash fallback SUCCESS`);
@@ -618,6 +649,7 @@ export async function reAuditTeamWork(teamId: string) {
 
             try {
                 const result = await callWithRetry(() => flashModel.generateContent(prompt));
+                await logAPIUsage(event.id, result, "RE_AUDIT_MILESTONES");
                 const updates = extractJSON(result.response.text());
                 console.log(`[RE_AUDIT] Gemini Flash returned ${updates?.length || 0} updates`);
 
@@ -717,6 +749,7 @@ export async function generateAIInsights(teamId: string) {
         `;
 
         const result = await callWithRetry(() => flashModel.generateContent(prompt));
+        await logAPIUsage(team.event_id, result, "AI_INSIGHTS");
         const insightData = extractJSON(result.response.text());
 
         // Update the team with the latest briefing
@@ -813,6 +846,7 @@ export async function neuralChatAction(teamId: string, role: string, history: { 
         });
 
         const result = await callWithRetry(() => chat.sendMessage(userMessage));
+        await logAPIUsage(team.event_id, result, "NEURAL_CHAT");
         const fullResponse = result.response.text();
 
         // 3. Persist Model Response (Keep raw protocol for UI to parse)

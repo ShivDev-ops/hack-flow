@@ -25,6 +25,11 @@ export async function createEventAction(
 
   const supabase = await createClient();
 
+  // 1. ENFORCE ONE-EVENT RULE FOR ORGANIZERS
+  if (session.role === 'ORGANIZER' && session.eventId) {
+    return { success: false, error: "RESTRICTION_ERROR: This ID is already linked to an active node." };
+  }
+
   // Defaults
   const finalStartTime = startTime || new Date().toISOString();
   const finalEndTime = endTime || new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
@@ -42,6 +47,19 @@ export async function createEventAction(
     .single();
 
   if (error) return { success: false, error: error.message };
+
+  // 2. LINK TO ORGANIZER CREDENTIALS
+  if (session.role === 'ORGANIZER') {
+    const { error: linkError } = await supabase
+        .from('hf_organizer_credentials')
+        .update({ event_id: data.id })
+        .eq('id', session.user.id);
+    
+    if (linkError) {
+        console.error("LINK_ERROR:", linkError);
+        // We might want to handle this more gracefully, but for now, log it.
+    }
+  }
   
   revalidatePath("/dashboard"); 
   return { success: true, event: data };

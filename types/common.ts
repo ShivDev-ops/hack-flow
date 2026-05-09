@@ -5,7 +5,26 @@ export interface Event {
   start_time: string;
   end_time: string | null;
   is_active: boolean;
+  is_locked: boolean;
   column_mapping: Record<string, string>;
+  created_at: string;
+}
+
+export interface OrganizerCredentials {
+  id: string;
+  access_id: string;
+  password_hash: string;
+  event_id: string | null;
+  role: 'ORGANIZER' | 'SUPER_ADMIN';
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface APIUsage {
+  id: string;
+  event_id: string;
+  tokens_consumed: number;
+  operation_type: string;
   created_at: string;
 }
 
