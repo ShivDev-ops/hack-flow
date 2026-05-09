@@ -80,7 +80,7 @@ export default function GlobalOverridePage() {
     } catch (error) {
       console.error("OVERRIDE_SYNC_ERROR:", error);
     } finally {
-      if (shouldLoad) setLoading(false);
+      setLoading(false);
     }
   }, []);
 

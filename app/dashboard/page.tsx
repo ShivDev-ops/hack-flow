@@ -54,7 +54,7 @@ export default function DashboardPage() {
     } catch (error: unknown) {
       console.error("TELEMETRY_SYNC_ERROR:", error instanceof Error ? error.message : "Unknown error");
     } finally {
-      if (shouldLoad) setLoading(false);
+      setLoading(false); // Always set to false when done
     }
   }, [supabase, session]);
 
