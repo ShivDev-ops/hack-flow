@@ -81,8 +81,6 @@ export default function GitPage() {
           onStartWiring={() => {}} // Neural Link wires are disabled on separate pages
         />
       </div>
-
-      {session?.teamId && <AIChatAgent teamId={session.teamId} role={session.role} />}
     </div>
   );
 }

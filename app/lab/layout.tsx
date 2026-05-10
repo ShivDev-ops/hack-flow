@@ -89,11 +89,21 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
   };
 
   if (isAuthOrLobby) {
-    return <div className="bg-background min-h-screen font-body-main">{children}</div>;
+    return (
+      <div className="bg-background min-h-screen font-body-main relative">
+        {children}
+        {session?.teamId && session?.role && (
+          <AIChatAgent 
+            teamId={session.teamId} 
+            role={session.role as string} 
+          />
+        )}
+      </div>
+    );
   }
 
   return (
-    <div className="flex h-screen bg-background text-on-surface font-body-main overflow-hidden selection:bg-primary/30">
+    <div className="flex h-screen bg-background text-on-surface font-body-main overflow-hidden selection:bg-primary/30 relative">
       
       {/* SIDEBAR (Desktop) */}
       <aside className="hidden md:flex flex-col w-72 border-r border-white/5 bg-zinc-950 z-20 overflow-y-auto custom-scrollbar">
@@ -145,7 +155,7 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative min-w-0">
         {/* TOP NAVBAR */}
         <header className="h-20 border-b border-white/5 bg-zinc-950/80 backdrop-blur-xl flex items-center justify-between px-8 z-10">
           <div className="flex items-center gap-8">
@@ -170,15 +180,15 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-[#050505]">
           {children}
         </main>
-
-        {/* PERSISTENT AI CHAT AGENT (Runs in background across pages) */}
-        {session?.teamId && session?.role && (
-          <AIChatAgent 
-            teamId={session.teamId} 
-            role={session.role as string} 
-          />
-        )}
       </div>
+
+      {/* PERSISTENT AI CHAT AGENT (Rendered at layout root for maximum visibility) */}
+      {session?.teamId && session?.role && (
+        <AIChatAgent 
+          teamId={session.teamId} 
+          role={session.role as string} 
+        />
+      )}
 
       {/* MOBILE OVERLAY */}
       {isMobileOpen && (

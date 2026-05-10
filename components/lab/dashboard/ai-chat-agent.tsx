@@ -150,7 +150,7 @@ export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-[100] font-sans">
+    <div className="fixed bottom-8 right-8 z-[9999] font-sans">
       <AnimatePresence>
         {isOpen && (
           <motion.div
