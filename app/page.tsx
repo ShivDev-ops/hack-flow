@@ -182,30 +182,61 @@ export default function LandingPage() {
         {/* PRICING: REFINED_TIERS */}
         <section id="pricing" className="py-32 px-6 max-w-7xl mx-auto space-y-20">
           <div className="text-center space-y-4">
-            <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">Simple Pricing.</h2>
-            <p className="text-white/20 font-bold text-[11px] uppercase tracking-[0.5em]">Transparent resource allocation for every event</p>
+            <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase leading-none">Access_Tiers</h2>
+            <p className="text-white/20 font-bold text-[11px] uppercase tracking-[0.5em]">Join the mission as a Beta Explorer</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <TierCard 
-              name="Student Club" 
+              name="Basic_Node" 
               price="Free" 
-              desc="Perfect for campus meetups and local hackathons."
+              desc="Perfect for small teams and campus meetups."
               accent="white"
               active={true}
             />
             <TierCard 
-              name="Department" 
-              price="$299" 
-              desc="Full observability and AI judging for larger events."
+              name="Elite_Fleet" 
+              price="Beta" 
+              desc="Full observability and AI coaching. Free during beta testing phase."
               accent="primary"
             />
             <TierCard 
               name="University" 
               price="Custom" 
-              desc="Dedicated city-wide infrastructure and support."
+              desc="Large-scale city-wide infrastructure and support."
               accent="secondary"
             />
+          </div>
+
+          {/* CONTACT SECTION: BETA_NOTE */}
+          <div className="pt-20">
+            <div className="bg-white/[0.02] border border-white/5 p-10 md:p-14 rounded-[3rem] text-center space-y-8 relative overflow-hidden group">
+               <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <Terminal size={160} className="rotate-12" />
+               </div>
+               <div className="space-y-4 relative z-10">
+                  <span className="font-bold text-[11px] text-secondary uppercase tracking-[0.5em] block">Recruitment_Status: OPEN</span>
+                  <h3 className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase leading-tight text-white">Join the Beta Mission.</h3>
+                  <p className="text-white/40 text-sm md:text-base font-bold uppercase tracking-widest max-w-2xl mx-auto italic leading-relaxed">
+                    We are looking for elite organizers to stress-test the Hack-Flow engine. Drop a message to establish your node for <span className="text-white underline decoration-secondary/40">Free</span>.
+                  </p>
+               </div>
+               
+               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12 relative z-10">
+                  <a href="mailto:shivendra22september@gmail.com" className="flex items-center gap-3 text-white/60 hover:text-white transition-all group/link">
+                    <div className="p-3 bg-white/5 rounded-xl group-hover/link:bg-secondary/10 transition-all border border-white/5">
+                        <Zap size={18} className="group-hover/link:text-secondary" />
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-widest font-mono">shivendra22september@gmail.com</span>
+                  </a>
+                  <a href="https://www.linkedin.com/in/shivendra-singh-b5b662245" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-white/60 hover:text-white transition-all group/link">
+                    <div className="p-3 bg-white/5 rounded-xl group-hover/link:bg-blue-500/10 transition-all border border-white/5">
+                        <Network size={18} className="group-hover/link:text-blue-400" />
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-widest font-mono">Establish LinkedIn Link</span>
+                  </a>
+               </div>
+            </div>
           </div>
         </section>
       </main>
