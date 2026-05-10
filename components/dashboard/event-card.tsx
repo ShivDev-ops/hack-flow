@@ -143,39 +143,65 @@ export function EventCard({ event, participantCount, teamCount }: { event: Event
 
       <AnimatePresence>
         {isPurging && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-md p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/95 backdrop-blur-sm p-6" onClick={() => { setIsPurging(false); setPurgeInput(""); }}>
             <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-[#0A0A0B] border border-red-500/20 rounded-[3rem] p-10 text-center space-y-8 shadow-2xl max-w-md w-full relative"
-                onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="bg-zinc-950 border border-white/10 w-full max-w-[440px] rounded-2xl p-8 md:p-10 shadow-2xl relative flex flex-col gap-8 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
-                <div className="p-6 bg-red-500/10 inline-block rounded-3xl mb-2"><ShieldAlert className="text-red-500" size={40} /></div>
-                <div className="space-y-2">
-                    <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none">Deep Purge</h2>
-                    <p className="text-[11px] text-white/40 uppercase font-bold tracking-widest leading-relaxed">
-                        Authorized destructive action for <span className="text-red-500">{event.name}</span>. <br/>
-                        Type node name to confirm.
-                    </p>
+              {/* Visual Danger Indicator - Red Glow */}
+              <div className="absolute top-0 left-0 w-full h-1 bg-red-500 shadow-[0_0_20px_#ef4444]" />
+              
+              <header className="space-y-4 text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em] font-mono">Destructive_Action_Protocol</span>
+                </div>
+                <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">Deep_Purge</h2>
+              </header>
+
+              <div className="space-y-6 text-center">
+                <div className="bg-white/5 border border-white/10 p-6 rounded-xl space-y-2">
+                  <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono">Target_Node</p>
+                  <p className="text-xl font-black text-red-500 uppercase tracking-tight break-all">{event.name}</p>
                 </div>
                 
-                <input 
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] font-mono">Verification_Token</p>
+                  <input 
                     autoFocus
-                    className="w-full bg-white/[0.03] border border-white/10 focus:border-red-500/50 outline-none rounded-2xl p-5 text-center text-white font-mono text-base transition-colors uppercase" 
-                    placeholder="CONFIRM NODE NAME" 
+                    style={{ colorScheme: 'dark' }}
+                    className="w-full bg-black/40 border border-white/10 focus:border-red-500/50 outline-none rounded-xl p-5 text-center text-white font-mono text-base uppercase transition-all placeholder:text-white/5 shadow-inner" 
+                    placeholder="TYPE_NODE_NAME" 
                     value={purgeInput} 
                     onChange={e => setPurgeInput(e.target.value)} 
-                />
-                
-                <div className="flex flex-col gap-3">
-                    <button onClick={handlePurge} disabled={purgeInput.trim() !== (event.name || "").trim() || isPurgingActive} className="w-full bg-red-600 hover:bg-red-500 py-5 rounded-2xl text-white font-black uppercase text-xs tracking-widest disabled:opacity-20 transition-all shadow-[0_0_40px_#ef444433] active:scale-95">
-                        {isPurgingActive ? <Loader2 className="animate-spin" size={20}/> : "Execute_Deep_Purge"}
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); setIsPurging(false); setPurgeInput(""); }} className="w-full py-3 text-[10px] font-black text-white/20 uppercase tracking-[0.4em] hover:text-white transition-all">Abort_Operation</button>
+                  />
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={handlePurge} 
+                  disabled={purgeInput.trim() !== (event.name || "").trim() || isPurgingActive} 
+                  className="w-full bg-white text-black font-black py-5 rounded-xl uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 active:scale-95 shadow-xl"
+                >
+                  {isPurgingActive ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={14} fill="currentColor" />}
+                  {isPurgingActive ? "Purging..." : "Execute Terminate"}
+                </button>
+                <button 
+                  onClick={() => { setIsPurging(false); setPurgeInput(""); }}
+                  className="w-full bg-transparent border border-white/10 text-white/60 font-black py-4 rounded-xl uppercase text-[13px] tracking-widest hover:bg-white/5 hover:text-white transition-all active:scale-95 font-mono italic"
+                >
+                  Abort_Sequence
+                </button>
+              </div>
+
+              {/* Animated Scanline */}
+              <div className="absolute inset-0 pointer-events-none animate-scan opacity-5" />
             </motion.div>
-            </div>
+          </div>
         )}
       </AnimatePresence>
     </>

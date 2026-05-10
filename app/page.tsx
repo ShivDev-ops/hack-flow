@@ -210,43 +210,40 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* FOOTER: CLEAN_TACTICAL */}
-      <footer className="py-20 px-6 border-t border-white/5 bg-[#010102]">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-12">
-          <div className="space-y-6">
-            <div className="font-bold text-2xl uppercase italic flex items-center gap-3 group">
-               <div className="size-2.5 bg-secondary rounded-full"></div>
+      {/* FOOTER: ELITE_SINGLE_LINE */}
+      <footer className="py-10 px-6 border-t border-white/5 bg-[#010102]">
+        <div className="max-w-[1600px] mx-auto flex flex-col xl:flex-row justify-between items-center gap-10 whitespace-nowrap overflow-x-hidden">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-10">
+            <div className="font-bold text-lg uppercase italic flex items-center gap-3 group">
+               <div className="size-2 bg-secondary rounded-full"></div>
                Hack-Flow
             </div>
-            <p className="text-white/20 font-bold text-[10px] uppercase tracking-[0.3em] max-w-sm leading-loose">
-              Infrastructure by University Project Hub. <br/>
-              Built for performance engineering.
+            <div className="h-4 w-px bg-white/10 hidden sm:block"></div>
+            <p className="text-white/20 font-bold text-[9px] uppercase tracking-[0.2em] leading-none">
+              Infrastructure by University Project Hub. <span className="mx-3 opacity-30">//</span> Built for performance engineering.
             </p>
           </div>
           
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-12 font-bold text-[10px] uppercase tracking-widest text-white/30">
-             <div className="space-y-3 flex flex-col">
-                <span className="text-white/10 mb-2 font-black">Product</span>
+          <div className="flex items-center gap-x-10 font-bold text-[9px] uppercase tracking-widest text-white/30">
+             <div className="flex items-center gap-5">
+                <span className="text-white/10 font-black">Product:</span>
                 <Link href="#" className="hover:text-secondary transition-colors italic">Docs</Link>
                 <Link href="#" className="hover:text-secondary transition-colors italic">API</Link>
              </div>
-             <div className="space-y-3 flex flex-col">
-                <span className="text-white/10 mb-2 font-black">Security</span>
+             <div className="flex items-center gap-5">
+                <span className="text-white/10 font-black">Security:</span>
                 <Link href="#" className="hover:text-secondary transition-colors italic">Privacy</Link>
                 <Link href="#" className="hover:text-secondary transition-colors italic">Audit</Link>
              </div>
-             <div className="space-y-3 flex flex-col col-span-2 lg:col-span-1">
-                <span className="text-white/10 mb-2 font-black">Status</span>
-                <div className="flex items-center gap-2 text-secondary italic">
-                   <div className="size-1.5 bg-secondary rounded-full animate-pulse shadow-[0_0_10px_#10b981]"></div>
-                   Nominal
-                </div>
+             <div className="flex items-center gap-3 text-secondary italic">
+                <div className="size-1.5 bg-secondary rounded-full animate-pulse shadow-[0_0_10px_#10b981]"></div>
+                Status: Nominal
              </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto mt-24 pt-10 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4 text-[9px] font-black text-white/10 uppercase tracking-[0.5em]">
+        <div className="max-w-[1600px] mx-auto mt-10 pt-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-6 text-[8px] font-black text-white/10 uppercase tracking-[0.5em]">
            <span>© 2026 Hack-Flow Protocol.</span>
-           <span className="italic italic">End-to-End Encryption Enabled</span>
+           <span className="italic">End-to-End Encryption Enabled</span>
         </div>
       </footer>
     </div>
