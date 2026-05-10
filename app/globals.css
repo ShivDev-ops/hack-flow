@@ -42,11 +42,12 @@
 }
 
 @layer base {
-  body {
-    background-color: var(--color-background);
+  html, body {
+    background-color: #000000;
     color: var(--color-on-background);
     font-family: var(--font-body-main);
     -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none; /* Prevents the white overscroll bounce effect */
   }
 }
 
