@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Plus, Users, Loader2, LayoutGrid, Archive, Sparkles, ShieldCheck, Zap, BarChart3, ChevronRight, Activity } from "lucide-react";
 import { EventCard } from "@/components/dashboard/event-card";
 import { InitEventModal } from "@/components/dashboard/init-event-modal";
@@ -25,6 +25,7 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeRole, setActiveRole] = useState<string | null>(null);
+  const hasAutoOpened = useRef(false);
   
   const supabase = useMemo(() => createClient(), []);
 
@@ -40,10 +41,9 @@ export default function DashboardPage() {
         setParticipantData(res.participants || []);
         setActiveRole(res.role || null);
         
-        if (res.needsInitialization) {
+        if (res.needsInitialization && !hasAutoOpened.current) {
             setIsModalOpen(true);
-        } else {
-            setIsModalOpen(false);
+            hasAutoOpened.current = true;
         }
       } else {
           console.error("DASHBOARD_DATA_FAIL:", res.error);
@@ -235,11 +235,15 @@ export default function DashboardPage() {
             <div className="mb-10 opacity-20 group-hover:opacity-40 transition-opacity">
                 <Box size={80} className="mx-auto" />
             </div>
-            <p className="text-white/20 font-black text-lg uppercase tracking-[0.4em] max-w-md mx-auto italic">
-                {isAdmin 
-                  ? "Sector empty. Deploy new tenants to begin monitoring."
-                  : "Registry uninitialized. Launch your first node to start mission."}
-            </p>
+            <div className="w-full max-w-3xl mx-auto px-4">
+              <div className="bg-secondary/5 border border-secondary/10 rounded-[2.5rem] p-10 md:p-16 text-center">
+                <p className="text-white/40 font-bold text-sm md:text-lg leading-relaxed w-full">
+                    {isAdmin 
+                      ? "Sector empty. Deploy new tenants to begin monitoring."
+                      : "Registry uninitialized. Launch your first node to start mission."}
+                </p>
+              </div>
+            </div>
             {!isAdmin && (
                 <button 
                   onClick={() => setIsModalOpen(true)}
@@ -255,10 +259,7 @@ export default function DashboardPage() {
       {/* MODALS */}
       <InitEventModal 
         isOpen={isModalOpen} 
-        onClose={() => {
-          setIsModalOpen(false);
-          fetchFleetStatus(true);
-        }} 
+        onClose={() => setIsModalOpen(false)} 
       />
     </div>
   );
