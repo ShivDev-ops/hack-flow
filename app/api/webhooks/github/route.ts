@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { auditCodeChange } from "@/app/actions/ai-tracker";
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: "IGNORED_EVENT" });
     }
 
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     // 2. Identify the Team by Repository URL
     const rawRepoUrl = data.repository.html_url;

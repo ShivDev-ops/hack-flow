@@ -208,6 +208,7 @@ export async function synthesizeProjectDNA(teamId: string, fileData?: Buffer, te
         for (const task of tasks) {
             await supabaseAdmin.from("hf_tasks").insert({
                 team_id: teamId,
+                event_id: eventId,
                 title: `[PHASE ${task.phase}] ${task.title}`,
                 description: task.description,
                 status: 'Todo'
@@ -809,14 +810,14 @@ export async function neuralChatAction(teamId: string, role: string, history: { 
 
             UNIVERSAL ACTION PROTOCOL:
             - You can suggest technical actions that the user can approve via a button.
-            - If you suggest actions, you MUST append a JSON block at the VERY END of your response on a new line prefixed with "ACTION_PROTOCOL: ".
+            - If you suggest actions, you MUST append a single JSON array block at the VERY END of your response on a new line prefixed with "ACTION_PROTOCOL: ".
+            - Example: ACTION_PROTOCOL: [{"type": "ADD_TASK", "payload": {"title": "Task 1", "description": "Desc", "phase": 1}}]
             - Action Types:
                 1. {"type": "ADD_TASK", "payload": {"title": string, "description": string, "phase": 1|2|3}}
                 2. {"type": "LINK_COMMIT", "payload": {"taskId": string, "commitSha": string, "taskTitle": string}}
-            
+
             - USE LINK_COMMIT when: You see a recent commit that seems to complete an unverified task.
             - USE ADD_TASK when: The user asks for "next steps" or you identify a missing technical component.
-
             Library Uplink (Proactive Advice):
             - Recommend specific tools using the "💡" symbol. No code snippets.
 
@@ -879,12 +880,17 @@ export async function getChatHistory(teamId: string) {
         return { 
             success: true, 
             history: data.map(log => {
-                const details = JSON.parse(log.details);
-                return {
-                    role: details.role,
-                    parts: details.parts
-                };
-            }) 
+                try {
+                    const details = JSON.parse(log.details);
+                    return {
+                        role: details.role,
+                        parts: details.parts
+                    };
+                } catch (e) {
+                    console.error("[CHAT_HISTORY_PARSE_ERR]:", e, log.details);
+                    return null;
+                }
+            }).filter(h => h !== null) 
         };
     } catch (err: any) {
         console.error("GET_CHAT_HISTORY_FAIL:", err);

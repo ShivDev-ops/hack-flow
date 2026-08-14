@@ -91,13 +91,14 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
   if (isAuthOrLobby) {
     return (
       <div className="bg-background min-h-screen font-body-main relative">
-        {children}
         {session?.teamId && session?.role && (
           <AIChatAgent 
             teamId={session.teamId} 
+            eventId={activeEvent?.id || ""}
             role={session.role as string} 
           />
         )}
+        {children}
       </div>
     );
   }
@@ -105,6 +106,15 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background text-on-surface font-body-main overflow-hidden selection:bg-primary/30 relative">
       
+      {/* PERSISTENT AI CHAT AGENT (Rendered at layout root for maximum visibility) */}
+      {session?.teamId && session?.role && (
+        <AIChatAgent 
+          teamId={session.teamId} 
+          eventId={activeEvent?.id || ""}
+          role={session.role as string} 
+        />
+      )}
+
       {/* SIDEBAR (Desktop) */}
       <aside className="hidden md:flex flex-col w-72 border-r border-white/5 bg-zinc-950 z-20 overflow-y-auto custom-scrollbar">
         <div className="p-8 mb-8 border-b border-white/5 bg-white/[0.01]">
@@ -181,14 +191,6 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-
-      {/* PERSISTENT AI CHAT AGENT (Rendered at layout root for maximum visibility) */}
-      {session?.teamId && session?.role && (
-        <AIChatAgent 
-          teamId={session.teamId} 
-          role={session.role as string} 
-        />
-      )}
 
       {/* MOBILE OVERLAY */}
       {isMobileOpen && (

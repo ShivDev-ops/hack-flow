@@ -115,11 +115,18 @@ export async function createTaskAction(teamId: string, eventId: string, title: s
   return { success: true };
 }
 
-export async function bulkAddTasksAction(teamId: string, tasks: { title: string, description: string, phase: number }[]) {
+export async function bulkAddTasksAction(teamId: string, eventId: string, tasks: { title: string, description: string, phase: number }[]) {
   const supabase = await createClient();
+
+  let finalEventId = eventId;
+  if (!finalEventId) {
+    const { data: team } = await supabase.from("hf_teams").select("event_id").eq("id", teamId).single();
+    if (team) finalEventId = team.event_id;
+  }
 
   const taskData = tasks.map(t => ({
     team_id: teamId,
+    event_id: finalEventId,
     title: `[PHASE ${t.phase}] ${t.title}`,
     description: t.description,
     status: 'Todo'
@@ -139,6 +146,7 @@ export async function bulkAddTasksAction(teamId: string, tasks: { title: string,
   });
 
   revalidatePath("/lab/dashboard/terminal");
+  revalidatePath("/lab/dashboard/kanban");
   return { success: true };
 }
 

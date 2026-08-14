@@ -15,10 +15,11 @@ interface Message {
 
 interface AIChatAgentProps {
   teamId: string;
+  eventId: string;
   role: string;
 }
 
-export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
+export function AIChatAgent({ teamId, eventId, role }: AIChatAgentProps) {
   const [isOpen, setIsModalOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -28,6 +29,12 @@ export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
   const [hasNewSystemMessage, setHasNewSystemMessage] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const supabase = useRef(createClient());
+  const isOpenRef = useRef(isOpen);
+
+  // Sync ref with state
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   // LOAD CHAT HISTORY
   useEffect(() => {
@@ -53,8 +60,10 @@ export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
   useEffect(() => {
     if (!teamId) return;
 
+    // Use a unique suffix to avoid "already subscribed" errors on re-renders/Fast Refresh
+    const channelId = `chat-notifications-${teamId}-${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase.current
-      .channel(`chat-notifications-${teamId}`)
+      .channel(channelId)
       .on(
         'postgres_changes',
         { 
@@ -67,7 +76,7 @@ export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
           if (payload.new.action_type === 'ROADMAP_READY') {
             const systemMsg = payload.new.details;
             setMessages(prev => [...prev, { role: 'model', parts: `### SYSTEM_UPLINK: ROADMAP_READY\n\n${systemMsg}` }]);
-            if (!isOpen) setHasNewSystemMessage(true);
+            if (!isOpenRef.current) setHasNewSystemMessage(true);
           }
         }
       )
@@ -76,7 +85,7 @@ export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
     return () => {
       supabase.current.removeChannel(channel);
     };
-  }, [teamId, isOpen]);
+  }, [teamId]);
 
   useEffect(() => {
     if (isOpen) setHasNewSystemMessage(false);
@@ -87,7 +96,7 @@ export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
     let res: any;
 
     if (action.type === 'ADD_TASK') {
-        res = await bulkAddTasksAction(teamId, [action.payload]);
+        res = await bulkAddTasksAction(teamId, eventId, [action.payload]);
     } else if (action.type === 'LINK_COMMIT') {
         res = await linkCommitToTaskAction(teamId, action.payload.taskId, action.payload.commitSha);
     }
@@ -111,7 +120,7 @@ export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
   const handleBulkAdd = async (msgIndex: number, actions: any[]) => {
     setIsActionLoading(msgIndex.toString());
     const tasks = actions.filter(a => a.type === 'ADD_TASK').map(a => a.payload);
-    const res = await bulkAddTasksAction(teamId, tasks);
+    const res = await bulkAddTasksAction(teamId, eventId, tasks);
     if (res.success) {
       setMessages(prev => {
         const next = [...prev];
@@ -203,7 +212,13 @@ export function AIChatAgent({ teamId, role }: AIChatAgentProps) {
                 let actions: any[] = [];
                 if (hasAction) {
                   try {
-                    actions = JSON.parse(msg.parts.split("ACTION_PROTOCOL:")[1].trim());
+                    const rawActionText = msg.parts.split("ACTION_PROTOCOL:")[1];
+                    // Robust extraction: Find the first '[' and the last ']' to isolate the JSON array
+                    const jsonStart = rawActionText.indexOf("[");
+                    const jsonEnd = rawActionText.lastIndexOf("]");
+                    if (jsonStart !== -1 && jsonEnd !== -1) {
+                      actions = JSON.parse(rawActionText.substring(jsonStart, jsonEnd + 1));
+                    }
                   } catch (e) {
                     console.error("Action parse failed", e);
                   }

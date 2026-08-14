@@ -81,6 +81,7 @@ export async function getFleetTelemetry() {
     const { data: tenants, error: tenantsError } = await supabase
       .from("hf_organizer_credentials")
       .select("*, event:hf_events(id, name, is_active)")
+      .neq("role", "SUPER_ADMIN") // SECURITY: Super Admin account must not be manageable via UI
       .order("created_at", { ascending: false });
 
     if (tenantsError) throw tenantsError;
@@ -173,6 +174,17 @@ export async function resetOrganizerPasswordAction(id: string, accessId: string,
     await verifySuperAdmin();
     const supabase = await createAdminClient();
 
+    // PROTECTION: Prevent resetting the Super Admin password via this generic action
+    const { data: targetUser } = await supabase
+      .from("hf_organizer_credentials")
+      .select("role")
+      .eq("id", id)
+      .single();
+
+    if (targetUser?.role === 'SUPER_ADMIN') {
+        return { success: false, error: "SECURITY_VIOLATION: Super Admin credentials must be managed via root terminal." };
+    }
+
     const rawPass = Math.random().toString(36).substring(2, 10);
     const hashedPass = await bcrypt.hash(rawPass, 10);
     
@@ -201,6 +213,17 @@ export async function toggleTenantStatusAction(id: string, currentStatus: boolea
     await verifySuperAdmin();
     const supabase = await createAdminClient();
 
+    // PROTECTION: Prevent suspending the Super Admin account
+    const { data: targetUser } = await supabase
+      .from("hf_organizer_credentials")
+      .select("role")
+      .eq("id", id)
+      .single();
+
+    if (targetUser?.role === 'SUPER_ADMIN') {
+        return { success: false, error: "SECURITY_VIOLATION: Super Admin account cannot be suspended." };
+    }
+
     const { error } = await supabase
       .from("hf_organizer_credentials")
       .update({ is_active: !currentStatus })
@@ -217,6 +240,17 @@ export async function deleteTenantAction(id: string) {
   try {
     await verifySuperAdmin();
     const supabase = await createAdminClient();
+
+    // PROTECTION: Prevent deleting the Super Admin account
+    const { data: targetUser } = await supabase
+      .from("hf_organizer_credentials")
+      .select("role")
+      .eq("id", id)
+      .single();
+
+    if (targetUser?.role === 'SUPER_ADMIN') {
+        return { success: false, error: "SECURITY_VIOLATION: Super Admin account cannot be deleted." };
+    }
 
     const { error } = await supabase
       .from("hf_organizer_credentials")

@@ -14,9 +14,10 @@ import { AIChatAgent } from "@/components/lab/dashboard/ai-chat-agent";
 export default function GitPage() {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [session, setSession] = useState<{ memberId: string; teamId: string; role: string } | null>(null);
+  const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
+  const [dbEndpoint, setDbEndpoint] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
-  const obsData = useMemo(() => getSystemObservability(), []);
   const supabase = useMemo(() => createClient(), []);
 
   const fetchData = useCallback(async (activeTeamId: string) => {
@@ -46,6 +47,17 @@ export default function GitPage() {
           return;
         }
 
+        const { data: config } = await supabase
+          .from("hf_teams")
+          .select("deployment_url, db_connection")
+          .eq("id", activeTeamId)
+          .single();
+
+        if (config) {
+          setDeploymentUrl(config.deployment_url);
+          setDbEndpoint(config.db_connection);
+        }
+
         await fetchData(activeTeamId);
       } catch (error) {
         console.error("Initialization failed:", error);
@@ -68,7 +80,7 @@ export default function GitPage() {
   return (
     <div className="p-4 md:p-8 space-y-8 max-w-[1400px] mx-auto min-h-full selection:bg-secondary/30">
       <header className="flex flex-col gap-6 relative z-10 border-b border-white/5 pb-8">
-        <ObservabilityPanel obs={obsData} deploymentUrl={null} />
+        <ObservabilityPanel deploymentUrl={deploymentUrl} dbEndpoint={dbEndpoint} />
         <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
           Neural <span className="text-white/20">Feed</span>
         </h1>

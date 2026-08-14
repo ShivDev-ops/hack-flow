@@ -27,14 +27,12 @@ async function testGemini() {
     }
   }
 
-  console.log("
-Testing Embedding Model: gemini-embedding-001...");
+  console.log("\nTesting Embedding Model: gemini-embedding-001...");
   const embed = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
   const embedRes = await embed.embedContent("Test string");
   console.log("Embedding Success: Vector length =", embedRes.embedding.values.length);
 
-  console.log("
-DIAGNOSTIC_RESULT: ALL_SYSTEMS_OPERATIONAL");
+  console.log("\nDIAGNOSTIC_RESULT: ALL_SYSTEMS_OPERATIONAL");
 }
 
 testGemini();

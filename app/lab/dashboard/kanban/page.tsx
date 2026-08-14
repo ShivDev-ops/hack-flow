@@ -18,6 +18,8 @@ export default function KanbanPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [session, setSession] = useState<{ memberId: string; teamId: string; role: string } | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
+  const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
+  const [dbEndpoint, setDbEndpoint] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
   // NEURAL LINK STATE
@@ -30,7 +32,6 @@ export default function KanbanPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
   
-  const obsData = useMemo(() => getSystemObservability(), []);
   const supabase = useMemo(() => createClient(), []);
 
   // Neural Link Handlers
@@ -91,8 +92,12 @@ export default function KanbanPage() {
         setSession(sessionData);
 
         const activeTeamId = sessionData.teamId;
-        const { data: teamData } = await supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single();
-        if (teamData) setEventId(teamData.event_id);
+        const { data: teamData } = await supabase.from("hf_teams").select("event_id, deployment_url, db_connection").eq("id", activeTeamId).single();
+        if (teamData) {
+            setEventId(teamData.event_id);
+            setDeploymentUrl(teamData.deployment_url);
+            setDbEndpoint(teamData.db_connection);
+        }
 
         await fetchData(activeTeamId);
       } catch (error) {
@@ -194,7 +199,7 @@ export default function KanbanPage() {
       
       <header className="flex flex-col gap-8 relative z-10 border-b border-white/5 pb-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-           <ObservabilityPanel obs={obsData} deploymentUrl={null} />
+           <ObservabilityPanel deploymentUrl={deploymentUrl} dbEndpoint={dbEndpoint} />
            <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter leading-none order-first md:order-last">
             Project <span className="text-white/20">Tasks</span>
           </h1>

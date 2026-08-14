@@ -3,7 +3,7 @@
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getTeamByReadableId, verifyMemberAccess } from "@/app/actions/lab-auth";
-import { ShieldCheck, Loader2, ArrowRight, ChevronRight } from "lucide-react";
+import { ShieldCheck, Loader2, ArrowRight, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { ParticleBackground } from "@/components/ui/particle-background";
 import { motion } from "framer-motion";
 
@@ -13,6 +13,7 @@ export default function LabIdentityGate() {
   const [readableId, setReadableId] = useState("");
   const [members, setMembers] = useState<any[]>([]);
   const [selectedMember, setSelectedMember] = useState("");
+  const [showPin, setShowPin] = useState(false);
   
   // 6-Digit PIN State
   const [pin, setPin] = useState(["", "", "", "", "", ""]);
@@ -147,7 +148,16 @@ export default function LabIdentityGate() {
             </div>
 
             <div className="space-y-6">
-              <label className="text-[10px] font-black text-secondary uppercase tracking-[0.3em] ml-1 text-center block">Authorization_PIN</label>
+              <div className="flex items-center justify-center gap-4 relative">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-[0.3em] ml-1 text-center block">Authorization_PIN</label>
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-0 text-white/20 hover:text-white transition-colors"
+                >
+                  {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               <div className="flex justify-center gap-3 sm:gap-4">
                 {pin.map((digit, index) => (
                   <input
@@ -158,7 +168,7 @@ export default function LabIdentityGate() {
                     onKeyDown={(e) => handlePinKeyDown(index, e)}
                     className="w-11 h-16 sm:w-14 sm:h-20 bg-white/5 border border-white/10 rounded-2xl text-3xl font-black font-mono text-center focus:border-secondary/50 outline-none transition-all hover:bg-white/10 text-secondary"
                     maxLength={1}
-                    type="password"
+                    type={showPin ? "text" : "password"}
                   />
                 ))}
               </div>

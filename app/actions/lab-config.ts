@@ -28,7 +28,6 @@ export async function updateMissionSpecs(formData: FormData) {
             return { success: false, error: "Team ID is missing." };
         }
 
-        const supabase = await createClient();
         const supabaseAdmin = await createAdminClient();
         let srsPath: string | undefined = undefined;
 
@@ -77,14 +76,14 @@ export async function updateMissionSpecs(formData: FormData) {
             updateData.srs_document_path = srsPath;
         }
 
-        const { error: dbError } = await supabase
+        const { error: dbError } = await supabaseAdmin
             .from('hf_teams')
             .update(updateData)
             .eq('id', teamId);
 
         if (dbError) {
             if (srsPath) {
-                await supabase.storage.from('team_resources').remove([srsPath]);
+                await supabaseAdmin.storage.from('team_resources').remove([srsPath]);
             }
             return { success: false, error: `Database Error: ${dbError.message}` };
         }
@@ -99,7 +98,7 @@ export async function updateMissionSpecs(formData: FormData) {
 }
 
 export async function updateTeamConfig(teamId: string, repoUrl: string, deploymentUrl?: string, dbConnection?: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   
   console.log(`[CONFIG_UPDATE] Team: ${teamId} | Repo: ${repoUrl} | Deployment: ${deploymentUrl}`);
 
@@ -126,7 +125,7 @@ export async function updateTeamConfig(teamId: string, repoUrl: string, deployme
 }
 
 export async function verifyTeamSync(teamId: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const { count, error } = await supabase
     .from("repository_commits")
     .select("*", { count: 'exact', head: true })
@@ -171,4 +170,54 @@ export async function toggleShowcaseAudit(teamId: string, enabled: boolean) {
   revalidatePath("/lab/leaderboard");
   revalidatePath("/lab/config");
   return { success: true };
+}
+
+export async function checkSystemHealth(deploymentUrl?: string | null, dbEndpoint?: string | null) {
+  const results = {
+    deployment: { status: "Offline", color: "bg-white/10", active: false, canIframe: true },
+    database: { status: "Offline", color: "bg-white/10", active: false, latency: "---" }
+  };
+
+  if (deploymentUrl) {
+    try {
+      const start = Date.now();
+      const res = await fetch(deploymentUrl, { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        let canIframe = true;
+        const xFrame = res.headers.get('x-frame-options');
+        const csp = res.headers.get('content-security-policy');
+        
+        if (xFrame && (xFrame.toUpperCase() === 'DENY' || xFrame.toUpperCase() === 'SAMEORIGIN')) {
+            canIframe = false;
+        }
+        if (csp && csp.toLowerCase().includes('frame-ancestors')) {
+            canIframe = false;
+        }
+
+        results.deployment = { status: "Active", color: "bg-blue-500", active: true, canIframe };
+      }
+    } catch (e) {
+      console.warn(`[HEALTH_CHECK] Deployment failed: ${deploymentUrl}`, e);
+    }
+  }
+
+  if (dbEndpoint) {
+    try {
+      const start = Date.now();
+      const res = await fetch(dbEndpoint, { method: 'GET', cache: 'no-store', signal: AbortSignal.timeout(5000) });
+      const end = Date.now();
+      if (res.ok) {
+        results.database = { 
+          status: "Online", 
+          color: "bg-emerald-500", 
+          active: true, 
+          latency: `${end - start}ms` 
+        };
+      }
+    } catch (e) {
+      console.warn(`[HEALTH_CHECK] DB Endpoint failed: ${dbEndpoint}`, e);
+    }
+  }
+
+  return results;
 }

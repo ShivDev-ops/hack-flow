@@ -4,12 +4,13 @@ import { signIn } from "next-auth/react";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Loader2, ShieldCheck, Lock, User, ChevronRight, Info } from "lucide-react";
+import { Loader2, ShieldCheck, Lock, User, ChevronRight, Info, Eye, EyeOff } from "lucide-react";
 
 function LoginContent() {
   const [view, setView] = useState<"organizer" | "participant">("organizer");
   const [accessId, setAccessId] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -119,12 +120,19 @@ function LoginContent() {
                     </div>
                     <input 
                       required
-                      type="password" 
+                      type={showPassword ? "text" : "password"} 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl px-12 text-sm text-white placeholder:text-white/10 focus:outline-none focus:border-secondary/50 focus:bg-white/10 transition-all font-mono"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors p-1"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
               </div>

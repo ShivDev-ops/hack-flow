@@ -71,12 +71,13 @@ export default function TerminalPage() {
   const [teamData, setTeamData] = useState<any>(null);
   const [session, setSession] = useState<{ memberId: string; teamId: string; role: string } | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
-  const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [channelStatus, setChannelStatus] = useState<string>("CONNECTING");
   
   // NEURAL LINK STATE
   const [isWiring, setIsWiring] = useState<string | null>(null);
+  const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
+  const [dbEndpoint, setDbEndpoint] = useState<string | null>(null);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const [hoveredCommitSha, setHoveredCommitSha] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -84,8 +85,7 @@ export default function TerminalPage() {
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
-  
-  const obsData = useMemo(() => getSystemObservability(), []);
+
   const supabase = useMemo(() => createClient(), []);
 
   // Neural Link Handlers
@@ -167,7 +167,9 @@ export default function TerminalPage() {
         ]);
 
         if (configRes.success && configRes.config) {
+          console.log("[TERMINAL_INIT] Loaded Deployment URL:", configRes.config.deployment_url);
           setDeploymentUrl(configRes.config.deployment_url);
+          setDbEndpoint(configRes.config.db_connection);
         }
 
         if (teamDataRes.data) {
@@ -213,6 +215,18 @@ export default function TerminalPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'hf_tasks', filter: `team_id=eq.${activeTeamId}` },
         () => fetchData(activeTeamId)
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'hf_teams', filter: `id=eq.${activeTeamId}` },
+        async () => {
+          const { data: config } = await supabase.from("hf_teams").select("deployment_url, db_connection").eq("id", activeTeamId).single();
+          if (config) {
+            setDeploymentUrl(config.deployment_url);
+            setDbEndpoint(config.db_connection);
+          }
+          fetchData(activeTeamId);
+        }
       )
       .on(
         'postgres_changes',
@@ -313,7 +327,7 @@ export default function TerminalPage() {
 
       <header className="flex flex-col gap-8 relative z-10 border-b border-white/5 pb-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-           <ObservabilityPanel obs={obsData} deploymentUrl={deploymentUrl} />
+           <ObservabilityPanel deploymentUrl={deploymentUrl} dbEndpoint={dbEndpoint} />
            <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter leading-none order-first md:order-last">
             Mission <span className="text-white/20">Hub</span>
           </h1>
@@ -341,16 +355,30 @@ export default function TerminalPage() {
                   Open in New Tab <ExternalLink size={14} />
                 </a>
               </div>
-              <div className="relative h-[650px] bg-zinc-900/50 overflow-hidden">
+              <div className="relative h-[650px] bg-zinc-900/50 overflow-hidden group/iframe">
                 <iframe 
+                  key={deploymentUrl}
                   src={deploymentUrl} 
-                  className="w-full h-[150%] origin-top-left border-none pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity duration-700"
+                  className="w-full h-[150%] origin-top-left border-none opacity-90 group-hover/iframe:opacity-100 transition-opacity duration-700"
                   title="Live Deployment Preview"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                 />
-                <div 
-                  className="absolute inset-0 bg-transparent cursor-pointer" 
-                  onClick={() => window.open(deploymentUrl, '_blank')}
-                />
+                
+                {/* INTERACTION OVERLAY: Only shows if user explicitly wants to bypass the preview wrapper */}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/iframe:opacity-100 transition-opacity flex flex-col items-center justify-center gap-6 backdrop-blur-sm">
+                   <div className="text-center space-y-2 px-10">
+                      <p className="text-sm font-black text-white uppercase tracking-[0.2em]">Security Protocol Active</p>
+                      <p className="text-[10px] text-white/40 uppercase font-bold tracking-widest leading-relaxed">
+                        Some sites restrict direct embedding. If the preview above is blank, use the manual uplink below.
+                      </p>
+                   </div>
+                   <button 
+                      onClick={() => window.open(deploymentUrl, '_blank')}
+                      className="bg-white text-black font-black px-8 py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-secondary transition-all active:scale-95 flex items-center gap-3 shadow-2xl"
+                    >
+                      Establish Direct Uplink <ExternalLink size={16} />
+                    </button>
+                </div>
               </div>
             </div>
           ) : (

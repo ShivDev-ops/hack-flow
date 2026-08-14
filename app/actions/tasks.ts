@@ -29,6 +29,7 @@ export async function createLabTask(formData: {
     description: formData.description,
     priority: formData.priority,
     team_id: formData.teamId,
+    event_id: formData.eventId,
     status: "Todo",
     created_at: new Date().toISOString(),
   });

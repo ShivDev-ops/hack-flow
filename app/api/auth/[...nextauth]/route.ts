@@ -75,8 +75,8 @@ export const authOptions: AuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 300, // 5 minutes to force frequent refresh
   },
-  secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/login',
   },
