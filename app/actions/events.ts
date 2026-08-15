@@ -189,7 +189,8 @@ export async function updateEventResources(formData: FormData) {
       return { success: false, error: `Database Error: ${dbError.message}` };
     }
 
-    revalidatePath(`/dashboard/event/${eventId}/resources`);
+    // Revalidate participant briefing page so lab view sees updated resources
+    revalidatePath('/lab/dashboard/briefing');
     return { success: true, path: srsPath };
   } catch (err: any) {
     return { success: false, error: `A critical error occurred: ${err.message}` };

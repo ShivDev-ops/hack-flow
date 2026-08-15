@@ -12,33 +12,36 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
   useEffect(() => {
     if (error === "AccessDenied") {
-      alert("ACCESS_DENIED: This Microsoft account is not linked to any organizer profile. Please login with your credentials first and link it in the dashboard.");
+      setErrorMessage("ACCESS_DENIED: This Microsoft account is not linked to any organizer profile. Please login with your credentials first and link it in the dashboard.");
     }
   }, [error]);
 
   const handleOrganizerLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return; // prevent duplicate clicks
     setLoading(true);
-    
-    const res = await signIn("credentials", {
+    setErrorMessage('');
+    const res = await signIn('credentials', {
       accessId,
       password,
-      redirect: false
+      redirect: false,
     });
-
     if (res?.error) {
-      alert("INVALID_CREDENTIALS: Access Denied.");
+      setErrorMessage('INVALID_CREDENTIALS: Access Denied.');
     } else {
-      router.push("/dashboard");
+      router.push('/dashboard');
     }
     setLoading(false);
   };
+
+  
 
   const animProps = {
     initial: { opacity: 0, y: 20 },
@@ -94,6 +97,9 @@ function LoginContent() {
 
           {view === "organizer" ? (
             <form onSubmit={handleOrganizerLogin} className="space-y-6">
+              {errorMessage && (
+                <div className="mb-4 p-3 bg-red-500/20 text-red-300 rounded-md border border-red-400">{errorMessage}</div>
+              )}
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] ml-1">Access_Identifier</label>

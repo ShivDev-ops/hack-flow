@@ -115,10 +115,32 @@ export async function ingestParticipants(
 
     const participants: Omit<Participant, 'id' | 'created_at'>[] = []; // Keeping typed list for consistency
 
+// -------------------------------------------------------
+// 1️⃣ Helper to make a team name unique within the event
+// -------------------------------------------------------
+const makeUniqueTeamName = (base: string, seen: Set<string>) => {
+  if (!seen.has(base)) return base;               // first occurrence – keep as‑is
+  let i = 2;
+  let name = `${base} (${i})`;
+  while (seen.has(name)) {
+    i++;
+    name = `${base} (${i})`;
+  }
+  return name;
+};
+
+// -------------------------------------------------------
+// 2️⃣ Track names we have already emitted for this event
+// -------------------------------------------------------
+const usedTeamNames = new Set<string>();
+
     rows.filter(row => row.trim() !== "").forEach((row, index) => {
       const cols = parseCSVLine(row);
       const teamNameIdx = getIdx('team_name');
-      const teamName = teamNameIdx !== -1 ? cols[teamNameIdx] : `UNASSIGNED_${index}`;
+      // Resolve possible duplicate team names
+const rawTeamName = teamNameIdx !== -1 ? cols[teamNameIdx] : `UNASSIGNED_${index}`;
+const teamName = makeUniqueTeamName(rawTeamName, usedTeamNames);
+usedTeamNames.add(teamName);
       
       const teamParticipants: Omit<Participant, 'id' | 'created_at'>[] = [];
 
