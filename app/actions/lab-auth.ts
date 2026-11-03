@@ -26,16 +26,58 @@ export async function getTeamByReadableId(readableId: string) {
 
   if (error || !team) return { success: false, error: "INVALID_TEAM_ID: Node not found in registry." };
 
-  // Fetch the roster for this team using the new name column
+  // Fetch the roster for this team, including participant link for name fallback
   const { data: members } = await supabase
     .from("hf_team_members")
-    .select("id, role, user_id, name")
+    .select("id, role, user_id, name, participant_id")
     .eq("team_id", team.id);
 
-  return { success: true, team, members: members || [] };
+  // If any member has a null name, attempt to resolve it from hf_participants
+  const resolvedMembers = await Promise.all(
+    (members || []).map(async (m) => {
+      if (m.name) return m;
+      if (m.participant_id) {
+        const { data: participant } = await supabase
+          .from("hf_participants")
+          .select("full_name")
+          .eq("id", m.participant_id)
+          .single();
+        return { ...m, name: participant?.full_name || null };
+      }
+      return m;
+    })
+  );
+
+  return { success: true, team, members: resolvedMembers };
 }
 
 export async function verifyMemberAccess(memberId: string, pin: string) {
+  // --- Rate limiting (per IP) for lab login ---
+  let ip = 'unknown';
+  try {
+    const { headers } = await import('next/headers');
+    const hdrs = await headers();
+    ip = hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  } catch (e) {
+    // Fall back gracefully if headers unavailable
+  }
+  if (!(globalThis as any).__labLoginRateStore) (globalThis as any).__labLoginRateStore = new Map();
+  const store = (globalThis as any).__labLoginRateStore as Map<string, { count: number; reset: number }>;
+  const now = Date.now();
+  const windowMs = 60_000; // 1 minute
+  const limit = 20; // allow up to 20 attempts per minute per IP
+  const entry = store.get(ip) || { count: 0, reset: now + windowMs };
+  if (now > entry.reset) {
+    entry.count = 0;
+    entry.reset = now + windowMs;
+  }
+  entry.count += 1;
+  store.set(ip, entry);
+  if (entry.count > limit) {
+    console.warn(`[LAB_AUTH] Rate limit exceeded for IP ${ip}`);
+    return { success: false, error: 'RATE_LIMIT_EXCEEDED: Too many login attempts, please try again later.' };
+  }
+
   const supabase = await createClient();
 
   const { data: member, error } = await supabase

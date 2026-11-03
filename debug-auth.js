@@ -33,8 +33,13 @@ async function debugAuth(id, pass) {
 }
 
 async function run() {
-    await debugAuth("SUPER-ADMIN", "SA_RECOVERY_2026");
-    await debugAuth("HACK-ZYWM6", "i005p60b"); // From previous turn creation
+  const accessId = process.argv[2];
+  const password = process.argv[3];
+  if (!accessId || !password) {
+    console.log("Usage: node debug-auth.js <accessId> <password>");
+    return;
+  }
+  await debugAuth(accessId, password);
 }
 
 run();

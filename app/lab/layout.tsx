@@ -13,9 +13,11 @@ import {
   Zap,
   ShieldAlert,
   Clock,
-  BookOpen
+  BookOpen,
+  Download
 } from "lucide-react";
 import { getLabSession, destroyLabSession } from "@/app/actions/lab-auth";
+import { exportToExternalSite } from "@/app/actions/export";
 import { getActiveEventAction } from "@/app/actions/events";
 import { Event } from "@/types/common";
 
@@ -152,6 +154,27 @@ export default function LabLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-[10px] font-bold text-secondary uppercase tracking-widest">Verified Access</p>
               </div>
             </div>
+          </div>
+          <div className="px-6 mb-3">
+             <button 
+                onClick={async () => {
+                  if (!session?.teamId) return;
+                  try {
+                    await exportToExternalSite(session.teamId, "user@hack-flow.com");
+                    alert("Portfolio exported successfully!");
+                  } catch (e: any) {
+                    alert("Export failed: " + e.message);
+                  }
+                }}
+                disabled={!(activeEvent && (!activeEvent.is_active || (timeLeft.split(':').reduce((acc, val) => acc * 60 + Number(val), 0) < 1800)))}
+                className={`w-full py-4 font-black text-xs uppercase tracking-widest border rounded-2xl transition-all flex items-center justify-center gap-3 active:scale-95 ${
+                  (activeEvent && (!activeEvent.is_active || (timeLeft.split(':').reduce((acc, val) => acc * 60 + Number(val), 0) < 1800))) 
+                    ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border-emerald-500/20 cursor-pointer" 
+                    : "bg-white/5 text-white/20 border-white/5 cursor-not-allowed opacity-50"
+                }`}
+              >
+                <Download size={16} /> Export Portfolio
+              </button>
           </div>
           <div className="px-6">
              <button 

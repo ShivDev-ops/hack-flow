@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { resilientFetch } from './resilient-fetch';
 
 export async function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,6 +13,9 @@ export async function createAdminClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false
+    },
+    global: {
+      fetch: resilientFetch
     }
   });
 }

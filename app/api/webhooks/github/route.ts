@@ -13,11 +13,17 @@ export async function POST(req: Request) {
 
     // 1. Security Check: Verify GitHub Webhook Secret (Only if configured)
     const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
-    if (webhookSecret && signature) {
+    if (webhookSecret) {
+      if (!signature) {
+        console.error("[GITHUB_WEBHOOK] Missing x-hub-signature-256 header.");
+        return NextResponse.json({ error: "MISSING_SIGNATURE" }, { status: 401 });
+      }
       const hmac = crypto.createHmac("sha256", webhookSecret);
       const digest = "sha256=" + hmac.update(payload).digest("hex");
 
-      if (signature !== digest) {
+      const sigBuffer = Buffer.from(signature);
+      const digBuffer = Buffer.from(digest);
+      if (sigBuffer.length !== digBuffer.length || !crypto.timingSafeEqual(sigBuffer, digBuffer)) {
         console.error("[GITHUB_WEBHOOK] Signature mismatch.");
         return NextResponse.json({ error: "UNAUTHORIZED_PAYLOAD" }, { status: 401 });
       }

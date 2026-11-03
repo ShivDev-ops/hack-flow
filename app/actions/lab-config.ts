@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { synthesizeProjectDNA } from "./ai-tracker";
 
 export async function getTeamConfig(teamId: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const { data, error } = await supabase
     .from("hf_teams")
     .select("repo_url, deployment_url, db_connection, readable_id, srs_document_path, showcase_audit")

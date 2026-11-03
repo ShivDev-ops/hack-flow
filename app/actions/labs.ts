@@ -1,16 +1,46 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { Participant } from "@/types/common";
 import crypto from "crypto";
 
 export async function promoteTeamToLab(teamName: string, eventId: string, participants: Participant[]) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   try {
-    const readableId = crypto.randomInt(100000, 999999).toString();
+    const participantIds = participants.map(p => p.id);
+
+    // Prevent duplicate team creation / double clicks
+    const { data: alreadyClaimed } = await supabase
+      .from("hf_participants")
+      .select("id, full_name, is_claimed")
+      .in("id", participantIds)
+      .eq("is_claimed", true);
+
+    if (alreadyClaimed && alreadyClaimed.length > 0) {
+      throw new Error(`Participants already assigned to a team: ${alreadyClaimed.map(p => p.full_name).join(", ")}`);
+    }
+
+    // Ensure unique readable_id with collision retry loop
+    let readableId = "";
+    let isUnique = false;
+    for (let attempts = 0; attempts < 10; attempts++) {
+      readableId = crypto.randomInt(100000, 999999).toString();
+      const { data: existingTeam } = await supabase
+        .from("hf_teams")
+        .select("id")
+        .eq("readable_id", readableId)
+        .maybeSingle();
+
+      if (!existingTeam) {
+        isUnique = true;
+        break;
+      }
+    }
+    if (!isUnique) throw new Error("Failed to generate a unique Team ID. Please try again.");
+
     const rawPin = crypto.randomInt(100000, 999999).toString();
     const hashedPin = await bcrypt.hash(rawPin, 10);
 
@@ -24,7 +54,7 @@ export async function promoteTeamToLab(teamName: string, eventId: string, partic
       .select("id")
       .single();
 
-    if (teamError || !team) throw new Error(teamError.message);
+    if (teamError || !team) throw new Error(teamError?.message || "Failed to create team record");
 
     const membersToInsert = participants.map(p => {
       const rawRole = p.role ? String(p.role).trim().toUpperCase() : "";
@@ -46,7 +76,6 @@ export async function promoteTeamToLab(teamName: string, eventId: string, partic
 
     if (memberError) throw new Error(memberError.message);
 
-    const participantIds = participants.map(p => p.id);
     const { error: updateError } = await supabase
       .from("hf_participants")
       .update({ is_claimed: true })

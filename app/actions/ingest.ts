@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Participant } from "@/types/common";
+import { extractSpreadsheetId, getSheetHeaders, getSheetRawValues } from "@/lib/google-sheets";
 
 export async function purgeEventAction(eventId: string) {
   const supabase = await createAdminClient();
@@ -52,16 +53,55 @@ export async function purgeEventAction(eventId: string) {
 
 export async function testSheetConnection(url: string) {
   try {
-    const sheetIdMatch = url.match(/\/d\/(.*?)(\/|$)/);
-    if (!sheetIdMatch) return { success: false, error: "Invalid Google Sheets URL format." };
-    const sheetId = sheetIdMatch[1];
-    const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`);
-    if (!response.ok) return { success: false, error: "Access Denied: Ensure sheet is public." };
-    const csvText = await response.text();
-    const headers = csvText.split('\n')[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    return { success: true, headers };
+    const sheetId = extractSpreadsheetId(url);
+    if (!sheetId) return { success: false, error: "Invalid Google Sheets URL format. Please provide a valid sheet link." };
+
+    // 1. Primary: Official Google Sheets API v4 via Service Account
+    try {
+      const headers = await getSheetHeaders(sheetId);
+      if (headers && headers.length > 0) {
+        return { success: true, headers };
+      }
+    } catch (gErr: any) {
+      console.warn("[SHEET_HANDSHAKE] Google API lookup notice:", gErr?.message || gErr);
+      if (gErr?.code === 403 || gErr?.message?.includes("permission") || gErr?.message?.includes("The caller does not have permission")) {
+        const saEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "hf-sheet-syncer@hack-flow-495200.iam.gserviceaccount.com";
+        return {
+          success: false,
+          error: `Permission Denied: Please share your sheet with '${saEmail}' (Viewer access) or set General Access to 'Anyone with the link can view'.`
+        };
+      }
+      if (gErr?.code === 404 || gErr?.message?.includes("not found")) {
+        return { success: false, error: "Spreadsheet not found. Please verify the URL or Sheet ID." };
+      }
+    }
+
+    // 2. Fallback: Public CSV export
+    try {
+      const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      if (response.ok) {
+        const csvText = await response.text();
+        const headers = csvText.split(/\r?\n/)[0].split(',').map(h => h.trim().replace(/^"|"$/g, '')).filter(Boolean);
+        if (headers.length > 0) {
+          return { success: true, headers };
+        }
+      }
+    } catch (fetchErr) {
+      console.warn("[SHEET_HANDSHAKE] Fallback CSV fetch failed:", fetchErr);
+    }
+
+    const saEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "hf-sheet-syncer@hack-flow-495200.iam.gserviceaccount.com";
+    return {
+      success: false,
+      error: `Handshake Failed: Unable to read Google Sheet. Please share the sheet with "${saEmail}" (Viewer access) or set General Access to "Anyone with the link can view".`
+    };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    return { success: false, error: msg };
   }
 }
 
@@ -76,37 +116,51 @@ export async function ingestParticipants(
   try {
     if (shouldPurge) await purgeEventAction(eventId);
 
-    const sheetIdMatch = url.match(/\/d\/(.*?)(\/|$)/);
-    if (!sheetIdMatch) throw new Error("Invalid Google Sheets URL");
-    
-    const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetIdMatch[1]}/export?format=csv`);
-    if (!response.ok) throw new Error("Sheet_Inaccessible");
-    
-    const csvText = await response.text();
-    const lines = csvText.split(/\r?\n/);
-    
-    // Robust CSV Parser for quoted values
+    const sheetId = extractSpreadsheetId(url);
+    if (!sheetId) throw new Error("Invalid Google Sheets URL format");
+
+    let headers: string[] = [];
+    let rows: (string[] | string)[] = [];
+
+    // 1. Primary: Official Google Sheets API
+    try {
+      const rawValues = await getSheetRawValues(sheetId);
+      if (rawValues && rawValues.length > 0) {
+        headers = rawValues[0].map(h => String(h || "").trim());
+        rows = rawValues.slice(1);
+      }
+    } catch (gErr) {
+      console.warn("[SHEET_INGEST] Google API failed, falling back to CSV export:", gErr);
+    }
+
+    // Helper parser if fallback string row is used
     const parseCSVLine = (line: string) => {
       const result = [];
       let current = '';
       let inQuotes = false;
       for (let i = 0; i < line.length; i++) {
         const char = line[i];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
+        if (char === '"') inQuotes = !inQuotes;
+        else if (char === ',' && !inQuotes) {
           result.push(current.trim());
           current = '';
-        } else {
-          current += char;
-        }
+        } else current += char;
       }
       result.push(current.trim());
       return result.map(v => v.replace(/^"|"$/g, ''));
     };
 
-    const headers = parseCSVLine(lines[0]);
-    const rows = lines.slice(1); 
+    // 2. Fallback: CSV export
+    if (headers.length === 0) {
+      const response = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`);
+      if (!response.ok) throw new Error("Sheet_Inaccessible: Ensure sheet is shared with service account or public.");
+      
+      const csvText = await response.text();
+      const lines = csvText.split(/\r?\n/);
+      headers = parseCSVLine(lines[0]);
+      rows = lines.slice(1);
+    }
+
     const getIdx = (key: string) => {
       const headerName = mapping[key];
       if (!headerName) return -1;
@@ -134,8 +188,13 @@ const makeUniqueTeamName = (base: string, seen: Set<string>) => {
 // -------------------------------------------------------
 const usedTeamNames = new Set<string>();
 
-    rows.filter(row => row.trim() !== "").forEach((row, index) => {
-      const cols = parseCSVLine(row);
+    rows.filter(row => {
+      if (Array.isArray(row)) return row.length > 0 && row.some(cell => String(cell || '').trim() !== "");
+      return typeof row === 'string' && row.trim() !== "";
+    }).forEach((row, index) => {
+      const cols: string[] = Array.isArray(row) 
+        ? row.map(c => String(c ?? '').trim()) 
+        : parseCSVLine(row);
       const teamNameIdx = getIdx('team_name');
       // Resolve possible duplicate team names
 const rawTeamName = teamNameIdx !== -1 ? cols[teamNameIdx] : `UNASSIGNED_${index}`;

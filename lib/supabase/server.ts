@@ -1,6 +1,7 @@
 // lib/supabase/server.ts example
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { resilientFetch } from './resilient-fetch'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -19,6 +20,9 @@ export async function createClient() {
           } catch { /* Handle server component cookie limits */ }
         },
       },
+      global: {
+        fetch: resilientFetch
+      }
     }
   )
 }

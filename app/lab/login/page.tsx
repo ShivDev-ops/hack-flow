@@ -12,6 +12,7 @@ export default function LabIdentityGate() {
   const [loading, setLoading] = useState(false);
   const [readableId, setReadableId] = useState("");
   const [members, setMembers] = useState<any[]>([]);
+  const [teamName, setTeamName] = useState<string>("");
   const [selectedMember, setSelectedMember] = useState("");
   const [showPin, setShowPin] = useState(false);
   
@@ -50,6 +51,7 @@ export default function LabIdentityGate() {
     const res = await getTeamByReadableId(readableId);
     if (res.success) {
       setMembers(res.members || []);
+      setTeamName(res.team?.name || readableId);
       setStep(2);
     } else {
       alert(res.error);
@@ -97,6 +99,9 @@ export default function LabIdentityGate() {
             <ShieldCheck className="text-secondary" size={32} />
           </div>
           <h1 className="text-4xl font-black tracking-tighter uppercase italic leading-none">Identity_Gate</h1>
+          {teamName && step === 2 && (
+            <p className="text-secondary/80 text-xs font-black uppercase tracking-[0.3em] mt-3">Node: {teamName}</p>
+          )}
           <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.4em] mt-4 italic">Authorized Mission Entry Required</p>
         </header>
 

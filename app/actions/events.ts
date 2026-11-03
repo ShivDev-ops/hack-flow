@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { revalidatePath } from "next/cache";
 import { getLabSession } from "@/app/actions/lab-auth";
+import crypto from "crypto";
 
 export async function createEventAction(
   name: string, 
@@ -46,6 +47,7 @@ export async function createEventAction(
   // 2. INSERT EVENT
   const finalStartTime = startTime || new Date().toISOString();
   const finalEndTime = endTime || new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  const eventPin = crypto.randomInt(100000, 999999).toString();
 
   const { data: eventData, error: eventError } = await supabase
     .from('hf_events')
@@ -54,6 +56,7 @@ export async function createEventAction(
       start_time: finalStartTime,
       end_time: finalEndTime,
       max_members: maxSize,
+      event_pin: eventPin,
       column_mapping: sheetUrl ? { '__sheet_url': sheetUrl } : {} 
     })
     .select()
@@ -139,14 +142,17 @@ export async function getActiveEventAction() {
 }
 
 export async function getEventDetails(eventId: string) {
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
     const { data, error } = await supabase
         .from('hf_events')
         .select('name, problem_statement, srs_document_path')
         .eq('id', eventId)
         .single();
     
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      console.error("[GET_EVENT_DETAILS_ERROR]:", error.message);
+      return { success: false, error: error.message };
+    }
     return { success: true, data };
 }
 
@@ -158,7 +164,7 @@ export async function updateEventResources(formData: FormData) {
 
     if (!eventId) return { success: false, error: "Event ID is missing." };
     
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
     let srsPath: string | undefined = undefined;
 
     if (srsDocument && srsDocument.size > 0) {
@@ -168,14 +174,19 @@ export async function updateEventResources(formData: FormData) {
 
       const { error: uploadError } = await supabase.storage
         .from('event_resources')
-        .upload(filePath, srsDocument);
+        .upload(filePath, srsDocument, {
+          upsert: true
+        });
 
-      if (uploadError) return { success: false, error: `Storage Error: ${uploadError.message}` };
+      if (uploadError) {
+        console.error("[STORAGE_UPLOAD_ERROR]:", uploadError.message);
+        return { success: false, error: `Storage Error: ${uploadError.message}` };
+      }
       srsPath = filePath;
     }
 
     const updateData: { problem_statement: string; srs_document_path?: string } = {
-      problem_statement: problemStatement
+      problem_statement: problemStatement || ""
     };
     if (srsPath) updateData.srs_document_path = srsPath;
 
@@ -185,14 +196,17 @@ export async function updateEventResources(formData: FormData) {
       .eq('id', eventId);
 
     if (dbError) {
+      console.error("[UPDATE_EVENT_RESOURCES_DB_ERROR]:", dbError.message);
       if (srsPath) await supabase.storage.from('event_resources').remove([srsPath]);
       return { success: false, error: `Database Error: ${dbError.message}` };
     }
 
-    // Revalidate participant briefing page so lab view sees updated resources
+    // Revalidate participant briefing page and resource page
     revalidatePath('/lab/dashboard/briefing');
+    revalidatePath(`/dashboard/event/${eventId}/resources`);
     return { success: true, path: srsPath };
   } catch (err: any) {
+    console.error("[UPDATE_EVENT_RESOURCES_CRITICAL]:", err);
     return { success: false, error: `A critical error occurred: ${err.message}` };
   }
 }

@@ -1,0 +1,101 @@
+table_name,column_name,data_type,is_nullable,column_default
+applications,id,uuid,NO,gen_random_uuid()
+applications,project_id,uuid,NO,null
+applications,applicant_id,uuid,NO,null
+applications,status,text,NO,'pending'::text
+applications,chat_thread_id,uuid,YES,null
+applications,message,text,YES,null
+applications,applied_at,timestamp with time zone,NO,now()
+applications,updated_at,timestamp with time zone,NO,now()
+chat_members,id,uuid,NO,gen_random_uuid()
+chat_members,thread_id,uuid,NO,null
+chat_members,user_id,uuid,NO,null
+chat_members,joined_at,timestamp with time zone,NO,now()
+chat_messages,id,uuid,NO,gen_random_uuid()
+chat_messages,thread_id,uuid,NO,null
+chat_messages,sender_id,uuid,NO,null
+chat_messages,content,text,NO,null
+chat_messages,created_at,timestamp with time zone,NO,now()
+chat_mutes,id,uuid,NO,gen_random_uuid()
+chat_mutes,user_id,uuid,NO,null
+chat_mutes,thread_id,uuid,NO,null
+chat_mutes,created_at,timestamp with time zone,NO,now()
+chat_threads,id,uuid,NO,gen_random_uuid()
+chat_threads,name,text,YES,null
+chat_threads,type,text,NO,'dm'::text
+chat_threads,created_by,uuid,NO,null
+chat_threads,created_at,timestamp with time zone,NO,now()
+friend_requests,id,uuid,NO,gen_random_uuid()
+friend_requests,sender_id,uuid,NO,null
+friend_requests,receiver_id,uuid,NO,null
+friend_requests,status,text,NO,'pending'::text
+friend_requests,created_at,timestamp with time zone,NO,now()
+hf_api_telemetry,id,uuid,NO,gen_random_uuid()
+hf_api_telemetry,event_id,uuid,YES,null
+hf_api_telemetry,tokens_consumed,integer,NO,null
+hf_api_telemetry,operation_type,text,NO,null
+hf_api_telemetry,created_at,timestamp with time zone,YES,now()
+hf_audit_log,id,bigint,NO,null
+hf_audit_log,table_name,text,NO,null
+hf_audit_log,row_id,uuid,NO,null
+hf_audit_log,operation,text,NO,null
+hf_audit_log,changed_by,uuid,YES,null
+hf_audit_log,changed_at,timestamp with time zone,YES,now()
+hf_audit_log,old_record,jsonb,YES,null
+hf_audit_log,new_record,jsonb,YES,null
+hf_code_map,id,uuid,NO,gen_random_uuid()
+hf_code_map,team_id,uuid,YES,null
+hf_code_map,file_path,text,NO,null
+hf_code_map,content_summary,text,YES,null
+hf_code_map,embedding,USER-DEFINED,YES,null
+hf_code_map,last_commit_sha,text,YES,null
+hf_code_map,created_at,timestamp with time zone,YES,now()
+hf_events,id,uuid,NO,gen_random_uuid()
+hf_events,name,text,NO,null
+hf_events,start_time,timestamp with time zone,NO,null
+hf_events,end_time,timestamp with time zone,NO,null
+hf_events,created_at,timestamp with time zone,YES,now()
+hf_events,column_mapping,jsonb,YES,'{}'::jsonb
+hf_events,max_members,integer,YES,4
+hf_events,is_active,boolean,YES,true
+hf_events,event_pin,text,YES,null
+hf_events,problem_statement,text,YES,null
+hf_events,srs_document_path,text,YES,null
+hf_events,judging_rubric,jsonb,YES,"'{""alignment"": 25, ""execution"": 25, ""innovation"": 25, ""technical_depth"": 25}'::jsonb"
+hf_events,is_locked,boolean,YES,false
+hf_judging_results,id,uuid,NO,gen_random_uuid()
+hf_judging_results,team_id,uuid,YES,null
+hf_judging_results,event_id,uuid,YES,null
+hf_judging_results,alignment_score,integer,YES,null
+hf_judging_results,execution_score,integer,YES,null
+hf_judging_results,innovation_score,integer,YES,null
+hf_judging_results,technical_score,integer,YES,null
+hf_judging_results,total_score,numeric,YES,null
+hf_judging_results,ai_justification,text,YES,null
+hf_judging_results,created_at,timestamp with time zone,YES,now()
+hf_organizer_credentials,id,uuid,NO,gen_random_uuid()
+hf_organizer_credentials,access_id,text,NO,null
+hf_organizer_credentials,password_hash,text,NO,null
+hf_organizer_credentials,event_id,uuid,YES,null
+hf_organizer_credentials,role,text,NO,'ORGANIZER'::text
+hf_organizer_credentials,is_active,boolean,YES,true
+hf_organizer_credentials,created_at,timestamp with time zone,YES,now()
+hf_organizer_credentials,azure_ad_id,text,YES,null
+hf_participants,id,uuid,NO,gen_random_uuid()
+hf_participants,event_id,uuid,YES,null
+hf_participants,full_name,text,NO,null
+hf_participants,email,text,YES,null
+hf_participants,is_claimed,boolean,YES,false
+hf_participants,claimed_at,timestamp with time zone,YES,null
+hf_participants,claimed_by_id,uuid,YES,null
+hf_participants,created_at,timestamp with time zone,YES,now()
+hf_participants,registration_no,text,YES,null
+hf_participants,team_name,text,YES,null
+hf_participants,is_leader,boolean,YES,false
+hf_participants,payment_id,text,YES,null
+hf_participants,payment_url,text,YES,null
+hf_participants,payment_verified,boolean,YES,false
+hf_participants,added_manually,boolean,YES,false
+hf_participants,phone_number,text,YES,null
+hf_participants,role,text,YES,'member'::text
+hf_project_dna,id,uuid,NO,gen_random_uuid()

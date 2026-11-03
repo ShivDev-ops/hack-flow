@@ -6,6 +6,7 @@ export interface Event {
   end_time: string | null;
   is_active: boolean;
   is_locked: boolean;
+  event_pin?: string | null;
   column_mapping: Record<string, string>;
   created_at: string;
 }

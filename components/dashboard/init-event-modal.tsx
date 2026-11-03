@@ -14,6 +14,7 @@ const getLocalISOString = (date: Date) => {
 export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   
@@ -36,10 +37,10 @@ export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
   if (!isOpen) return null;
 
   const handleConnect = async () => {
+    setError(null);
     setLoading(true);
     const sheetRes = await testSheetConnection(formData.url);
     if (sheetRes.success && sheetRes.headers) {
-      
       const eventRes = await createEventAction(
         formData.name, 
         formData.max_size,
@@ -53,10 +54,10 @@ export function InitEventModal({ isOpen, onClose }: { isOpen: boolean, onClose: 
         setHeaders(sheetRes.headers);
         setStep(2);
       } else {
-        alert(eventRes.error);
+        setError(eventRes.error || "Event initialization failed.");
       }
     } else {
-      alert(sheetRes.error);
+      setError(sheetRes.error || "Could not connect to Google Sheet.");
     }
     setLoading(false);
   };

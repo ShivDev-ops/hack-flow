@@ -35,10 +35,12 @@ function LoginContent() {
     });
     if (res?.error) {
       setErrorMessage('INVALID_CREDENTIALS: Access Denied.');
+      setLoading(false);
     } else {
-      router.push('/dashboard');
+      // Hard navigation ensures the session cookie is fully propagated
+      // before the dashboard checks auth status (prevents bounce-back)
+      window.location.href = '/dashboard';
     }
-    setLoading(false);
   };
 
   

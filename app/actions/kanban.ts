@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 export async function updateTaskStatus(
@@ -10,7 +10,7 @@ export async function updateTaskStatus(
   commitSha: string | null = null,
   reason: string | null = null
 ) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   // 1. DEADLINE CHECK
   const { data: event } = await supabase
@@ -53,7 +53,7 @@ export async function updateTaskStatus(
 }
 
 export async function deleteTaskAction(taskId: string, eventId: string) {
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
 
     // Deadline check
     const { data: event } = await supabase
@@ -78,7 +78,7 @@ export async function deleteTaskAction(taskId: string, eventId: string) {
 }
 
 export async function createTaskAction(teamId: string, eventId: string, title: string, description: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   // Deadline check
   const { data: event } = await supabase
@@ -116,7 +116,7 @@ export async function createTaskAction(teamId: string, eventId: string, title: s
 }
 
 export async function bulkAddTasksAction(teamId: string, eventId: string, tasks: { title: string, description: string, phase: number }[]) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   let finalEventId = eventId;
   if (!finalEventId) {
@@ -151,7 +151,7 @@ export async function bulkAddTasksAction(teamId: string, eventId: string, tasks:
 }
 
 export async function linkCommitToTaskAction(teamId: string, taskId: string, commitSha: string) {
-    const supabase = await createClient();
+    const supabase = await createAdminClient();
   
     const { error } = await supabase
       .from("hf_tasks")

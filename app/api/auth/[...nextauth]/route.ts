@@ -5,7 +5,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { verifyCredentials } from "@/lib/auth/credentials";
 
 interface ExtendedUser extends NextAuthUser {
   role?: 'ORGANIZER' | 'SUPER_ADMIN' | 'AUTHENTICATED';
@@ -34,48 +35,26 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        console.log("[AUTH_DEBUG] Login attempt for:", credentials?.accessId);
-        if (!credentials?.accessId || !credentials?.password) return null;
-
-        const supabase = await createAdminClient();
-        
-        const { data: organizer, error } = await supabase
-          .from("hf_organizer_credentials")
-          .select("*")
-          .ilike("access_id", credentials.accessId) 
-          .maybeSingle();
-
-        if (error || !organizer) {
-            console.warn("[AUTH_DEBUG] User not found:", credentials.accessId);
-            return null;
+        let ip = 'unknown';
+        try {
+          const hdrs = await headers();
+          ip = hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+        } catch (e) {
+          // headers() may fail in certain environments; fallback gracefully
         }
 
-        if (!organizer.is_active && organizer.role !== "SUPER_ADMIN") {
-            console.warn("[AUTH_DEBUG] Account suspended:", credentials.accessId);
-            return null;
+        const result = await verifyCredentials(credentials, { clientIp: ip });
+        if (!result.success || !result.user) {
+          return null;
         }
 
-        const isValid = await bcrypt.compare(credentials.password, organizer.password_hash);
-        if (!isValid) {
-            console.warn("[AUTH_DEBUG] Invalid password for:", credentials.accessId);
-            return null;
-        }
-
-        console.log("[AUTH_DEBUG] Login successful:", organizer.access_id, "ID:", organizer.id);
-        
-        return {
-          id: organizer.id,
-          name: organizer.access_id,
-          role: organizer.role as any,
-          eventId: organizer.event_id || undefined,
-          azure_ad_id: organizer.azure_ad_id,
-        };
+        return result.user;
       }
     })
   ],
   session: {
     strategy: "jwt",
-    maxAge: 300, // 5 minutes to force frequent refresh
+    maxAge: 86400, // 24 hours
   },
   pages: {
     signIn: '/login',
@@ -182,4 +161,10 @@ export const authOptions: AuthOptions = {
 };
 
 const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };
+export async function GET(req: any, ctx: any) {
+  return handler(req, ctx);
+}
+
+export async function POST(req: any, ctx: any) {
+  return handler(req, ctx);
+}

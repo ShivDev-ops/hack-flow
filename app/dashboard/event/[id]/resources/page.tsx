@@ -19,6 +19,7 @@ export default function EventResourcesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchEventData = async () => {
@@ -54,6 +55,7 @@ export default function EventResourcesPage() {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
+    setSuccess(null);
 
     const formData = new FormData();
     formData.append("eventId", eventId);
@@ -64,9 +66,12 @@ export default function EventResourcesPage() {
 
     try {
       const res = await updateEventResources(formData);
-      if (res.success && res.path) {
-        setExistingSrsPath(res.path);
-        setSrsDocument(null); // Clear the file input after successful upload
+      if (res.success) {
+        if (res.path) {
+          setExistingSrsPath(res.path);
+          setSrsDocument(null); // Clear the file input after successful upload
+        }
+        setSuccess("Event resources updated successfully!");
       } else {
         setError(res.error || "An unknown error occurred.");
       }
@@ -142,6 +147,7 @@ export default function EventResourcesPage() {
         </div>
 
         {error && <div className="text-red-500 bg-red-500/10 p-3 rounded-md border border-red-500/20">{error}</div>}
+        {success && <div className="text-emerald-400 bg-emerald-500/10 p-3 rounded-md border border-emerald-500/20 font-medium text-sm">{success}</div>}
 
         <button
           onClick={handleSave}

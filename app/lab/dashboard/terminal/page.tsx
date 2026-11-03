@@ -78,6 +78,7 @@ export default function TerminalPage() {
   const [isWiring, setIsWiring] = useState<string | null>(null);
   const [deploymentUrl, setDeploymentUrl] = useState<string | null>(null);
   const [dbEndpoint, setDbEndpoint] = useState<string | null>(null);
+  const [iframeLoading, setIframeLoading] = useState(true);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
   const [hoveredCommitSha, setHoveredCommitSha] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -87,6 +88,17 @@ export default function TerminalPage() {
   const [selectedCommit, setSelectedCommit] = useState<Record<string, string>>({});
 
   const supabase = useMemo(() => createClient(), []);
+
+  const activeDeploymentUrl = useMemo(() => {
+    const raw = deploymentUrl || teamData?.deployment_url;
+    if (!raw || typeof raw !== "string") return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
+  }, [deploymentUrl, teamData?.deployment_url]);
 
   // Neural Link Handlers
   useEffect(() => {
@@ -136,6 +148,12 @@ export default function TerminalPage() {
     setTasks(tasksRes.data || []);
     setDbLogs(telemetryRes.data || []);
     setTeamData(teamRes.data);
+    if (teamRes.data?.deployment_url) {
+      setDeploymentUrl(teamRes.data.deployment_url);
+    }
+    if (teamRes.data?.db_connection) {
+      setDbEndpoint(teamRes.data.db_connection);
+    }
 
     // EXTRACT LATEST AI INSIGHT FROM TELEMETRY
     const latestInsightLog = telemetryRes.data?.find(log => log.action_type === "AI_INSIGHT");
@@ -163,16 +181,21 @@ export default function TerminalPage() {
 
         const [configRes, teamDataRes] = await Promise.all([
             getTeamConfig(activeTeamId),
-            supabase.from("hf_teams").select("event_id").eq("id", activeTeamId).single()
+            supabase.from("hf_teams").select("event_id, deployment_url, db_connection").eq("id", activeTeamId).single()
         ]);
 
-        if (configRes.success && configRes.config) {
-          console.log("[TERMINAL_INIT] Loaded Deployment URL:", configRes.config.deployment_url);
-          setDeploymentUrl(configRes.config.deployment_url);
-          setDbEndpoint(configRes.config.db_connection);
+        const depUrl = configRes.config?.deployment_url || teamDataRes.data?.deployment_url;
+        const dbUrl = configRes.config?.db_connection || teamDataRes.data?.db_connection;
+
+        if (depUrl) {
+          console.log("[TERMINAL_INIT] Loaded Deployment URL:", depUrl);
+          setDeploymentUrl(depUrl);
+        }
+        if (dbUrl) {
+          setDbEndpoint(dbUrl);
         }
 
-        if (teamDataRes.data) {
+        if (teamDataRes.data?.event_id) {
             setEventId(teamDataRes.data.event_id);
         }
 
@@ -327,7 +350,7 @@ export default function TerminalPage() {
 
       <header className="flex flex-col gap-8 relative z-10 border-b border-white/5 pb-10">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-           <ObservabilityPanel deploymentUrl={deploymentUrl} dbEndpoint={dbEndpoint} />
+           <ObservabilityPanel deploymentUrl={activeDeploymentUrl} dbEndpoint={dbEndpoint} />
            <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter leading-none order-first md:order-last">
             Mission <span className="text-white/20">Hub</span>
           </h1>
@@ -339,45 +362,63 @@ export default function TerminalPage() {
         
         {/* LIVE PREVIEW (Main Center Stage) */}
         <div className="xl:col-span-8 space-y-10">
-          {deploymentUrl ? (
-            <div className="glass-panel rim-light rounded-[3rem] overflow-hidden border border-white/5 bg-black/40 shadow-2xl group transition-all hover:border-blue-500/30">
+          {activeDeploymentUrl ? (
+            <div className="glass-panel rim-light rounded-[3rem] overflow-hidden border border-white/5 bg-black/40 shadow-2xl transition-all hover:border-blue-500/30">
               <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_10px_#3b82f6]" />
                   <span className="text-xs font-black text-white/60 uppercase tracking-widest">Live Application Preview</span>
                 </div>
-                <a 
-                  href={deploymentUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-xs font-black text-secondary uppercase hover:text-white transition-colors flex items-center gap-2 tracking-widest"
-                >
-                  Open in New Tab <ExternalLink size={14} />
-                </a>
+                <div className="flex items-center gap-4">
+                  <a 
+                    href={activeDeploymentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs font-black text-secondary uppercase hover:text-white transition-colors flex items-center gap-2 tracking-widest bg-white/5 px-4 py-1.5 rounded-xl border border-white/5 hover:bg-white/10"
+                  >
+                    Open in New Tab <ExternalLink size={14} />
+                  </a>
+                </div>
               </div>
-              <div className="relative h-[650px] bg-zinc-900/50 overflow-hidden group/iframe">
+              <div className="relative h-[650px] bg-zinc-950 overflow-hidden flex flex-col">
+                {iframeLoading && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 z-10 gap-3">
+                    <Loader2 className="w-8 h-8 text-secondary animate-spin" />
+                    <p className="text-xs uppercase font-mono tracking-widest text-white/50">Connecting to live stream...</p>
+                  </div>
+                )}
                 <iframe 
-                  key={deploymentUrl}
-                  src={deploymentUrl} 
-                  className="w-full h-[150%] origin-top-left border-none opacity-90 group-hover/iframe:opacity-100 transition-opacity duration-700"
+                  key={activeDeploymentUrl}
+                  src={activeDeploymentUrl} 
+                  className="w-full flex-1 border-none bg-zinc-950"
                   title="Live Deployment Preview"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  allow="accelerometer; autoplay; camera; clipboard-write; encrypted-media; fullscreen; geolocation; gyroscope; microphone"
+                  onLoad={() => setIframeLoading(false)}
                 />
                 
-                {/* INTERACTION OVERLAY: Only shows if user explicitly wants to bypass the preview wrapper */}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/iframe:opacity-100 transition-opacity flex flex-col items-center justify-center gap-6 backdrop-blur-sm">
-                   <div className="text-center space-y-2 px-10">
-                      <p className="text-sm font-black text-white uppercase tracking-[0.2em]">Security Protocol Active</p>
-                      <p className="text-[10px] text-white/40 uppercase font-bold tracking-widest leading-relaxed">
-                        Some sites restrict direct embedding. If the preview above is blank, use the manual uplink below.
-                      </p>
-                   </div>
-                   <button 
-                      onClick={() => window.open(deploymentUrl, '_blank')}
-                      className="bg-white text-black font-black px-8 py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-secondary transition-all active:scale-95 flex items-center gap-3 shadow-2xl"
+                {/* BOTTOM FALLBACK BAR (Discreet, non-intrusive) */}
+                <div className="px-6 py-2.5 bg-black/80 border-t border-white/5 flex items-center justify-between text-[11px] text-white/40">
+                  <span className="truncate">
+                    Target: <span className="text-white/60 font-mono">{activeDeploymentUrl}</span>
+                  </span>
+                  <div className="flex items-center gap-4 shrink-0 ml-4">
+                    <button 
+                      onClick={() => {
+                        setIframeLoading(true);
+                        const iframe = document.querySelector('iframe');
+                        if (iframe) iframe.src = activeDeploymentUrl;
+                      }}
+                      className="text-white/40 hover:text-white transition-colors uppercase font-bold tracking-widest text-[10px]"
                     >
-                      Establish Direct Uplink <ExternalLink size={16} />
+                      Reload
                     </button>
+                    <button 
+                      onClick={() => window.open(activeDeploymentUrl, '_blank')}
+                      className="text-secondary hover:text-white transition-colors uppercase font-bold tracking-widest flex items-center gap-1.5"
+                    >
+                      Direct Uplink <ExternalLink size={12} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
